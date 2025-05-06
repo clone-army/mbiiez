@@ -48,17 +48,17 @@ class main:
  
         parser = argparse.ArgumentParser(add_help=False)
         group = parser.add_mutually_exclusive_group()
-        group.add_argument("-i", type=str, help="Action on Instance", nargs="+", metavar=('INSTANCE', 'ACTION', 'OPTIONAL_ARGS'), dest="instance")   
-        group.add_argument("-l", action="store_true", help="List Instances", dest="list")            
-        group.add_argument("-u", action="store_true", help="Update MBII", dest="update")
-        group.add_argument("-c", type=str, help="Action on Instance", nargs="+", dest="client") 
-        
-        group.add_argument("-r", action="store_true", help="Restart Instances", dest="restart") 
-        
-        group.add_argument("-h", action="store_true", help="Help Usage", dest="help") 
-        
-        parser.add_argument("-v", action="store_true", help="Verbosed Output", dest="verbose")   
-        
+        group.add_argument("-i", type=str, help="Action on Instance", nargs="+", metavar="INSTANCE", dest="instance")
+
+        group.add_argument("-l", action="store_true",              help="List Instances",      dest="list")
+        group.add_argument("-u", action="store_true",              help="Update MBII",         dest="update")
+        group.add_argument("-c", type=str, nargs="+", metavar="CLIENT", help="Action on Client",   dest="client")
+        group.add_argument("-r", action="store_true",              help="Restart Instances",   dest="restart")
+        group.add_argument("-h", action="store_true",              help="Help Usage",          dest="help")
+        parser.add_argument("-v", action="store_true",              help="Verbose Output",      dest="verbose")
+
+
+                
         args = parser.parse_args()
         
         if(args.verbose):
