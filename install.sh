@@ -64,12 +64,30 @@ readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly SERVICE_NAME="mbii-web"
 
 # ─── 1) APT packages ──────────────────────────────────────────────────────
-run_step "Installing APT packages (including i386 support)" \
+run_step "Installing APT packages" \
   "dpkg --add-architecture i386 && \
    apt-get update && \
    apt-get install -y \
-     wget curl unzip python3-pip python3-venv python3-dev libsqlite3-dev snapd \
-     libsdl2-2.0-0:i386 libc6:i386 zlib1g:i386 net-tools gnupg apt-transport-https ca-certificates"
+     wget \
+     curl \
+     unzip \
+     python3-pip \
+     python3-venv \
+     python3-dev \
+     build-essential \
+     python3-psutil \
+     libsqlite3-dev \
+     snapd \
+     libsdl2-2.0-0:i386 \
+     libc6:i386 \
+     zlib1g:i386 \
+     net-tools \
+     gnupg \
+     apt-transport-https \
+     ca-certificates"
+
+
+
 
 
 # ─── 2) .NET 6 SDK ─────────────────────────────────────────────────────────
@@ -94,8 +112,17 @@ run_step "Setting up Python venv & pip packages" \
   "python3 -m venv \"$VENV_DIR\" && \
    \"$VENV_DIR/bin/pip\" install --upgrade pip && \
    \"$VENV_DIR/bin/pip\" install \
-     watchgod tailer six psutil PTable ConfigParser pysqlite3 \
-     flask flask_httpauth discord.py"
+     watchgod \
+     tailer \
+     six \
+     prettytable \
+     pysqlite3 \
+     flask \
+     flask_httpauth \
+     discord.py \
+	 requests"
+
+
 
 # ─── 4) Prepare directories ───────────────────────────────────────────────
 printf "${BLUE}→ Preparing directories...${NC} "
@@ -132,12 +159,18 @@ ASSETS=(
 )
 for url in "${ASSETS[@]}"; do
   fn=$(basename "$url")
-  if wget -qO "$BASE/base/$fn" "$url"; then
-    printf "   ${GREEN}✔${NC} %s\n" "$fn"
+  dest="$BASE/base/$fn"
+  if [ -f "$dest" ]; then
+    printf "   ${YELLOW}→ Skipping existing %s${NC}\n" "$fn"
   else
-    printf "   ${RED}✗${NC} %s\n" "$fn"
+    if wget -qO "$dest" "$url"; then
+      printf "   ${GREEN}✔${NC} %s\n" "$fn"
+    else
+      printf "   ${RED}✗${NC} %s\n" "$fn"
+    fi
   fi
 done
+
 
 
 # ─── 7) OpenJK ─────────────────────────────────────────────────────────────
@@ -146,6 +179,12 @@ run_step "Installing OpenJK" \
      | tar xz -C $BASE && \
    cp -a $BASE/install/JediAcademy/. $BASE/ && \
    rm -rf $BASE/install"
+
+# ─── Install openjkded CLI command ────────────────────────────────────────
+run_step "Installing openjkded command" \
+  "ln -sf \"${BASE}/openjkded.i386\" /usr/bin/openjkded.i386 && \
+   chmod +x /usr/bin/openjkded.i386"
+
 
 
 # ─── 9) Write systemd service ─────────────────────────────────────────────
@@ -168,6 +207,16 @@ printf "${GREEN}✔${NC}\n"
 # ─── 9) Enable & start ────────────────────────────────────────────────────
 run_step "Enabling systemd service" \
   "systemctl daemon-reload && systemctl enable ${SERVICE_NAME} && systemctl restart ${SERVICE_NAME}"
+
+# ─── Install mbii CLI command ─────────────────────────────────────────────
+run_step "Installing mbii CLI command" \
+  "cat > /usr/local/bin/mbii <<EOF
+#!/usr/bin/env bash
+exec \"${VENV_DIR}/bin/python3\" \"${SCRIPT_DIR}/mbii.py\" \"\\\$@\"
+EOF
+chmod +x /usr/local/bin/mbii"
+
+
 
 # ─── Done ────────────────────────────────────────────────────────────────
 printf "\n${GREEN}✅ Installation complete!${NC}\n"
