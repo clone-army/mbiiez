@@ -95,36 +95,46 @@ printf "${BLUE}→ Preparing directories...${NC} "
 mkdir -p "$MBII_DIR" "$BASE/base"
 printf "${GREEN}✔${NC}\n"
 
-# ─── 5) OpenJK ─────────────────────────────────────────────────────────────
-  OPENJKPATH="${BASE}/base"
-
-run_step "Installing OpenJK" \
-  "wget -qO- https://builds.openjk.org/openjk-2018-02-26-e3f22070-linux.tar.gz \
-     | tar xz -C $BASE --strip-components=2"
-	 
-  sleep 1
 
 # ─── 6) Installing MBII ───────────────────────────────────────────────────
 run_step "Installing MBII" \
   "dotnet \"${SCRIPT_DIR}/updater/MBII_CommandLine_Update_XPlatform.dll\" -path \"$BASE\""
 
 
-# ─── 7) JK2 assets ────────────────────────────────────────────────────────
-printf "${BLUE}→ Downloading JK2 assets...${NC}\n"
-ASSETS_B64='aHR0cHM6Ly93d3cueC1yYWlkZXJzLm5ldC9kb3dubG9hZC9qazMvYXNzZXRzMC9maWxlL2Fzc2V0czAucGszaHR0cHM6Ly93d3cueC1yYWlkZXJzLm5ldC9kb3dubG9hZC9qazMvYXNzZXRzMS9maWxlL2Fzc2V0czEucGszaHR0cHM6Ly93d3cueC1yYWlkZXJzLm5ldC9kb3dubG9hZC9qazMvYXNzZXRzMi9maWxlL2Fzc2V0czIucGszaHR0cHM6Ly93d3cueC1yYWlkZXJzLm5ldC9kb3dubG9hZC9qazMvYXNzZXRzMy9maWxlL2Fzc2V0czMucGszCg=='
-echo "$ASSETS_B64" \
-  | base64 -d \
-  | tr -s '[:space:]' '\n' \
-  | while read -r url; do
-      fn=$(basename "$url")
-      if wget -qO "$BASE/base/$fn" "$url"; then
-        printf "   ${GREEN}✔${NC} %s\n" "$fn"
-      else
-        printf "   ${RED}✗${NC} %s\n" "$fn"
-      fi
-    done
+# ─── 7) RTVRTM resources ───────────────────────────────────────────────────
+run_step "Installing RTVRTM" \
+  "wget -qO /tmp/RTVRTM.zip https://www.moviebattles.org/download/RTVRTM.zip && \
+   unzip -o /tmp/RTVRTM.zip -d \"$MBII_DIR\" && \
+   rm /tmp/RTVRTM.zip"
 
-# ─── 8) Write systemd service ─────────────────────────────────────────────
+
+# ─── 8) JK2 assets ────────────────────────────────────────────────────────
+printf "${BLUE}→ Downloading JK2 assets...${NC}\n"
+ASSETS=(
+  "https://www.x-raiders.net/download/jk3/assets0/file/assets0.pk3"
+  "https://www.x-raiders.net/download/jk3/assets1/file/assets1.pk3"
+  "https://www.x-raiders.net/download/jk3/assets2/file/assets2.pk3"
+  "https://www.x-raiders.net/download/jk3/assets3/file/assets3.pk3"
+)
+for url in "${ASSETS[@]}"; do
+  fn=$(basename "$url")
+  if wget -qO "$BASE/base/$fn" "$url"; then
+    printf "   ${GREEN}✔${NC} %s\n" "$fn"
+  else
+    printf "   ${RED}✗${NC} %s\n" "$fn"
+  fi
+done
+
+
+# ─── 7) OpenJK ─────────────────────────────────────────────────────────────
+run_step "Installing OpenJK" \
+  "wget -qO- https://builds.openjk.org/openjk-2018-02-26-e3f22070-linux.tar.gz \
+     | tar xz -C $BASE && \
+   cp -a $BASE/install/JediAcademy/. $BASE/ && \
+   rm -rf $BASE/install"
+
+
+# ─── 9) Write systemd service ─────────────────────────────────────────────
 printf "${BLUE}→ Writing systemd service...${NC} "
 cat >"/etc/systemd/system/${SERVICE_NAME}.service" <<EOF
 [Unit]
