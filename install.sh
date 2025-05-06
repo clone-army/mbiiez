@@ -64,23 +64,30 @@ readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly SERVICE_NAME="mbii-web"
 
 # ─── 1) APT packages ──────────────────────────────────────────────────────
-run_step "Installing APT packages" \
-  "apt-get update && apt-get install -y \
+run_step "Installing APT packages (including i386 support)" \
+  "dpkg --add-architecture i386 && \
+   apt-get update && \
+   apt-get install -y \
      wget curl unzip python3-pip python3-venv python3-dev libsqlite3-dev snapd \
      libsdl2-2.0-0:i386 libc6:i386 zlib1g:i386 net-tools gnupg apt-transport-https ca-certificates"
+
 
 # ─── 2) .NET 6 SDK ─────────────────────────────────────────────────────────
 run_step "Installing .NET 6 SDK" \
   "if ! command -v dotnet >/dev/null; then \
-     wget -qO- https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor \
-       > /usr/share/keyrings/microsoft.gpg && \
-     DISTRO=\"\$(. /etc/os-release && echo \"\$ID\")\" && \
-     CODE=\"\$(. /etc/os-release && echo \"\$VERSION_CODENAME\")\" && \
+     apt-get update && apt-get install -y wget apt-transport-https ca-certificates gnupg && \
+     wget -qO- https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > /usr/share/keyrings/microsoft.gpg && \
+     DISTRO=\"\$(. /etc/os-release && echo \$ID)\" && \
+     CODENAME=\"\$(. /etc/os-release && echo \$VERSION_CODENAME)\" && \
+     # Default to jammy on Ubuntu if Microsoft doesn't support the current codename
+     if [[ \"\$DISTRO\" == \"ubuntu\" && ! \"\$CODENAME\" =~ ^(bionic|focal|jammy)\$ ]]; then CODENAME=jammy; fi && \
      echo \"deb [signed-by=/usr/share/keyrings/microsoft.gpg] \
-       https://packages.microsoft.com/repos/microsoft-\${DISTRO}-\${CODE}-prod \
-       \${CODE} main\" > /etc/apt/sources.list.d/microsoft-prod.list && \
-     apt-get update && apt-get install -y dotnet-sdk-6.0; \
+       https://packages.microsoft.com/repos/microsoft-\${DISTRO}-\${CODENAME}-prod \
+       \${CODENAME} main\" > /etc/apt/sources.list.d/microsoft-prod.list && \
+     apt-get update && \
+     (apt-get install -y dotnet-sdk-6.0 || snap install dotnet-sdk --channel 6.0/stable --classic); \
    fi"
+
 
 # ─── 3) Python venv & pip deps ─────────────────────────────────────────────
 run_step "Setting up Python venv & pip packages" \
@@ -95,6 +102,13 @@ printf "${BLUE}→ Preparing directories...${NC} "
 mkdir -p "$MBII_DIR" "$BASE/base"
 printf "${GREEN}✔${NC}\n"
 
+
+# ─── 5) MBII CLI Updater ───────────────────────────────────────────────────
+mkdir -p "${SCRIPT_DIR}/updater"
+run_step "Downloading MBII CLI updater" \
+  "wget -qO /tmp/MBII_CLI_Updater.zip https://www.moviebattles.org/download/MBII_CLI_Updater.zip && \
+   unzip -o /tmp/MBII_CLI_Updater.zip -d \"${SCRIPT_DIR}/updater\" && \
+   rm /tmp/MBII_CLI_Updater.zip"
 
 # ─── 6) Installing MBII ───────────────────────────────────────────────────
 run_step "Installing MBII" \
