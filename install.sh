@@ -186,6 +186,12 @@ run_step "Installing openjkded command" \
    chmod +x /usr/bin/openjkded.i386"
 
 
+# ─── Symlink OpenJK into root’s local share ───────────────────────────────
+run_step "Symlinking /opt/openjk to /root/.local/share/openjk" \
+  "mkdir -p /root/.local/share && \
+   ln -sfn \"${BASE}\" /root/.local/share/openjk"
+
+
 
 # ─── 9) Write systemd service ─────────────────────────────────────────────
 printf "${BLUE}→ Writing systemd service...${NC} "
