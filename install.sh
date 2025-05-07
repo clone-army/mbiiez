@@ -67,7 +67,7 @@ readonly SERVICE_NAME="mbii-web"
 run_step "Installing APT packages" \
   "dpkg --add-architecture i386 && \
    apt-get update && \
-   apt-get install -y --ignore-missing \
+   apt-get install -y \
      wget \
      curl \
      unzip \
@@ -81,16 +81,15 @@ run_step "Installing APT packages" \
      snapd \
      libsdl2-2.0-0:i386 \
      libc6:i386 \
-     libstdc++6 \
-     libstdc++6:i386 \    
      zlib1g:i386 \
      net-tools \
      gnupg \
      apt-transport-https \
-     ca-certificates && \
-   if grep -q 'Unable to locate package' \"$LOG_FILE\"; then \
-     printf \"${YELLOW}⚠ Some APT packages failed to install—see %s for details.${NC}\n\" \"$LOG_FILE\"; \
-   fi"
+     ca-certificates \
+     libstdc++6 \
+     libstdc++6:i386 \
+     libcurl4 \
+     libcurl4:i386"
 
 # ─── 2) .NET 6 SDK & Runtime ───────────────────────────────────────────────
 run_step "Installing .NET 6 SDK & Runtime" \
