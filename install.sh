@@ -92,22 +92,8 @@ run_step "Installing APT packages" \
 
 # ─── 2) .NET 6 SDK & Runtime ───────────────────────────────────────────────
 run_step "Installing .NET 6 SDK & Runtime" \
-  "if ! command -v dotnet >/dev/null; then \
-     apt-get update && apt-get install -y wget apt-transport-https ca-certificates gnupg && \
-     wget -qO- https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor \
-       > /usr/share/keyrings/microsoft.gpg && \
-     DISTRO=\"\$(. /etc/os-release && echo \$ID)\" && \
-     CODENAME=\"\$(. /etc/os-release && echo \$VERSION_CODENAME)\" && \
-     if [[ \"\$DISTRO\" == \"ubuntu\" && ! \"\$CODENAME\" =~ ^(bionic|focal|jammy)\$ ]]; then CODENAME=jammy; fi && \
-     echo \"deb [signed-by=/usr/share/keyrings/microsoft.gpg] \
-       https://packages.microsoft.com/repos/microsoft-\${DISTRO}-\${CODENAME}-prod \
-       \${CODENAME} main\" > /etc/apt/sources.list.d/microsoft-prod.list && \
-     apt-get update && \
-     (apt-get install -y dotnet-sdk-6.0 dotnet-runtime-6.0 aspnetcore-runtime-6.0 \
-       || snap install dotnet-sdk --channel 6.0/stable --classic); \
-   fi"
-
-
+  "apt-get update && \
+   apt-get install -y dotnet6 || snap install dotnet-sdk --channel 6.0/stable --classic"
 
 # ─── 3) Python venv & pip deps ─────────────────────────────────────────────
 run_step "Setting up Python venv & pip packages" \
