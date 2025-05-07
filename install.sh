@@ -112,13 +112,15 @@ run_step "Installing .NET 6 SDK" \
 run_step "Setting up Python venv & pip packages (warning on failure)" \
   "python3 -m venv \"$VENV_DIR\" && \
    \"$VENV_DIR/bin/pip\" install --upgrade pip && \
-   for pkg in watchgod tailer six prettytable pysqlite3 psutil flask flask_httpauth discord.py requests; do \
-     if \"$VENV_DIR/bin/pip\" install \"$pkg\"; then \
-       printf \"${GREEN}✔ Installed %s${NC}\n\" \"$pkg\"; \
+   packages=(watchgod tailer six prettytable pysqlite3 psutil flask flask_httpauth discord.py requests) && \
+   for pkg in \"\${packages[@]}\"; do \
+     if \"$VENV_DIR/bin/pip\" install \"\$pkg\"; then \
+       printf \"${GREEN}✔ Installed %s${NC}\n\" \"\$pkg\"; \
      else \
-       printf \"${YELLOW}⚠ pip package %s failed to install.${NC}\n\" \"$pkg\"; \
+       printf \"${YELLOW}⚠ pip package %s failed to install.${NC}\n\" \"\$pkg\"; \
      fi; \
    done"
+
 
 # ─── 4) Prepare directories ───────────────────────────────────────────────
 printf "${BLUE}→ Preparing directories...${NC} "
