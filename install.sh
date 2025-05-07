@@ -199,6 +199,13 @@ run_step "Symlinking /opt/openjk to /root/.local/share/openjk" \
   "mkdir -p /root/.local/share && \
    ln -sfn \"${BASE}\" /root/.local/share/openjk"
 
+# ─── Install mbii CLI command ─────────────────────────────────────────────
+run_step "Installing mbii CLI command" \
+  "cat > /usr/local/bin/mbii <<EOF
+#!/usr/bin/env bash
+exec \"${VENV_DIR}/bin/python3\" \"${SCRIPT_DIR}/mbii.py\" \"\\\$@\"
+EOF
+chmod +x /usr/local/bin/mbii"
 
 
 # ─── 9) Write systemd service ─────────────────────────────────────────────
@@ -222,13 +229,6 @@ printf "${GREEN}✔${NC}\n"
 run_step "Enabling systemd service" \
   "systemctl daemon-reload && systemctl enable ${SERVICE_NAME} && systemctl restart ${SERVICE_NAME}"
 
-# ─── Install mbii CLI command ─────────────────────────────────────────────
-run_step "Installing mbii CLI command" \
-  "cat > /usr/local/bin/mbii <<EOF
-#!/usr/bin/env bash
-exec \"${VENV_DIR}/bin/python3\" \"${SCRIPT_DIR}/mbii.py\" \"\\\$@\"
-EOF
-chmod +x /usr/local/bin/mbii"
 
 
 
