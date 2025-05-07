@@ -90,13 +90,10 @@ run_step "Installing APT packages" \
      printf \"${YELLOW}⚠ Some APT packages failed to install—see %s for details.${NC}\n\" \"$LOG_FILE\"; \
    fi"
 
-
 # ─── 2) .NET 6 SDK & Runtime ───────────────────────────────────────────────
 run_step "Installing .NET 6 SDK & Runtime" \
   "if ! command -v dotnet >/dev/null; then \
-     # prerequisites
      apt-get update && apt-get install -y wget apt-transport-https ca-certificates gnupg && \
-     # Microsoft APT key & repo
      wget -qO- https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor \
        > /usr/share/keyrings/microsoft.gpg && \
      DISTRO=\"\$(. /etc/os-release && echo \$ID)\" && \
@@ -105,9 +102,9 @@ run_step "Installing .NET 6 SDK & Runtime" \
      echo \"deb [signed-by=/usr/share/keyrings/microsoft.gpg] \
        https://packages.microsoft.com/repos/microsoft-\${DISTRO}-\${CODENAME}-prod \
        \${CODENAME} main\" > /etc/apt/sources.list.d/microsoft-prod.list && \
-     # install SDK + runtime
      apt-get update && \
-     apt-get install -y dotnet-sdk-6.0 dotnet-runtime-6.0 aspnetcore-runtime-6.0; \
+     (apt-get install -y dotnet-sdk-6.0 dotnet-runtime-6.0 aspnetcore-runtime-6.0 \
+       || snap install dotnet-sdk --channel 6.0/stable --classic); \
    fi"
 
 
