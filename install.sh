@@ -200,6 +200,14 @@ run_step "Symlinking /opt/openjk to /root/.local/share/openjk" \
   "mkdir -p /root/.local/share && \
    ln -sfn \"${BASE}\" /root/.local/share/openjk"
 
+# ─── Rename MBII engine library ─────────────────────────────────────────
+run_step "Renaming JAMP Library" \
+  "if [ -f \"$MBII_DIR/jampgamei386.nopp.so\" ]; then \
+     mv -f \"$MBII_DIR/jampgamei386.nopp.so\" \"$MBII_DIR/jampgamei386.so\"; \
+   else \
+     echo \"${YELLOW}Warning:${NC} jampgamei386.nopp.so not found, skipping rename\"; \
+   fi"
+
 # ─── Install mbii CLI command ─────────────────────────────────────────────
 run_step "Installing mbii CLI command" \
   "cat > /usr/local/bin/mbii <<EOF
@@ -207,6 +215,8 @@ run_step "Installing mbii CLI command" \
 exec \"${VENV_DIR}/bin/python3\" \"${SCRIPT_DIR}/mbii.py\" \"\\\$@\"
 EOF
 chmod +x /usr/local/bin/mbii"
+
+
 
 
 # ─── 9) Write systemd service ─────────────────────────────────────────────
