@@ -79,6 +79,7 @@ run_step "Installing APT packages" \
      libsqlite3-dev \
      snapd \
      libsdl2-2.0-0:i386 \
+	 lib32stdc++6 \	 
      libc6:i386 \
      zlib1g:i386 \
      net-tools \
@@ -117,6 +118,7 @@ run_step "Setting up Python venv & pip packages" \
      six \
      prettytable \
      pysqlite3 \
+	 psutil \
      flask \
      flask_httpauth \
      discord.py \
