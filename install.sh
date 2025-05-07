@@ -81,6 +81,8 @@ run_step "Installing APT packages" \
      snapd \
      libsdl2-2.0-0:i386 \
      libc6:i386 \
+     libstdc++6 \
+     libstdc++6:i386 \    
      zlib1g:i386 \
      net-tools \
      gnupg \
