@@ -64,7 +64,7 @@ readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly SERVICE_NAME="mbii-web"
 
 # ─── 1) APT packages ──────────────────────────────────────────────────────
-run_step "Installing APT packages (warning on missing)" \
+run_step "Installing APT packages" \
   "dpkg --add-architecture i386 && \
    apt-get update && \
    apt-get install -y --ignore-missing \
@@ -109,7 +109,7 @@ run_step "Installing .NET 6 SDK" \
 
 
 # ─── 3) Python venv & pip deps ─────────────────────────────────────────────
-run_step "Setting up Python venv & pip packages (warning on failure)" \
+run_step "Setting up Python venv & pip packages" \
   "python3 -m venv \"$VENV_DIR\" && \
    \"$VENV_DIR/bin/pip\" install --upgrade pip && \
    packages=(watchgod tailer six prettytable pysqlite3 psutil flask flask_httpauth discord.py requests) && \
