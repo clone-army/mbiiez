@@ -64,10 +64,10 @@ readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly SERVICE_NAME="mbii-web"
 
 # ─── 1) APT packages ──────────────────────────────────────────────────────
-run_step "Installing APT packages" \
+run_step "Installing APT packages (warning on missing)" \
   "dpkg --add-architecture i386 && \
    apt-get update && \
-   apt-get install -y \
+   apt-get install -y --ignore-missing \
      wget \
      curl \
      unzip \
@@ -76,19 +76,19 @@ run_step "Installing APT packages" \
      python3-dev \
      build-essential \
      python3-psutil \
+     python3-prettytable \
      libsqlite3-dev \
      snapd \
      libsdl2-2.0-0:i386 \
-     lib32stdc++6 \	 
      libc6:i386 \
      zlib1g:i386 \
      net-tools \
      gnupg \
      apt-transport-https \
-     ca-certificates"
-
-
-
+     ca-certificates && \
+   if grep -q 'Unable to locate package' \"$LOG_FILE\"; then \
+     printf \"${YELLOW}⚠ Some APT packages failed to install—see %s for details.${NC}\n\" \"$LOG_FILE\"; \
+   fi"
 
 
 # ─── 2) .NET 6 SDK ─────────────────────────────────────────────────────────
@@ -109,22 +109,16 @@ run_step "Installing .NET 6 SDK" \
 
 
 # ─── 3) Python venv & pip deps ─────────────────────────────────────────────
-run_step "Setting up Python venv & pip packages" \
+run_step "Setting up Python venv & pip packages (warning on failure)" \
   "python3 -m venv \"$VENV_DIR\" && \
    \"$VENV_DIR/bin/pip\" install --upgrade pip && \
-   \"$VENV_DIR/bin/pip\" install \
-     watchgod \
-     tailer \
-     six \
-     prettytable \
-     pysqlite3 \
-     psutil \
-     flask \
-     flask_httpauth \
-     discord.py \
-     requests"
-
-
+   for pkg in watchgod tailer six prettytable pysqlite3 psutil flask flask_httpauth discord.py requests; do \
+     if \"$VENV_DIR/bin/pip\" install \"$pkg\"; then \
+       printf \"${GREEN}✔ Installed %s${NC}\n\" \"$pkg\"; \
+     else \
+       printf \"${YELLOW}⚠ pip package %s failed to install.${NC}\n\" \"$pkg\"; \
+     fi; \
+   done"
 
 # ─── 4) Prepare directories ───────────────────────────────────────────────
 printf "${BLUE}→ Preparing directories...${NC} "
