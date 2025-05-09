@@ -53,6 +53,7 @@ class plugin:
         self.rtm_vote_time   = cfg.get('rtm_vote_time', 30)
         self.rtm_cool_down   = cfg.get('rtm_cool_down', 5)
         self.rtm_percentage  = cfg.get('rtm_percentage', self.rtv_percentage)
+        self.rtm_percentage  = cfg.get('rtm_percentage', self.rtv_percentage)
         self.rtm_prompt_time = cfg.get('rtm_prompt_time', self.rtv_prompt_time)
         # Flood protection
         self.last_cmd_time = {}
@@ -326,13 +327,16 @@ class plugin:
         self.mode_vote_opts=[];self.mode_votes={}
 
     def on_new_round(self,args):
-        # lock voting
-        self.vote_locked=True;self._lock_start=time.time()
-        threading.Timer(self.rtv_cool_down, lambda: setattr(self,'vote_locked',False)).start()
+
         # apply map change
         if self.next_map:
             self.instance.say(f'Changing map to {self.COLOR_RED}{self.next_map}{self.COLOR_WHITE} now')
             self.instance.map(self.next_map)
+            
+            # lock voting
+            self.vote_locked=True;self._lock_start=time.time()
+            threading.Timer(self.rtv_cool_down, lambda: setattr(self,'vote_locked',False)).start() 
+            
             self.next_map=None
         # apply mode change
         if self.next_mode:
@@ -340,6 +344,11 @@ class plugin:
             if num is not None:
                 self.instance.say(f'Changing mode to {self.COLOR_RED}{self.next_mode}{self.COLOR_WHITE} now')
                 self.instance.mode(num)
+                
+                # lock voting
+                self.vote_locked=True;self._lock_start=time.time()
+                threading.Timer(self.rtm_cool_down, lambda: setattr(self,'vote_locked',False)).start()     
+                    
             self.next_mode=None
 
     def on_disconnect(self,args):
