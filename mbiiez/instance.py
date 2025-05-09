@@ -102,11 +102,6 @@ class instance:
         ''' Restarter Service '''
         self.process_handler.register_service("Scheduled Restarter", self.event_handler.restarter)
 
-        ''' RTV Service, Eventually move to a plugin ''' 
-        if(self.config['server']['enable_rtv']):
-            cmd = "python2 /opt/openjk/rtvrtm.py -c {}".format(self.config['server']['rtvrtm_config_path']) 
-            print(cmd)
-            self.process_handler.register_service("RTVRTM", cmd, 999, self.log_handler.log_await) 
             
     def events_internal(self):
         ''' Events we wish to run internal methods on '''
@@ -132,16 +127,6 @@ class instance:
             return str(port)  
 
         return None  
-
-    # Is RTV / RTM Service running and instance
-    def get_rtv_status(self):  
-    
-        response =  os.system("ps ax | grep {}".format("rtvrtm.py"))
-        for item in response.splitlines():
-            if("rtvrtm" in item):
-                return(True) 
-                
-        return False  
 
     # Is the chosen engine running an instance
     def get_ded_engine_status(self):  
@@ -197,7 +182,8 @@ class instance:
     def mode(self, mode = None):   
 
         if(not mode == None):
-            self.cvar("g_authenticity", mode)
+            self.cvar("mbmode", mode)
+            self.console.rcon("mbmode " + mode,True)
             print("Mode change requested to Mode {}".format(mode))
             return True
         else:   
@@ -349,12 +335,6 @@ class instance:
         self.stop()
         time.sleep(1)
         
-
-        # Generate our configs
-        self.conf.generate_server_config()
-        self.conf.generate_rtvrtm_config()
-        self.conf.generate_rtvrtm_map_lists()
-        
         if(self.server_running()):
              print(bcolors.OK + "Instance is already running" + bcolors.ENDC)
              return;
@@ -398,12 +378,6 @@ class instance:
         else:
             return False
                 
-    def rtv_running(self):
-        result = subprocess.run(['ps', 'ax'], stdout=subprocess.PIPE)
-        output = str(result.stdout.decode())
-        for item in output.splitlines():
-            if(self.config['server']['rtvrtm_config_file'] in item):
-                return True
         
     def has_plugin(self, plugin_name):
     
@@ -498,4 +472,3 @@ class instance:
         time.sleep(2)
         self.start()           
                         
-

@@ -164,6 +164,7 @@ class log_handler:
                 player = ""
                 player_id = last_line.split(":")[2][1:]                  
                 self.instance.event_handler.run_event("player_begin",{"player_id": player_id, "player": player})  
+                self.instance.event_handler.run_event("new_round", {"data": last_line})  
 
             if('ClientUserinfoChanged' in last_line):
                 self.instance.event_handler.run_event("player_info_change",{"data": last_line})

@@ -15,7 +15,6 @@ from mbiiez.process_handler import process_handler
 class launcher: 
 
     # Names of various processes saved into database
-    name_rtvrtm = "RTVRTM Service"
     name_dedicated = "Dedicated Server"
     name_auto_message = "Auto Message"
     name_log_watcher = "Log Watcher"
@@ -70,24 +69,6 @@ class launcher:
             time.sleep(3)
         return
         
-    # KILL THIS
-    def launch_rtv_thread(self):
- 
-        x = 0
- 
-        self.log_handler.log("Launching RTV/RTM Instance...")
-        
-        # Wait for the log file to become available
-        self.log_handler.log_await()
-        
-        cmd = "python2 /opt/openjk/rtvrtm.py -c {}".format(self.config['server']['rtvrtm_config_path']) 
-        print(cmd)
-        subprocess.check_call(shlex.split(cmd),stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
-
-        return
-       
-    # Dedicated Server Thread
- 
     # KILL THIS  
     def launch_dedicated_server(self):
     
@@ -116,13 +97,3 @@ class launcher:
                 os.symlink(settings.locations.game_path, "/root/.ja")  
     
         self.process_handler.start(self.launch_dedicated_server_thread, self.name_dedicated, self.instance_name)
-
-    # KILL THIS
-    def launch_rtv(self): 
-
-        # RTV RTM
-        if(self.config['server']['enable_rtv'] == True or self.config['server']['enable_rtm']):  
-            if(not os.path.isfile("{}/{}".format(settings.locations.mbii_path, self.config['server']['rtvrtm_config_file']))):
-                self.log_handler.log(bcolors.RED + "Unable to find RTV/RTV config. RTV/RTM will not run")
-                      
-        self.process_handler.start(self.launch_rtv_thread, self.name_rtvrtm, self.instance_name)

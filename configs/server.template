@@ -39,6 +39,7 @@ seta g_logExplicit "3"
 seta g_logSync "1"
 seta g_logExplicit "3"
 seta g_logClientInfo "1"
+set g_navEnable "0"
 
 seta sv_fps "40"                
 seta sv_maxclients "32"         
