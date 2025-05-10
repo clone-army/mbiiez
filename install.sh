@@ -208,6 +208,9 @@ exec \"${VENV_DIR}/bin/python3\" \"${SCRIPT_DIR}/mbii.py\" \"\\\$@\"
 EOF
 chmod +x /usr/local/bin/mbii"
 
+# ─── X) Rename jampgamei386 library ────────────────────────────────────────
+run_step "Renaming jampgamei386 library" \
+  "mv \"${MBII_DIR}/jampgamei386.nopp.so\" \"${MBII_DIR}/jampgamei386.so\""
 
 # ─── 9) Write systemd service ─────────────────────────────────────────────
 printf "${BLUE}→ Writing systemd service...${NC} "
