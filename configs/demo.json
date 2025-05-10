@@ -22,9 +22,6 @@
 	"auto_map_rotation":{
 		"rotate_minutes": 30
 	},	
-	"updater":{
-		"check_for_updates_every_minutes": 30
-	},	
 	"rtvrtm": {
 		"enable_rtv": true,
 		"enable_rtm": true,
