@@ -335,6 +335,9 @@ class instance:
         self.stop()
         time.sleep(1)
         
+        # Generate our configs
+        self.conf.generate_server_config()
+        
         if(self.server_running()):
              print(bcolors.OK + "Instance is already running" + bcolors.ENDC)
              return;
