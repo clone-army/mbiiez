@@ -55,6 +55,7 @@ run_step(){
 # ─── Paths ────────────────────────────────────────────────────────────────
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly BASE="/opt/openjk"
+readonly MBII_DIR="/opt/openjk/MBII"
 
 # ─── Check update count ────────────────────────────────────────────────────
 current_step="Checking MBII update count"
@@ -75,6 +76,15 @@ ${GREEN}✅ MBII update applied (${update_count} files updated)!${NC}
     run_step "Restarting instance $name" \
       "mbii -i \"$name\" restart"
   done
+  
+# ─── Rename MBII engine library ─────────────────────────────────────────
+run_step "Renaming JAMP Library" \
+
+  "if [ -f \"$MBII_DIR/jampgamei386.nopp.so\" ]; then \
+     mv -f \"$MBII_DIR/jampgamei386.nopp.so\" \"$MBII_DIR/jampgamei386.so\"; \
+   else \
+     echo \"${YELLOW}Warning:${NC} jampgamei386.nopp.so not found, skipping rename\"; \
+   fi"  
   
 
 fi
