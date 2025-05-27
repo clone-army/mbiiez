@@ -22,7 +22,7 @@ class main:
         print("-u                                        Update          Check for MBII Updates, Update when ALL instances are empty")
         print("-v                                        Verbose         Enable verbose mode")     
         print("-c <name>                                 Client          Show stats from all instances for a client / player") 
-        print("-r                                        Restart         Restart all instances currently with no one playing")         
+        print("-a [command] [optional args]              All             Use to run a command against all instances")         
         print("-h                                        Help            Show this help screen")  
         
         print("")
@@ -52,8 +52,8 @@ class main:
 
         group.add_argument("-l", action="store_true",              help="List Instances",      dest="list")
         group.add_argument("-u", action="store_true",              help="Update MBII",         dest="update")
-        group.add_argument("-c", type=str, nargs="+", metavar="CLIENT", help="Action on Client",   dest="client")
-        group.add_argument("-r", action="store_true",              help="Restart Instances",   dest="restart")
+        group.add_argument("-c", type=str, nargs="+", metavar="CLIENT", help="Action on Client",   dest="client")  
+        group.add_argument("-a", type=str, help="Action on Instances", nargs="+", metavar="INSTANCE", dest="instances")        
         group.add_argument("-h", action="store_true",              help="Help Usage",          dest="help")
         parser.add_argument("-v", action="store_true",              help="Verbose Output",      dest="verbose")
 
@@ -75,10 +75,6 @@ class main:
         if(args.client):
             self.client(args.client[0])
             exit()
-
-        if(args.restart):
-            self.restart_instances()
-            exit()
         
         if(args.instance):
         
@@ -88,6 +84,27 @@ class main:
                  getattr(self.get_instance(args.instance[0]), args.instance[1])(args.instance[2], args.instance[3])           
             else:
                 getattr(self.get_instance(args.instance[0]), args.instance[1])()
+
+        if(args.instances):
+            action = args.instances[0]
+            params = args.instances[1:]
+            config_dir = settings.locations.config_path
+            for fn in os.listdir(config_dir):
+                if not fn.endswith(".json"):
+                    continue
+                name = fn[:-5]  # strip “.json”
+                inst = instance(name)
+                try:
+                    if params:
+                         getattr(inst, action)(*params)
+                    else:
+                         getattr(inst, action)()
+                    print(f"Executed '{action}' on instance '{name}'")
+                except Exception as e:
+                    print(f"Error running '{action}' on '{name}': {e}")
+            sys.exit(0)
+
+
     
     def get_instance(self, name):
         return instance(name)      
