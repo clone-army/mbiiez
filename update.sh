@@ -78,15 +78,13 @@ ${GREEN}✅ MBII update applied (${update_count} files updated)!${NC}
   done
   
 # ─── Rename MBII engine library ─────────────────────────────────────────
-run_step "Renaming JAMP Library" \
-
-  "if [ -f \"$MBII_DIR/jampgamei386.nopp.so\" ]; then \
-     mv -f \"$MBII_DIR/jampgamei386.nopp.so\" \"$MBII_DIR/jampgamei386.so\"; \
-   else \
-     echo \"${YELLOW}Warning:${NC} jampgamei386.nopp.so not found, skipping rename\"; \
-   fi"  
-  
-
+  run_step "Renaming JAMP Library" \
+    "if [ -f \"$MBII_DIR/jampgamei386.nopp.so\" ]; then \
+       mv -f \"$MBII_DIR/jampgamei386.nopp.so\" \"$MBII_DIR/jampgamei386.so\"; \
+     else \
+       printf \"${YELLOW}Warning:${NC} jampgamei386.nopp.so not found, skipping rename\\n\"; \
+     fi"
+	 
 fi
 
 if (( update_count < 3 )); then
