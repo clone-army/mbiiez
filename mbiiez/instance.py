@@ -87,8 +87,8 @@ class instance:
         ''' Internal Services we wish to start on an instance start ''' 
 
         ''' Runs the Dedicated OpenJK Server ''' 
-        cmd = "{} --quiet +set dedicated 2 +set net_port {} +set fs_game {} +exec {}".format(self.config['server']['engine'], self.config['server']['port'], self.get_game(), self.config['server']['server_config_file']);       
-        
+        cmd = "{} --quiet +set dedicated 2 +set net_port {} +set fs_game {} +set fs_homepath {} +exec {}".format(self.config['server']['engine'], self.config['server']['port'], self.get_game(), self.config['server']['home_path'], self.config['server']['server_config_file']);       
+
         self.start_cmd = cmd
         
         print(bcolors.CYAN + cmd  + bcolors.ENDC )  
@@ -287,13 +287,9 @@ class instance:
                 rate = parts[6]
 
                 # Apply coloring based on ping value
-                if int(ping) < 100:
-                    ping_color = f"{bcolors.GREEN}{ping}{bcolors.ENDC}"
-                elif int(ping) < 150:
-                    ping_color = f"{bcolors.YELLOW}{ping}{bcolors.ENDC}"
-                else:
-                    ping_color = f"{bcolors.RED}{ping}{bcolors.ENDC}"
-
+          
+                ping_color = f"{bcolors.GREEN}{ping}{bcolors.ENDC}"
+       
                 players.append({
                     "id": player_id,
                     "ping": ping_color,
@@ -334,7 +330,7 @@ class instance:
     
         self.stop()
         time.sleep(1)
-        
+
         # Generate our configs
         self.conf.generate_server_config()
         

@@ -82,6 +82,8 @@ class plugin:
         # Post-round cooldown lock
         self.vote_locked     = False
         self._lock_start     = 0
+       
+                
 
     def register(self):
         eh = self.instance.event_handler
@@ -89,9 +91,7 @@ class plugin:
         eh.register_event('player_disconnects', self.on_disconnect)
         eh.register_event('new_round', self.on_new_round)
 
-    def on_load(self):
-        print(f"Loaded {self.plugin_name} plugin")
-
+       
     def _can_run(self, pid, cooldown):
         now = time.time()
         last = self.last_cmd_time.get(pid, 0)
@@ -227,7 +227,7 @@ class plugin:
         sorted_noms=sorted(self.nominations.items(),key=lambda kv:len(kv[1]),reverse=True)
         opts=[m for m,_ in sorted_noms]
         if len(opts)<4:
-            pool=[m for m in self.primary_maps+self.secondary_maps if m not in opts]
+            pool=[m for m in self.primary_maps if m not in opts]
             opts+=random.sample(pool,4-len(opts))
         self.map_vote_opts=opts[:4]
         self.map_votes={m:set() for m in self.map_vote_opts}
@@ -327,6 +327,13 @@ class plugin:
         self.mode_vote_opts=[];self.mode_votes={}
 
     def on_new_round(self,args):
+
+
+        # Re-Set the CVAR
+        code = (1928 if self.enable_rtv else 0) + (2000 if self.enable_rtm else 0)
+        #self.instance.console.rcon(f"sets RTVRTM {code}/1234")        
+        cmd = "sets RTVRTM 1928/3.6b"
+        self.instance.console.rcon(str(cmd), False)
 
         # apply map change
         if self.next_map:

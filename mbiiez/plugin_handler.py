@@ -37,5 +37,4 @@ class plugin_handler:
             if(hasattr(plugin, 'register')):
                 self.instance.plugins_registered.append(plugin.plugin_name)
                 plugin.register()
-        
-    
+                

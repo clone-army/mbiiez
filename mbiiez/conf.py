@@ -30,6 +30,8 @@ class conf:
                 data = json.load(config_data)
             
                 data['server']['name'] = self.name
+                
+                data['server']['home_path'] = '/root/.local/share/openjk'
                     
                 data['server']['rtvrtm_config_file'] = "{}-rtvrtm.cfg".format(self.name)
                 data['server']['rtvrtm_config_path'] = "{}/{}".format(self.mbii_path, data['server']['rtvrtm_config_file'])

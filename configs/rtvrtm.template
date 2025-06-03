@@ -1,0 +1,53 @@
+** Template, Changes here effect ALL Instances
+
+Log: [log_path]
+MBII folder: [mbii_path]
+Address: 127.0.0.1:[port]
+Bind: 127.0.0.1
+Password: [rcon_password]
+Flood protection: 3
+Use say only: 0
+Name protection: 1
+Default game: 
+Clean log: 2 10
+Admin voting: 0 2
+Admin minimum votes: 10
+Admin skip voting: 1
+Roundlimit: 0
+Timelimit: 0
+Limit voting: 0 2
+Limit minimum votes: 10
+Limit extend: 2
+Limit successful wait time: 300
+Limit failed wait time: 300
+Limit skip voting: 1
+Limit second turn: 1
+Limit change immediately: 0
+RTV: [rtv_mode]
+RTV rate: 50
+RTV voting: 0 3
+RTV minimum votes: 10
+RTV extend: 2
+RTV successful wait time: 300
+RTV failed wait time: 300
+RTV skip voting: 1
+RTV second turn: 1
+RTV change immediately: 0
+Automatic maps: 0
+Maps: [primary_maps_path]
+Secondary maps: [secondary_maps_path]
+Pick secondary maps: 1
+Map priority: 2 0 1
+Nomination type: 0
+Enable recently played maps: 1800
+RTM: [rtm_mode]
+Mode priority: 2 0 2 0 2 1
+RTM rate: 0
+RTM voting: 0 3
+RTM minimum votes: 20
+RTM extend: 2
+RTM successful wait time: 300
+RTM failed wait time: 300
+RTM skip voting: 1
+RTM second turn: 0
+RTM change immediately: 1

@@ -208,9 +208,15 @@ exec \"${VENV_DIR}/bin/python3\" \"${SCRIPT_DIR}/mbii.py\" \"\\\$@\"
 EOF
 chmod +x /usr/local/bin/mbii"
 
-# ─── X) Rename jampgamei386 library ────────────────────────────────────────
-run_step "Renaming jampgamei386 library" \
-  "mv \"${MBII_DIR}/jampgamei386.nopp.so\" \"${MBII_DIR}/jampgamei386.so\""
+
+# ─── Rename MBII engine library ─────────────────────────────────────────
+run_step "Renaming JAMP Library" \
+
+  "if [ -f \"$MBII_DIR/jampgamei386.nopp.so\" ]; then \
+     mv -f \"$MBII_DIR/jampgamei386.nopp.so\" \"$MBII_DIR/jampgamei386.so\"; \
+   else \
+     echo \"${YELLOW}Warning:${NC} jampgamei386.nopp.so not found, skipping rename\"; \
+   fi"
 
 # ─── 9) Write systemd service ─────────────────────────────────────────────
 printf "${BLUE}→ Writing systemd service...${NC} "
