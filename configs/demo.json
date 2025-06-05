@@ -25,10 +25,12 @@
 		"rtv_vote_time": 90,
 		"rtv_cool_down": 120,
 		"rtv_percentage": 25,
-		"rtv_prompt_time": 30,
+		"rtv_win_percentage": 50,
+		"rtv_prompt_time": 20,
 		"rtm_vote_time": 10,
 		"rtm_cool_down": 120,
 		"rtm_percentage": 25,
+		"rtm_win_percentage": 50,			
 		"rtm_prompt_time": 30,
 		"rtm_modes": ["Open","Semi-Authentic","Full-Authentic","Duel","Legends"],
 		"rtv": {

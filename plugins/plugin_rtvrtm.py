@@ -48,13 +48,15 @@ class plugin:
         self.enable_rtm      = cfg.get('enable_rtm', True)
         self.rtv_vote_time   = cfg.get('rtv_vote_time', 30)
         self.rtv_cool_down   = cfg.get('rtv_cool_down', 5)
-        self.rtv_percentage  = cfg.get('rtv_percentage', 50)
+        self.rtv_percentage  = cfg.get('rtv_percentage', 50) # Needed to call rtv
+        self.rtv_win_percentage   = cfg.get('rtv_win_percentage', 50)    # to change map after vote
         self.rtv_prompt_time = cfg.get('rtv_prompt_time', 15)
         self.rtm_vote_time   = cfg.get('rtm_vote_time', 30)
         self.rtm_cool_down   = cfg.get('rtm_cool_down', 5)
         self.rtm_percentage  = cfg.get('rtm_percentage', self.rtv_percentage)
-        self.rtm_percentage  = cfg.get('rtm_percentage', self.rtv_percentage)
+        self.rtm_win_percentage   = cfg.get('rtm_win_percentage', 50)    # to change map after vote
         self.rtm_prompt_time = cfg.get('rtm_prompt_time', self.rtv_prompt_time)
+        
         # Flood protection
         self.last_cmd_time = {}
         # Map listings & nomination for RTV
@@ -87,7 +89,11 @@ class plugin:
 
     def register(self):
         eh = self.instance.event_handler
-        eh.register_event('player_chat_command', self.on_chat)
+        
+        #Register both so we capture with ! and without
+        eh.register_event('player_chat', self.on_chat)
+        eh.register_event('player_chat_command', self.on_chat)  
+        
         eh.register_event('player_disconnects', self.on_disconnect)
         eh.register_event('new_round', self.on_new_round)
 
@@ -109,24 +115,26 @@ class plugin:
             return 1
 
     def on_chat(self, args):
-        msg = args.get('message','').strip().lower()
         pid = args.get('player_id')
         player = args.get('player')
-
+        
+        raw_msg = args.get('message', '').strip().lower()
+        msg = raw_msg.lstrip('!')        
+                
         # Block votes during cooldown
-        if self.vote_locked and msg in ('!rtv','rtv') and self.enable_rtv:
+        if self.vote_locked and msg == ('rtv') and self.enable_rtv:
             rem = max(0, int(self.rtv_cool_down - (time.time()-self._lock_start)))
             self.instance.tell(pid, f'Please wait {rem}s as RTV is on cooldown')
             return
             
         # Block votes during cooldown
-        if self.vote_locked and msg in ('!rtm','rtm') and self.enable_rtm:
-            rem = max(0, int(self.rtv_cool_down - (time.time()-self._lock_start)))
+        if self.vote_locked and msg == ('rtm') and self.enable_rtm:
+            rem = max(0, int(self.rtm_cool_down - (time.time()-self._lock_start)))
             self.instance.tell(pid, f'Please wait {rem}s as RTM is on cooldown')
             return            
             
         # !maplist pagination
-        if msg.startswith('!maplist') and self.enable_rtv:
+        if msg.startswith('maplist') and self.enable_rtv:
             parts = msg.split()
             if len(parts)==2 and parts[1] in ('1','2'):
                 lst = self.primary_maps if parts[1]=='1' else self.secondary_maps
@@ -137,7 +145,7 @@ class plugin:
             return
 
         # !nominate for RTV
-        if msg.startswith('!nominate ') and self.enable_rtv:
+        if msg.startswith('nominate ') and self.enable_rtv:
             m = msg.split(' ',1)[1]
             if m in self.primary_maps or m in self.secondary_maps:
                 self.nominations.setdefault(m,set()).add(pid)
@@ -147,7 +155,7 @@ class plugin:
             return
 
         # !unrtv
-        if msg in ('!unrtv','unrtv') and self.enable_rtv:
+        if msg == ('unrtv') and self.enable_rtv:
             total=self._get_player_count()
             req=max(1,math.ceil(total*self.rtv_percentage/100))
             if pid in self.rtv_votes:
@@ -158,7 +166,7 @@ class plugin:
             return
 
         # !rtv
-        if msg in ('!rtv','rtv') and self.enable_rtv:
+        if msg == ('rtv') and self.enable_rtv:
             ok,rem=self._can_run(pid,self.rtv_cool_down)
             if not ok:
                 self.instance.tell(pid,f'Wait {rem}s to RTV again')
@@ -177,14 +185,14 @@ class plugin:
             return
 
         # !modelist pagination
-        if msg.startswith('!modelist') and self.enable_rtm:
+        if msg.startswith('modelist') and self.enable_rtm:
             lst=self.rtm_modes
             for i in range(0,len(lst),5):
                 self.instance.tell(pid,', '.join(lst[i:i+5]))
             return
 
         # !unrtm
-        if msg in ('!unrtm','unrtm') and self.enable_rtm:
+        if msg == ('unrtm') and self.enable_rtm:
             total=self._get_player_count();req=max(1,math.ceil(total*self.rtm_percentage/100))
             if pid in self.rtm_votes:
                 self.rtm_votes.remove(pid)
@@ -194,7 +202,7 @@ class plugin:
             return
 
         # !rtm
-        if msg in ('!rtm','rtm') and self.enable_rtm:
+        if msg == ('rtm') and self.enable_rtm:
             if len(self.rtm_modes)<=1:
                 return
             ok,rem=self._can_run(pid,self.rtm_cool_down)
@@ -215,29 +223,43 @@ class plugin:
             return
 
         # numeric choice: prioritize RTM if active, else RTV
-        if re.fullmatch(r'!\d+',msg):
-            idx=int(msg[1:])-1
+        if re.fullmatch(r'\d+', msg):
+            idx = int(msg) - 1
             if self.rtm_active:
-                self._handle_rtm_vote(pid,player,idx)
+                self._handle_rtm_vote(pid, player, idx)
             elif self.rtv_active:
-                self._handle_rtv_vote(pid,player,idx)
+                self._handle_rtv_vote(pid, player, idx)
             return
 
     def _start_rtv_vote(self):
-        sorted_noms=sorted(self.nominations.items(),key=lambda kv:len(kv[1]),reverse=True)
-        opts=[m for m,_ in sorted_noms]
-        if len(opts)<4:
-            pool=[m for m in self.primary_maps if m not in opts]
-            opts+=random.sample(pool,4-len(opts))
-        self.map_vote_opts=opts[:4]
-        self.map_votes={m:set() for m in self.map_vote_opts}
-        opts_str=', '.join(f'{self.COLOR_RED}{i+1}{self.COLOR_WHITE}:{m}' for i,m in enumerate(self.map_vote_opts))
+        sorted_noms = sorted(self.nominations.items(), key=lambda kv: len(kv[1]), reverse=True)
+        opts = [m for m, _ in sorted_noms]
+
+        if len(opts) < 4:
+            pool = [m for m in self.primary_maps if m not in opts]
+            opts += random.sample(pool, 4 - len(opts))
+
+        opts = opts[:4]
+        opts.append("Do not change")  # Add "Do Not Change" option
+
+        self.map_vote_opts = opts
+        self.map_votes = {m: set() for m in self.map_vote_opts}
+
+        opts_str = ', '.join(
+            f'{self.COLOR_RED}{i+1}{self.COLOR_WHITE}:{"Do not change" if m == "Do not change" else m}'
+            for i, m in enumerate(self.map_vote_opts)
+        )
         self.instance.say(f'Map vote started! Options: {opts_str}')
         self.instance.say(f'Vote with !<number>. Ends in {self.rtv_vote_time}s.')
-        self.rtv_timer=threading.Timer(self.rtv_vote_time,self._end_rtv)
-        self.rtv_timer.daemon=True; self.rtv_timer.start()
+
+        self.rtv_timer = threading.Timer(self.rtv_vote_time, self._end_rtv)
+        self.rtv_timer.daemon = True
+        self.rtv_timer.start()
         threading.Thread(target=self._prompt_rtv).start()
-        for sec in (20,10,5): threading.Timer(self.rtv_vote_time-sec,lambda s=sec:self.instance.say(f'{self.COLOR_RED}Vote ends in {s}s{self.COLOR_WHITE}')).start()
+        for sec in (20, 10, 5):
+            threading.Timer(self.rtv_vote_time - sec,
+                            lambda s=sec: self.instance.say(f'{self.COLOR_RED}Vote ends in {s}s{self.COLOR_WHITE}')
+                            ).start()
 
     def _prompt_rtv(self):
         start=time.time()
@@ -248,29 +270,49 @@ class plugin:
                 opts_str=', '.join(f'{self.COLOR_RED}{i+1}{self.COLOR_WHITE}:{m}' for i,m in enumerate(self.map_vote_opts))
                 self.instance.say(f'Reminder: {opts_str}')
 
-    def _handle_rtv_vote(self,pid,player,idx):
-        if any(pid in v for v in self.map_votes.values()):
-            self.instance.tell(pid,'Already voted')
+    def _handle_rtv_vote(self, pid, player, idx):
+        if not (0 <= idx < len(self.map_vote_opts)):
+            self.instance.tell(pid, f'Invalid choice 1-{len(self.map_vote_opts)}')
             return
-        if 0<=idx<len(self.map_vote_opts):
-            m=self.map_vote_opts[idx]; self.map_votes[m].add(pid)
-            self.instance.say(f'{player}{self.COLOR_WHITE} voted for {self.COLOR_RED}{m}{self.COLOR_WHITE} ({len(self.map_votes[m])})')
+
+        m = self.map_vote_opts[idx]
+
+        # Remove player from all existing votes
+        for mv in self.map_votes.values():
+            mv.discard(pid)
+
+        self.map_votes[m].add(pid)
+
+        # Check if they previously voted (for messaging)
+        if any(pid in v for v in self.map_votes.values() if v is not self.map_votes[m]):
+            self.instance.say(f'{player}{self.COLOR_WHITE} changed their vote to {self.COLOR_RED}{m}{self.COLOR_WHITE} ({len(self.map_votes[m])})')
         else:
-            self.instance.tell(pid,f'Invalid choice 1-{len(self.map_vote_opts)}')
+            self.instance.say(f'{player}{self.COLOR_WHITE} voted for {self.COLOR_RED}{m}{self.COLOR_WHITE} ({len(self.map_votes[m])})')
 
     def _end_rtv(self):
         self.instance.say(f'RTV closed with {len(self.rtv_votes)} votes')
-        total=self._get_player_count();req=max(1,math.ceil(total*self.rtv_percentage/100))
-        counts={m:len(v) for m,v in self.map_votes.items()}
-        if not counts or max(counts.values())<req:
+        total = self._get_player_count()
+        req = max(1, math.ceil(total * self.rtv_win_percentage / 100))
+        counts = {m: len(v) for m, v in self.map_votes.items()}
+
+        if not counts or max(counts.values()) < req:
             self.instance.say('Not enough map votes; failed')
-            self.next_map=None
+            self.next_map = None
         else:
-            maxv=max(counts.values());w=[m for m,c in counts.items()if c==maxv];winner=random.choice(w)
-            self.instance.log_handler.log(f'Map vote success: {winner}')
-            self.instance.say(f'Changing map to {self.COLOR_RED}{winner}{self.COLOR_WHITE} next round')
-            self.next_map=winner
+            maxv = max(counts.values())
+            w = [m for m, c in counts.items() if c == maxv]
+            winner = random.choice(w)
+
+            if winner == "Do not change":
+                self.instance.say("Majority voted to keep current map.")
+                self.next_map = None
+            else:
+                self.instance.log_handler.log(f'Map vote success: {winner}')
+                self.instance.say(f'Changing map to {self.COLOR_RED}{winner}{self.COLOR_WHITE} next round')
+                self.next_map = winner
+
         self._reset_rtv()
+
 
     def _reset_rtv(self):
         self.rtv_votes.clear();self.rtv_active=False
@@ -278,15 +320,26 @@ class plugin:
         self.map_vote_opts=[];self.map_votes={};self.nominations.clear()
 
     def _start_rtm_vote(self):
-        self.mode_vote_opts=self.rtm_modes[:]
-        self.mode_votes={m:set() for m in self.mode_vote_opts}
-        opts_str=', '.join(f'{self.COLOR_RED}{i+1}{self.COLOR_WHITE}:{m}' for i,m in enumerate(self.mode_vote_opts))
+        self.mode_vote_opts = self.rtm_modes[:]
+        self.mode_vote_opts.append("Do not change")
+        self.mode_votes = {m: set() for m in self.mode_vote_opts}
+
+        opts_str = ', '.join(
+            f'{self.COLOR_RED}{i+1}{self.COLOR_WHITE}:{"Do not change" if m == "Do not change" else m}'
+            for i, m in enumerate(self.mode_vote_opts)
+        )
         self.instance.say(f'Mode vote started! Options: {opts_str}')
         self.instance.say(f'Vote with !<number>. Ends in {self.rtm_vote_time}s.')
-        self.rtm_timer=threading.Timer(self.rtm_vote_time,self._end_rtm)
-        self.rtm_timer.daemon=True; self.rtm_timer.start()
+
+        self.rtm_timer = threading.Timer(self.rtm_vote_time, self._end_rtm)
+        self.rtm_timer.daemon = True
+        self.rtm_timer.start()
         threading.Thread(target=self._prompt_rtm).start()
-        for sec in (20,10,5): threading.Timer(self.rtm_vote_time-sec,lambda s=sec:self.instance.say(f'{self.COLOR_RED}Mode vote ends in {s}s{self.COLOR_WHITE}')).start()
+        for sec in (20, 10, 5):
+            threading.Timer(self.rtm_vote_time - sec,
+                            lambda s=sec: self.instance.say(f'{self.COLOR_RED}Mode vote ends in {s}s{self.COLOR_WHITE}')
+                            ).start()
+
 
     def _prompt_rtm(self):
         start=time.time()
@@ -297,29 +350,47 @@ class plugin:
                 opts_str=', '.join(f'{self.COLOR_RED}{i+1}{self.COLOR_WHITE}:{m}' for i,m in enumerate(self.mode_vote_opts))
                 self.instance.say(f'Reminder: {opts_str}')
 
-    def _handle_rtm_vote(self,pid,player,idx):
-        if any(pid in v for v in self.mode_votes.values()):
-            self.instance.tell(pid,'Already voted')
+    def _handle_rtm_vote(self, pid, player, idx):
+        if not (0 <= idx < len(self.mode_vote_opts)):
+            self.instance.tell(pid, f'Invalid choice 1-{len(self.mode_vote_opts)}')
             return
-        if 0<=idx<len(self.mode_vote_opts):
-            m=self.mode_vote_opts[idx];self.mode_votes[m].add(pid)
-            self.instance.say(f'{player}{self.COLOR_WHITE} voted for {self.COLOR_RED}{m}{self.COLOR_WHITE} ({len(self.mode_votes[m])})')
-        else:
-            self.instance.tell(pid,f'Invalid choice 1-{len(self.mode_vote_opts)}')
 
+        m = self.mode_vote_opts[idx]
+
+        for v in self.mode_votes.values():
+            v.discard(pid)
+
+        self.mode_votes[m].add(pid)
+
+        if any(pid in v for v in self.mode_votes.values() if v is not self.mode_votes[m]):
+            self.instance.say(f'{player}{self.COLOR_WHITE} changed their vote to {self.COLOR_RED}{m}{self.COLOR_WHITE} ({len(self.mode_votes[m])})')
+        else:
+            self.instance.say(f'{player}{self.COLOR_WHITE} voted for {self.COLOR_RED}{m}{self.COLOR_WHITE} ({len(self.mode_votes[m])})')
+            
+        
     def _end_rtm(self):
         self.instance.say(f'RTM closed with {len(self.rtm_votes)} votes')
-        total=self._get_player_count();req=max(1,math.ceil(total*self.rtm_percentage/100))
-        counts={m:len(v)for m,v in self.mode_votes.items()}
-        if not counts or max(counts.values())<req:
+        total = self._get_player_count()
+        req = max(1, math.ceil(total * self.rtm_win_percentage / 100))
+        counts = {m: len(v) for m, v in self.mode_votes.items()}
+
+        if not counts or max(counts.values()) < req:
             self.instance.say('Not enough mode votes; failed')
-            self.next_mode=None
+            self.next_mode = None
         else:
-            maxv=max(counts.values());w=[m for m,c in counts.items()if c==maxv];winner=random.choice(w)
-            self.instance.log_handler.log(f'Mode vote success: {winner}')
-            self.instance.say(f'Changing mode to {self.COLOR_RED}{winner}{self.COLOR_WHITE} next round')
-            self.next_mode=winner
+            maxv = max(counts.values())
+            w = [m for m, c in counts.items() if c == maxv]
+            winner = random.choice(w)
+
+            if winner == "Do not change":
+                self.instance.say("Majority voted to keep current mode.")
+                self.next_mode = None
+            else:
+                self.instance.say(f'Changing mode to {self.COLOR_RED}{winner}{self.COLOR_WHITE} next round')
+                self.next_mode = winner
+
         self._reset_rtm()
+
 
     def _reset_rtm(self):
         self.rtm_votes.clear();self.rtm_active=False
@@ -337,9 +408,11 @@ class plugin:
 
         # apply map change
         if self.next_map:
+        
             self.instance.say(f'Changing map to {self.COLOR_RED}{self.next_map}{self.COLOR_WHITE} now')
-            self.instance.map(self.next_map)
             
+            self.instance.map(self.next_map)
+           
             # lock voting
             self.vote_locked=True;self._lock_start=time.time()
             threading.Timer(self.rtv_cool_down, lambda: setattr(self,'vote_locked',False)).start() 
@@ -350,8 +423,8 @@ class plugin:
             num=str(self.MODE_MAP.get(self.next_mode))
             if num is not None:
                 self.instance.say(f'Changing mode to {self.COLOR_RED}{self.next_mode}{self.COLOR_WHITE} now')
+     
                 self.instance.mode(num)
-                
                 # lock voting
                 self.vote_locked=True;self._lock_start=time.time()
                 threading.Timer(self.rtm_cool_down, lambda: setattr(self,'vote_locked',False)).start()     
