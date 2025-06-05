@@ -7,3 +7,5 @@ updater
 __pycache__
 MBII.zip
 !demo.json
+mbiiez.db-wal
+mbiiez.db-shm
