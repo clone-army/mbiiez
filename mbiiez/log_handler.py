@@ -164,15 +164,54 @@ class log_handler:
                 player = ""
                 player_id = last_line.split(":")[2][1:]                  
                 self.instance.event_handler.run_event("player_begin",{"player_id": player_id, "player": player})  
-              
-            #if('InitGame:' in last_line):              
-                #self.instance.event_handler.run_event("new_round", {"data": last_line})  
 
             if('ShutdownGame:' in last_line):              
                 self.instance.event_handler.run_event("new_round", {"data": last_line})  
 
             if('ClientUserinfoChanged' in last_line):
                 self.instance.event_handler.run_event("player_info_change",{"data": last_line})
+
+            if "SMOD command (" in last_line:
+                match = re.search(r'SMOD command \((.*?)\) executed by (.+?)\(adminID: (\d+)\) \(IP: (.+?)\)', last_line)
+                if match:
+                    command = match.group(1)
+                    admin = match.group(2).strip()
+                    admin_id = match.group(3)
+                    ip = match.group(4)
+                    self.instance.event_handler.run_event("smod_command", {
+                        "command": command,
+                        "admin": admin,
+                        "admin_id": admin_id,
+                        "ip": ip
+                    })
+
+            if "SMOD say:" in last_line:
+                match = re.search(r'SMOD say: (.+?) \(adminID: (\d+)\) \(IP: (.+?)\) : (.+)', last_line)
+                if match:
+                    admin = match.group(1).strip()
+                    admin_id = match.group(2)
+                    ip = match.group(3)
+                    message = match.group(4).strip()
+                    self.instance.event_handler.run_event("smod_say", {
+                        "admin": admin,
+                        "admin_id": admin_id,
+                        "ip": ip,
+                        "message": message
+                    })
+
+            if "Successful SMOD login by" in last_line:
+                match = re.search(r'Successful SMOD login by (.+?) \(adminID: (\d+)\) \(IP: (.+?)\)', last_line)
+                if match:
+                    admin = match.group(1).strip()
+                    admin_id = match.group(2)
+                    ip = match.group(3)
+                    self.instance.event_handler.run_event("smod_login", {
+                        "admin": admin,
+                        "admin_id": admin_id,
+                        "ip": ip
+                    })
+
+
 
         except Exception as e:
             self.instance.exception_handler.log(e)
