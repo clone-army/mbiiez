@@ -13,17 +13,17 @@ def logs_data():
     except (TypeError, ValueError):
         limit = 100
     
-    q = "SELECT log_line, added FROM logs WHERE 1=1"
+    q = "SELECT log, added FROM logs WHERE 1=1"
     params = []
     if instance:
         q += " AND instance = ?"
         params.append(instance)
     if tag == 'SMOD':
-        q += " AND (log_line LIKE '%SMOD command%' OR log_line LIKE '%SMOD say:%')"
+        q += " AND (log LIKE '%SMOD command%' OR log LIKE '%SMOD say:%')"
     elif tag == 'ClientConnect':
-        q += " AND log_line LIKE '%ClientConnect%'"
+        q += " AND log LIKE '%ClientConnect%'"
     elif tag == 'Exception':
-        q += " AND (log_line LIKE 'Exception%' OR log_line LIKE 'Error%')"
+        q += " AND (log LIKE 'Exception%' OR log LIKE 'Error%')"
     q += " ORDER BY added DESC LIMIT ?"
     params.append(limit)
     
@@ -35,5 +35,5 @@ def logs_data():
     except Exception:
         logs = []
     return jsonify([
-        {"log_line": row[0], "added": row[1]} for row in logs
+        {"log_line": row["log"], "added": row["added"]} for row in logs
     ])

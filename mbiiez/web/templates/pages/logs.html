@@ -60,6 +60,15 @@ function loadLogs() {
         tr.innerHTML = `<td>${row.added}</td><td>${row.log_line}</td>`;
         tbody.appendChild(tr);
       });
+      if (data.length === 0) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td colspan='2' class='text-center text-muted'>No logs found.</td>`;
+        tbody.appendChild(tr);
+      }
+    })
+    .catch(err => {
+      const tbody = document.querySelector('#logs-table tbody');
+      tbody.innerHTML = `<tr><td colspan='2' class='text-center text-danger'>Failed to load logs: ${err}</td></tr>`;
     });
 }
 function setupLogAutoRefresh() {

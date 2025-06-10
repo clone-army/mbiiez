@@ -20,6 +20,15 @@ class controller:
             status['server_name_html'] = bc.html_color_convert(status['server_name'])
         else:
             status['server_name_html'] = ''
+        # Convert map and mode for HTML (in case of color tags)
+        if 'map' in status and status['map']:
+            status['map_html'] = bc.html_color_convert(str(status['map']))
+        else:
+            status['map_html'] = ''
+        if 'mode' in status and status['mode']:
+            status['mode_html'] = bc.html_color_convert(str(status['mode']))
+        else:
+            status['mode_html'] = ''
         # Convert player names
         players = status.get('players', [])
         for p in players:
@@ -29,3 +38,5 @@ class controller:
         self.controller_bag['engine_running'] = status.get('server_running', False)
         self.controller_bag['status_text'] = 'Running' if status.get('server_running', False) else 'Stopped'
         self.controller_bag['players'] = players
+        self.controller_bag['map'] = status.get('map_html', '')
+        self.controller_bag['mode'] = status.get('mode_html', '')
