@@ -446,6 +446,8 @@ class instance:
                 output.append(f"{bcolors.CYAN}Players: {bcolors.ENDC}{bcolors.GREEN}{info['players_count']}/32{bcolors.ENDC}")
             else:
                 output.append(f"{bcolors.CYAN}Players: {bcolors.ENDC}{bcolors.RED}{info['players_count']}/32{bcolors.ENDC}")
+        else:
+            output.append(f"{bcolors.RED}Server is not running.{bcolors.ENDC}")
         output.append("------------------------------------")
         for service in info['services']:
             if service['running']:
@@ -454,11 +456,15 @@ class instance:
                 output.append(f"[{bcolors.RED}No{bcolors.ENDC}] {service['name']} Running")
         if info['server_running']:
             if info['players_count'] > 0:
-                x = prettytable.PrettyTable()
-                x.field_names = list(info['players'][0].keys())
-                for player in info['players']:
-                    x.add_row(player.values())
-                output.append(str(x))
+                try:
+                    import prettytable
+                    x = prettytable.PrettyTable()
+                    x.field_names = list(info['players'][0].keys())
+                    for player in info['players']:
+                        x.add_row(player.values())
+                    output.append(str(x))
+                except Exception:
+                    output.append("[Error displaying player table]")
             else:
                 output.append("-------------------------------------------")
                 output.append(f"{bcolors.RED}No one is playing{bcolors.ENDC}")
