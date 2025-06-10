@@ -1,0 +1,163 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="page-header">
+  <h3 class="page-title">Mod - {{ view_bag.instance }}</h3>
+  <nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item"><a href="/instance?instance={{ view_bag.instance }}">Instance</a></li>
+      <li class="breadcrumb-item active" aria-current="page">Mod</li>
+    </ol>
+  </nav>
+</div>
+<div class="row">
+  <!-- Map Card -->
+  <div class="col-md-6 mb-4">
+    <div class="card">
+      <div class="card-body">
+        <h5 class="card-title">Change Map</h5>
+        <div>Current Map: <span id="current-map">{{ view_bag.status.map }}</span></div>
+        <div class="input-group mt-2">
+          <input type="text" id="map-input" class="form-control" placeholder="Enter new map name...">
+          <button class="btn btn-primary" id="change-map">Change</button>
+        </div>
+        <div id="map-status" class="mt-2"></div>
+      </div>
+    </div>
+  </div>
+  <!-- Mode Card -->
+  <div class="col-md-6 mb-4">
+    <div class="card">
+      <div class="card-body">
+        <h5 class="card-title">Change Mode</h5>
+        <div>Current Mode: <span id="current-mode">{{ view_bag.status.mode }}</span></div>
+        <div class="input-group mt-2">
+          <input type="text" id="mode-input" class="form-control" placeholder="Enter new mode...">
+          <button class="btn btn-primary" id="change-mode">Change</button>
+        </div>
+        <div id="mode-status" class="mt-2"></div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="row">
+  <!-- Players Card -->
+  <div class="col-md-6 mb-4">
+    <div class="card">
+      <div class="card-body">
+        <h5 class="card-title">Players</h5>
+        <ul class="list-group">
+          {% for player in view_bag.players %}
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            <span>{{ player.name }} <span class="text-muted small">({{ player.ip }})</span></span>
+            <span>
+              <button class="btn btn-sm btn-danger" onclick="banPlayer('{{ player.ip }}')">Ban</button>
+              <button class="btn btn-sm btn-warning" onclick="kickPlayer('{{ player.id }}')">Kick</button>
+              <button class="btn btn-sm btn-info" onclick="showTellModal('{{ player.id }}', '{{ player.name }}')">Tell</button>
+            </span>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+  <!-- Bans Card -->
+  <div class="col-md-6 mb-4">
+    <div class="card">
+      <div class="card-body">
+        <h5 class="card-title">Banned IPs</h5>
+        <ul class="list-group" id="bans-list">
+          {% for ban in view_bag.bans %}
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            <span>{{ ban }}</span>
+            <button class="btn btn-sm btn-success" onclick="unbanIp('{{ ban }}')">Unban</button>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- Tell Modal -->
+<div class="modal" tabindex="-1" id="tellModal">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Send Tell</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div id="tell-player-name"></div>
+        <input type="text" id="tell-message" class="form-control" placeholder="Enter message...">
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-primary" id="send-tell">Send</button>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+function showTellModal(playerId, playerName) {
+  document.getElementById('tell-player-name').innerText = 'To: ' + playerName;
+  document.getElementById('tell-message').value = '';
+  const modal = new bootstrap.Modal(document.getElementById('tellModal'));
+  modal.show();
+  document.getElementById('send-tell').onclick = function() {
+    const msg = document.getElementById('tell-message').value.trim();
+    if (!msg) return;
+    fetch(`/mod/tell`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ instance: '{{ view_bag.instance }}', player_id: playerId, message: msg })
+    }).then(r => r.json()).then(data => {
+      modal.hide();
+    });
+  };
+}
+function banPlayer(ip) {
+  fetch(`/mod/ban`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ instance: '{{ view_bag.instance }}', ip })
+  }).then(r => r.json()).then(data => { location.reload(); });
+}
+function kickPlayer(id) {
+  fetch(`/mod/kick`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ instance: '{{ view_bag.instance }}', player_id: id })
+  }).then(r => r.json()).then(data => { location.reload(); });
+}
+function unbanIp(ip) {
+  fetch(`/mod/unban`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ instance: '{{ view_bag.instance }}', ip })
+  }).then(r => r.json()).then(data => { location.reload(); });
+}
+document.getElementById('change-map').onclick = function() {
+  const map = document.getElementById('map-input').value.trim();
+  if (!map) return;
+  fetch(`/mod/map`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ instance: '{{ view_bag.instance }}', mapname: map })
+  }).then(r => r.json()).then(data => {
+    document.getElementById('map-status').innerText = data.success ? 'Changed!' : data.error;
+    if (data.success) location.reload();
+  });
+};
+document.getElementById('change-mode').onclick = function() {
+  const mode = document.getElementById('mode-input').value.trim();
+  if (!mode) return;
+  fetch(`/mod/mode`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ instance: '{{ view_bag.instance }}', mode })
+  }).then(r => r.json()).then(data => {
+    document.getElementById('mode-status').innerText = data.success ? 'Changed!' : data.error;
+    if (data.success) location.reload();
+  });
+};
+</script>
+{% endblock %}

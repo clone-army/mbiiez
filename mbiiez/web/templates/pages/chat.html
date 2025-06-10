@@ -13,13 +13,31 @@
   <div class="card-body" style="display: flex; flex-direction: column; height: 500px;">
     <div id="chat-messages" style="flex: 1 1 auto; overflow-y: auto; margin-bottom: 1rem;">
       {% for msg in view_bag.messages %}
-        <div class="mb-2 p-2 rounded bg-light border" style="max-width: 600px;">
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span class="fw-bold">{{ msg.player }}</span>
-            <span class="text-muted small" style="white-space: nowrap;">{{ msg.added }}</span>
+        {% if msg.player == 'Server' and msg.type == 'PUBLIC' %}
+          <div class="mb-2 p-2 rounded border text-white bg-primary" style="max-width: 600px; margin-left:auto; text-align:right;">
+            <div style="display: flex; justify-content: flex-end; align-items: center;">
+              <span class="fw-bold">Server</span>
+              <span class="text-light small ms-2" style="white-space: nowrap;">{{ msg.added }}</span>
+            </div>
+            <div class="mt-1">{{ msg.message }}</div>
           </div>
-          <div class="mt-1">{{ msg.message }}</div>
-        </div>
+        {% elif msg.player == 'Server' and msg.type == 'TELL' %}
+          <div class="mb-2 p-2 rounded border text-white" style="background-color:#6f42c1; max-width: 600px; margin-left:auto; text-align:right;">
+            <div style="display: flex; justify-content: flex-end; align-items: center;">
+              <span class="fw-bold">Server (Tell)</span>
+              <span class="text-light small ms-2" style="white-space: nowrap;">{{ msg.added }}</span>
+            </div>
+            <div class="mt-1">{{ msg.message }}</div>
+          </div>
+        {% else %}
+          <div class="mb-2 p-2 rounded bg-light border" style="max-width: 600px;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span class="fw-bold">{{ msg.player }}</span>
+              <span class="text-muted small" style="white-space: nowrap;">{{ msg.added }}</span>
+            </div>
+            <div class="mt-1">{{ msg.message }}</div>
+          </div>
+        {% endif %}
       {% endfor %}
     </div>
     <form id="chat-form" style="display: flex; flex-direction: row;" onsubmit="return false;">
@@ -37,7 +55,13 @@ function loadChat() {
       const chatDiv = document.getElementById('chat-messages');
       chatDiv.innerHTML = '';
       data.forEach(msg => {
-        chatDiv.innerHTML += `<div class='mb-2 p-2 rounded bg-light border' style='max-width:600px;'><div style='display:flex;justify-content:space-between;align-items:center;'><span class='fw-bold'>${msg.player}</span><span class='text-muted small' style='white-space:nowrap;'>${msg.added}</span></div><div class='mt-1'>${msg.message}</div></div>`;
+        if (msg.player === 'Server' && msg.type === 'PUBLIC') {
+          chatDiv.innerHTML += `<div class='mb-2 p-2 rounded border text-white bg-primary' style='max-width:600px;margin-left:auto;text-align:right;'><div style='display:flex;justify-content:flex-end;align-items:center;'><span class='fw-bold'>Server</span><span class='text-light small ms-2' style='white-space:nowrap;'>${msg.added}</span></div><div class='mt-1'>${msg.message}</div></div>`;
+        } else if (msg.player === 'Server' && msg.type === 'TELL') {
+          chatDiv.innerHTML += `<div class='mb-2 p-2 rounded border text-white' style='background-color:#6f42c1;max-width:600px;margin-left:auto;text-align:right;'><div style='display:flex;justify-content:flex-end;align-items:center;'><span class='fw-bold'>Server (Tell)</span><span class='text-light small ms-2' style='white-space:nowrap;'>${msg.added}</span></div><div class='mt-1'>${msg.message}</div></div>`;
+        } else {
+          chatDiv.innerHTML += `<div class='mb-2 p-2 rounded bg-light border' style='max-width:600px;'><div style='display:flex;justify-content:space-between;align-items:center;'><span class='fw-bold'>${msg.player}</span><span class='text-muted small' style='white-space:nowrap;'>${msg.added}</span></div><div class='mt-1'>${msg.message}</div></div>`;
+        }
       });
       chatDiv.scrollTop = chatDiv.scrollHeight;
     });

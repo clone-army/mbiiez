@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="page-header">
+  <h3 class="page-title">Config - {{ view_bag.instance }}</h3>
+  <nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item"><a href="/instance?instance={{ view_bag.instance }}">Instance</a></li>
+      <li class="breadcrumb-item active" aria-current="page">Config</li>
+    </ol>
+  </nav>
+</div>
+<div class="card mb-4">
+  <div class="card-body">
+    <div id="config-status" class="mb-2"></div>
+    <textarea id="config-editor" class="form-control" rows="20" style="font-family:monospace;">{{ view_bag.config_content }}</textarea>
+    <button id="save-config" class="btn btn-primary mt-2" disabled>Save</button>
+  </div>
+</div>
+<script>
+const editor = document.getElementById('config-editor');
+const saveBtn = document.getElementById('save-config');
+const statusDiv = document.getElementById('config-status');
+let valid = false;
+function validateJson() {
+  try {
+    JSON.parse(editor.value);
+    statusDiv.innerHTML = '<span class="badge bg-success">Valid JSON</span>';
+    saveBtn.disabled = false;
+    valid = true;
+  } catch (e) {
+    statusDiv.innerHTML = '<span class="badge bg-danger">Invalid JSON</span>';
+    saveBtn.disabled = true;
+    valid = false;
+  }
+}
+editor.addEventListener('input', validateJson);
+validateJson();
+saveBtn.addEventListener('click', function() {
+  if (!valid) return;
+  fetch(`/config/save`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ instance: '{{ view_bag.instance }}', content: editor.value })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) {
+      statusDiv.innerHTML = '<span class="badge bg-success">Saved!</span>';
+    } else {
+      statusDiv.innerHTML = '<span class="badge bg-danger">' + data.error + '</span>';
+    }
+  });
+});
+</script>
+{% endblock %}

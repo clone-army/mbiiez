@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="page-header">
+  <h3 class="page-title">RCON - {{ view_bag.instance }}</h3>
+  <nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item"><a href="/instance?instance={{ view_bag.instance }}">Instance</a></li>
+      <li class="breadcrumb-item active" aria-current="page">RCON</li>
+    </ol>
+  </nav>
+</div>
+<div class="card mb-4">
+  <div class="card-body">
+    <form id="rcon-form" class="mb-3" onsubmit="return false;">
+      <div class="input-group">
+        <input type="text" id="rcon-input" class="form-control" placeholder="Enter RCON command...">
+        <button type="submit" class="btn btn-primary">Send</button>
+      </div>
+    </form>
+    <div id="rcon-response" class="bg-light p-2 border rounded" style="min-height:60px;"></div>
+  </div>
+</div>
+<script>
+document.getElementById('rcon-form').addEventListener('submit', function(e) {
+  e.preventDefault();
+  const cmd = document.getElementById('rcon-input').value.trim();
+  if (!cmd) return;
+  fetch(`/rcon/send`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ instance: '{{ view_bag.instance }}', command: cmd })
+  })
+  .then(r => r.json())
+  .then(data => {
+    const resp = document.getElementById('rcon-response');
+    if (data.success) {
+      resp.innerText = data.response;
+    } else {
+      resp.innerHTML = '<span class="text-danger">' + data.error + '</span>';
+    }
+  });
+});
+</script>
+{% endblock %}

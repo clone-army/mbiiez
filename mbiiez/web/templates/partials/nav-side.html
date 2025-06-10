@@ -4,6 +4,9 @@
             </div>
             <ul class="list-unstyled components text-secondary">
                 <li>
+                    <a href="/dashboard"><i class="fas fa-home"></i> Dashboard</a>
+                </li>
+                <li>
                     <a href="#instancesmenu" data-bs-toggle="collapse" aria-expanded="true" class="dropdown-toggle no-caret-down"><i class="fas fa-server"></i> Instances</a>
                     <ul class="collapse list-unstyled show" id="instancesmenu">
                         {% for instance in instances %}
@@ -12,7 +15,7 @@
                             <a href="#instance-{{ instance|lower }}" data-bs-toggle="collapse" aria-expanded="{{ 'true' if is_active_instance else 'false' }}" class="dropdown-toggle no-caret-down">
                                 <i class="fas fa-angle-right"></i> {{ instance|capitalize }}
                             </a>
-                            <ul class="collapse list-unstyled {% if is_active_instance %}show{% endif %}" id="instance-{{ instance|lower }}" style="padding-left: 1.5rem; background-color: #f8f9fa;">
+                            <ul class="collapse list-unstyled {% if is_active_instance %}show{% endif %}" id="instance-{{ instance|lower }}" style="padding-left: 1.5rem; background-color: #EEE;">
                                 <li>
                                     <a href="/instance?instance={{ instance|lower }}" class="{% if request.path.startswith('/instance') and is_active_instance and not request.path.startswith('/instance/') %}active{% endif %}"><i class="fas fa-info-circle"></i> Status</a>
                                 </li>
@@ -22,15 +25,28 @@
                                 <li>
                                     <a href="/chat?instance={{ instance|lower }}" class="{% if request.path.startswith('/chat') and is_active_instance %}active{% endif %}"><i class="fas fa-comments"></i> Chat</a>
                                 </li>
-                                <!-- More dropdowns can be added here, e.g. Settings, etc. -->
+                                <li>
+                                    <a href="/config?instance={{ instance|lower }}" class="{% if request.path.startswith('/config') and is_active_instance %}active{% endif %}"><i class="fas fa-cog"></i> Config</a>
+                                </li>
+                                <li>
+                                    <a href="/rcon?instance={{ instance|lower }}" class="{% if request.path.startswith('/rcon') and is_active_instance %}active{% endif %}"><i class="fas fa-terminal"></i> RCON</a>
+                                </li>
+                                <li>
+                                    <a href="#mod-{{ instance|lower }}" data-bs-toggle="collapse" aria-expanded="false" class="dropdown-toggle no-caret-down"><i class="fas fa-wrench"></i> Mod</a>
+                                    <ul class="collapse list-unstyled" id="mod-{{ instance|lower }}" style="padding-left: 1.5rem; background-color: #f8f9fa;">
+                                        <li><a href="/mod/map?instance={{ instance|lower }}"><i class="fas fa-map"></i> Map</a></li>
+                                        <li><a href="/mod/mode?instance={{ instance|lower }}"><i class="fas fa-gamepad"></i> Mode</a></li>
+                                        <li><a href="/mod/players?instance={{ instance|lower }}"><i class="fas fa-users"></i> Players</a></li>
+                                        <li><a href="/mod/bans?instance={{ instance|lower }}"><i class="fas fa-ban"></i> Bans</a></li>
+                                    </ul>
+                                </li>
                             </ul>
                         </li>
                         {% endfor %}
                     </ul>
                 </li>
-                <li>
-                    <a href="dashboard.html"><i class="fas fa-home"></i> Dashboard</a>
-                </li>
+                {# Comment out all other menu items for now #}
+                {#
                 <li>
                     <a href="forms.html"><i class="fas fa-file-alt"></i> Forms</a>
                 </li>
@@ -46,13 +62,10 @@
                 <li>
                     <a href="#uielementsmenu" data-bs-toggle="collapse" aria-expanded="false" class="dropdown-toggle no-caret-down"><i class="fas fa-layer-group"></i> UI Elements</a>
                     <ul class="collapse list-unstyled" id="uielementsmenu">
-
                         {% for instance in instances %}
-
-				                <li>
-                            <a href="/instance?instance={{ instance|lower }}"><i class="fas fa-angle-right"></i> {{ instance|capitalize }}</a>
-                        </li>
-                       
+                            <li>
+                                <a href="/instance?instance={{ instance|lower }}"><i class="fas fa-angle-right"></i> {{ instance|capitalize }}</a>
+                            </li>
                         {% endfor %}
                     </ul>
                 </li>
@@ -79,17 +92,9 @@
                         <li>
                             <a href="404.html"><i class="fas fa-info-circle"></i> 404 Error page</a>
                         </li>
-                        <li>
-                            <a href="500.html"><i class="fas fa-info-circle"></i> 500 Error page</a>
-                        </li>
                     </ul>
                 </li>
-                <li>
-                    <a href="users.html"><i class="fas fa-user-friends"></i>Users</a>
-                </li>
-                <li>
-                    <a href="settings.html"><i class="fas fa-cog"></i>Settings</a>
-                </li>
+                #}
             </ul>
         </nav>
 
