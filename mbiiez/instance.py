@@ -262,49 +262,54 @@ class instance:
         players = []
         status = self.console.rcon("status notrunc")
 
-        if status is None:
+        if not status:
             return []
 
         lines = status.split("\n")
         header_line = None
         dash_line_idx = None
-        # Find header and dash line
+        # Find header and dash line (robust)
         for idx, line in enumerate(lines):
-            if line.strip().startswith("ID") and "Address" in line:
+            if header_line is None and re.search(r"\bcl\b.*\baddress\b", line):
                 header_line = line
-            if set(line.strip()) == {'-'}:
+                continue
+            if header_line and re.match(r"^-+$", line.strip()):
                 dash_line_idx = idx
                 break
         if header_line is None or dash_line_idx is None:
+            # Could not find header or dash line
             return []
 
         # Find column start indices
         columns = [m.start() for m in re.finditer(r'\S+', header_line)]
         columns.append(len(header_line))  # Add end for last column
         col_names = [header_line[columns[i]:columns[i+1]].strip() for i in range(len(columns)-1)]
-        # Map expected fields to their indices
         col_map = {name: i for i, name in enumerate(col_names)}
-        # Required fields
-        required = ['ID', 'Ping', 'Name', 'Address']
+        # Use actual header names
+        required = ['cl', 'ping', 'name', 'address']
         for r in required:
             if r not in col_map:
                 return []
 
-        # Parse player lines
+        # Parse player lines (skip lines that are not player data)
         for line in lines[dash_line_idx+1:]:
-            if not line.strip():
+            if not line.strip() or line.strip().startswith('---') or line.strip().startswith('cl'):
                 continue
-            # Slice fields by column positions
+            # Defensive: skip lines that are too short
+            if len(line.strip()) < 5:
+                continue
             fields = [line[columns[i]:columns[i+1]].strip() for i in range(len(columns)-1)]
+            # Defensive: skip if not enough fields
+            if len(fields) < len(col_names):
+                continue
             try:
-                player_id = fields[col_map['ID']]
-                ping = fields[col_map['Ping']]
-                name = fields[col_map['Name']]
-                address = fields[col_map['Address']]
+                player_id = fields[col_map['cl']]
+                ping = fields[col_map['ping']]
+                name = fields[col_map['name']]
+                address = fields[col_map['address']]
                 ip = address.split(':')[0] if ':' in address else address
             except Exception:
                 continue
-            # Apply coloring based on ping value
             try:
                 ping_int = int(ping)
                 if ping_int < 100:
