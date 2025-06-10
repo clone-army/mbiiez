@@ -5,21 +5,21 @@ from flask_httpauth import HTTPBasicAuth
 from mbiiez import settings
 
 # Web Tools
-from mbiiez_web.tools import tools
+from mbiiez.web.tools import tools
 
 # Controllers
-from mbiiez_web.controllers.dashboard import controller as dashboard_c
-from mbiiez_web.controllers.logs import controller as logs_c
-from mbiiez_web.controllers.stats import controller as stats_c
-from mbiiez_web.controllers.players import controller as players_c
-from mbiiez_web.controllers.instance import controller as instance_c
+from mbiiez.web.controllers.dashboard import controller as dashboard_c
+from mbiiez.web.controllers.logs import controller as logs_c
+from mbiiez.web.controllers.stats import controller as stats_c
+from mbiiez.web.controllers.players import controller as players_c
+from mbiiez.web.controllers.instance import controller as instance_c
 
 # Views
-from mbiiez_web.views.dashboard import view as dashboard_v
-from mbiiez_web.views.logs import view as logs_v
-from mbiiez_web.views.stats import view as stats_v
-from mbiiez_web.views.players import view as players_v
-from mbiiez_web.views.instance import view as instance_v
+from mbiiez.web.views.dashboard import view as dashboard_v
+from mbiiez.web.views.logs import view as logs_v
+from mbiiez.web.views.stats import view as stats_v
+from mbiiez.web.views.players import view as players_v
+from mbiiez.web.views.instance import view as instance_v
 
 app = Flask(__name__, static_url_path="/assets", static_folder="mbiiez_web/static", template_folder="mbiiez_web/templates")
 

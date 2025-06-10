@@ -107,11 +107,13 @@ class plugin:
         return True, 0
 
     def _get_player_count(self):
-        players = getattr(self.instance, 'players', [])
         try:
-            pl = players() if callable(players) else players
+            pl = self.instance.players()
+            self.instance.log_handler.log(f"[RTVRTM] Raw players: {pl}")
+            self.instance.log_handler.log(f"[RTVRTM] Counted {len(pl)} players from status")
             return len(pl)
-        except:
+        except Exception as e:
+            self.instance.log_handler.log(f"[RTVRTM] Failed to get player list: {e}")
             return 1
 
     def on_chat(self, args):
@@ -408,6 +410,10 @@ class plugin:
 
         # apply map change
         if self.next_map:
+        
+            if self.instance.map() == self.next_map:
+                self.next_map=None
+                return
         
             self.instance.say(f'Changing map to {self.COLOR_RED}{self.next_map}{self.COLOR_WHITE} now')
             
