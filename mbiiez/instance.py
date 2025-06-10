@@ -257,59 +257,49 @@ class instance:
     # Get list of players in game - Avoid client for quickness
     def players(self):
         """
-        Get list of players in game - robustly parse status output using header columns.
-        Always use the last header/dash pair (player table) in the output.
+        Get list of players in game - robustly parse status output using ^7 as player name delimiter.
         """
         players = []
         status = self.console.rcon("status notrunc")
-
         if not status:
             return []
-
         lines = status.split("\n")
-        header_line = None
-        dash_line_idx = None
-        # Find the LAST header and dash line (player table)
+        # Remove everything before the player table (find the last 'cl score ping name' header)
+        start_idx = 0
         for idx, line in enumerate(lines):
-            if re.search(r"\\bcl\\b.*\\baddress\\b", line):
-                header_line = line
-                # Look for next dash after this header
-                for j in range(idx+1, len(lines)):
-                    if re.match(r"^-+$", lines[j].strip()):
-                        dash_line_idx = j
-                        break
-        if header_line is None or dash_line_idx is None:
-            return []
-
-        # Find column start indices
-        columns = [m.start() for m in re.finditer(r'\\S+', header_line)]
-        columns.append(len(header_line))  # Add end for last column
-        col_names = [header_line[columns[i]:columns[i+1]].strip() for i in range(len(columns)-1)]
-        col_map = {name: i for i, name in enumerate(col_names)}
-        required = ['cl', 'ping', 'name', 'address']
-        for r in required:
-            if r not in col_map:
-                return []
-
-        # Parse player lines (skip lines that are not player data)
-        for line in lines[dash_line_idx+1:]:
-            if not line.strip() or line.strip().startswith('---') or line.strip().startswith('cl'):
-                continue
+            if line.strip().startswith("cl score ping name"):
+                start_idx = idx + 2  # skip header and dashes
+        player_lines = [l for l in lines[start_idx:] if l.strip() and not l.strip().startswith('print')]
+        for line in player_lines:
             # Defensive: skip lines that are too short
             if len(line.strip()) < 5:
                 continue
-            fields = [line[columns[i]:columns[i+1]].strip() for i in range(len(columns)-1)]
-            # Defensive: skip if not enough fields
-            if len(fields) < len(col_names):
+            # Split by ^7 (end of name)
+            if '^7' not in line:
                 continue
-            try:
-                player_id = fields[col_map['cl']]
-                ping = fields[col_map['ping']]
-                name = fields[col_map['name']]
-                address = fields[col_map['address']]
-                ip = address.split(':')[0] if ':' in address else address
-            except Exception:
+            before_name, after_name = line.split('^7', 1)
+            # before_name: cl, score, ping, name (with color codes and spaces)
+            # after_name: ip:port rate
+            before_name = before_name.rstrip()
+            # Split before_name by spaces, but keep the last part as the name
+            parts = before_name.split()
+            if len(parts) < 4:
                 continue
+            cl = parts[0]
+            score = parts[1]
+            ping = parts[2]
+            # The name may have spaces and color codes
+            name = ' '.join(parts[3:]) + '^7'
+            # after_name: e.g. '                   49.182.143.225:29372 50000'
+            after_name = after_name.strip()
+            if not after_name:
+                continue
+            ip_rate = after_name.split()
+            if len(ip_rate) < 2:
+                continue
+            ip = ip_rate[0].split(':')[0]
+            rate = ip_rate[1]
+            # Color ping
             try:
                 ping_int = int(ping)
                 if ping_int < 100:
@@ -321,10 +311,12 @@ class instance:
             except Exception:
                 ping_color = ping
             players.append({
-                "id": player_id,
+                "id": cl,
+                "score": score,
                 "ping": ping_color,
                 "name": bcolors().color_convert(name),
                 "ip": ip,
+                "rate": rate
             })
         return players
             
