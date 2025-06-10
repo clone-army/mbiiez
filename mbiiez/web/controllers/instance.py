@@ -40,3 +40,4 @@ class controller:
         self.controller_bag['players'] = players
         self.controller_bag['map'] = status.get('map_html', '')
         self.controller_bag['mode'] = status.get('mode_html', '')
+        self.controller_bag['uptime'] = status.get('uptime', '')
