@@ -207,7 +207,7 @@ class ServerBot(commands.Cog):
 
                 elif args[1] == "status":
                     await ctx.send(f"Fetching {self.instance.name} status...")
-                    status = self.instance.status()
+                    status = self.instance.status_text()
                     ansi_escape = re.compile(r'\x1B[@-_][0-?]*[ -/]*[@-~]')
                     await ctx.send(ansi_escape.sub('', status))
                     

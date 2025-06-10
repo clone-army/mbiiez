@@ -1,4 +1,5 @@
 from mbiiez.db import db
+from mbiiez.instance import instance as Instance
 
 class controller:
 
@@ -6,31 +7,12 @@ class controller:
 
     def __init__(self, instance = None):
 
-        conn = db().connect()
-        cur = conn.cursor()  
-        
         self.controller_bag['instance'] = instance
-    
-        q = '''
-           
-        select 
-        c.player_id,
-        c.player,
-        c.class_id,
-        c.class_name, 
-        c.ip,
-        c.model
-        
-        from active_connections C
 
-        where instance = "''' + instance + '''" 
-
-        order by c.player_id
-
-        ;'''
-        
-        cur.execute(q)
-        players = cur.fetchall()
-
-        self.controller_bag['players'] = players
-    
+        # Get instance status using new status() method
+        inst = Instance(instance)
+        status = inst.status()
+        self.controller_bag['status'] = status
+        self.controller_bag['engine_running'] = status.get('server_running', False)
+        self.controller_bag['status_text'] = 'Running' if status.get('server_running', False) else 'Stopped'
+        self.controller_bag['players'] = status.get('players', [])

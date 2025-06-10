@@ -397,77 +397,71 @@ class instance:
                 
     # Instance Status Information
     def status(self):
+        """
+        Return all status information as a dictionary for programmatic use.
+        """
+        info = {
+            "instance_name": self.name,
+            "server_name": bcolors().color_convert(self.config['server']['host_name']),
+            "game": self.get_game(),
+            "engine": self.config['server']['engine'],
+            "port": self.config['server']['port'],
+            "full_address": f"{self.external_ip}:{self.config['server']['port']}",
+            "mode": self.mode(None),
+            "map": self.map(None),
+            "plugins": self.plugins_registered,
+            "uptime": self.uptime(),
+            "players": self.players(),
+            "players_count": self.players_count(),
+            "services": [
+                {
+                    "name": service['name'],
+                    "running": self.process_handler.process_status_name(service['name'])
+                }
+                for service in self.process_handler.services
+            ],
+            "server_running": self.server_running(),
+        }
+        return info
+
+    def status_print(self):
+        """
+        Return status as a text block for CLI or Discord bot.
+        """
+        info = self.status()
         output = []
-
         output.append("------------------------------------")
-
-        if self.server_running():
-
-            output.append(f"{bcolors.CYAN}Instance Name: {bcolors.ENDC}{self.name}")
-            output.append(f"{bcolors.CYAN}Server Name: {bcolors.ENDC}{bcolors().color_convert(self.config['server']['host_name'])}")
-            output.append(f"{bcolors.CYAN}Game: {bcolors.ENDC}{self.get_game()}")
-            output.append(f"{bcolors.CYAN}Engine: {bcolors.ENDC}{self.config['server']['engine']}")
-            output.append(f"{bcolors.CYAN}Port: {bcolors.ENDC}{self.config['server']['port']}")
-            output.append(f"{bcolors.CYAN}Full Address: {bcolors.ENDC}{self.external_ip}:{self.config['server']['port']}")
-            output.append(f"{bcolors.CYAN}Mode: {bcolors.ENDC}{self.mode(None)}")
-            output.append(f"{bcolors.CYAN}Map: {bcolors.ENDC}{self.map(None)}")
-            output.append(f"{bcolors.CYAN}Plugins: {bcolors.ENDC}{','.join(self.plugins_registered)}")
-            output.append(f"{bcolors.CYAN}Uptime: {bcolors.ENDC}{self.uptime()}")
-
-            players = self.players()
-
-
-            if len(players) > 0:
-                output.append(f"{bcolors.CYAN}Players: {bcolors.ENDC}{bcolors.GREEN}{len(players)}/32{bcolors.ENDC}")
+        if info['server_running']:
+            output.append(f"{bcolors.CYAN}Instance Name: {bcolors.ENDC}{info['instance_name']}")
+            output.append(f"{bcolors.CYAN}Server Name: {bcolors.ENDC}{info['server_name']}")
+            output.append(f"{bcolors.CYAN}Game: {bcolors.ENDC}{info['game']}")
+            output.append(f"{bcolors.CYAN}Engine: {bcolors.ENDC}{info['engine']}")
+            output.append(f"{bcolors.CYAN}Port: {bcolors.ENDC}{info['port']}")
+            output.append(f"{bcolors.CYAN}Full Address: {bcolors.ENDC}{info['full_address']}")
+            output.append(f"{bcolors.CYAN}Mode: {bcolors.ENDC}{info['mode']}")
+            output.append(f"{bcolors.CYAN}Map: {bcolors.ENDC}{info['map']}")
+            output.append(f"{bcolors.CYAN}Plugins: {bcolors.ENDC}{','.join(info['plugins'])}")
+            output.append(f"{bcolors.CYAN}Uptime: {bcolors.ENDC}{info['uptime']}")
+            if info['players_count'] > 0:
+                output.append(f"{bcolors.CYAN}Players: {bcolors.ENDC}{bcolors.GREEN}{info['players_count']}/32{bcolors.ENDC}")
             else:
-                output.append(f"{bcolors.CYAN}Players: {bcolors.ENDC}{bcolors.RED}{len(players)}/32{bcolors.ENDC}")
-
+                output.append(f"{bcolors.CYAN}Players: {bcolors.ENDC}{bcolors.RED}{info['players_count']}/32{bcolors.ENDC}")
         output.append("------------------------------------")
-
-        for service in self.process_handler.services:
-            if self.process_handler.process_status_name(service['name']):
+        for service in info['services']:
+            if service['running']:
                 output.append(f"[{bcolors.GREEN}Yes{bcolors.ENDC}] {service['name']} Running")
             else:
                 output.append(f"[{bcolors.RED}No{bcolors.ENDC}] {service['name']} Running")
-
-        if self.server_running():
-            if len(players) > 0:
+        if info['server_running']:
+            if info['players_count'] > 0:
                 x = prettytable.PrettyTable()
-                x.field_names = list(players[0].keys())
-                for player in players:
+                x.field_names = list(info['players'][0].keys())
+                for player in info['players']:
                     x.add_row(player.values())
                 output.append(str(x))
             else:
                 output.append("-------------------------------------------")
                 output.append(f"{bcolors.RED}No one is playing{bcolors.ENDC}")
-
             output.append("-------------------------------------------")
+        return "\n".join(output)
 
-        full_output = "\n".join(output)
-        print(full_output)
-        return full_output          
-                
-    # Stop the instance
-    def stop(self):
-    
-        if(self.server_running()):   
-            players = self.players()
-            confirm = 'n'
-            
-            if len(players) >= 2:
-                confirm = input(bcolors.RED + "There are more than 2 active players. Are you sure you want to stop the instance? (y/n): " + bcolors.ENDC).lower()
-
-            if len(players) < 2 or confirm == 'y':
-                self.process_handler.stop_all()
-
-                if os.path.exists(self.config['server']['log_path']):
-                    os.remove(self.config['server']['log_path'])
-        else:
-            self.process_handler.stop_all()
-       
-    # Stop then start the instance
-    def restart(self):     
-        self.stop()
-        time.sleep(2)
-        self.start()           
-                        
