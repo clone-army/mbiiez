@@ -92,9 +92,8 @@
           {% for player in view_bag.players %}
             <li class="list-group-item d-flex align-items-center justify-content-between">
               <div>
-                <span class="fw-bold" style="white-space:pre;">{{ player.player_html|safe }}</span>
-		<span class="badge bg-primary">{{ player.ip }}</span>
-
+                <span class="fw-bold" style="white-space:pre;">{{ player.player_html|safe }}</span><br>
+                <span class="badge bg-primary">{{ player.ip }}</span>
               </div>
               <span class="badge bg-info">{{ player.id }}</span>
             </li>
