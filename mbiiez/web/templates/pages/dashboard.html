@@ -4,19 +4,22 @@
   {% for instance in view_bag.instances %}
   <div class="col-xl-4 col-md-6 mb-4">
     <div class="card shadow h-100">
-      <div class="card-body">
+      <div class="card-body" id="instance-card-{{ instance.name }}">
         <div class="d-flex justify-content-between align-items-center mb-2">
-          <h5 class="card-title mb-0">{{ instance.server_name }}</h5>
+          <h5 class="card-title mb-0" id="server-name-{{ instance.name }}">{{ instance.server_name }}</h5>
           <span class="badge bg-primary">{{ instance.name }}</span>
         </div>
         <div class="mb-2">
-          <span class="fw-bold">Players:</span> {{ instance.players_count }}
+          <span class="fw-bold">Players:</span> <span id="players-count-{{ instance.name }}">{{ instance.players_count }}</span>
         </div>
         <div class="mb-2">
-          <span class="fw-bold">Map:</span> {{ instance.map }}
+          <span class="fw-bold">Map:</span> <span id="map-{{ instance.name }}">{{ instance.map }}</span>
         </div>
         <div class="mb-2">
-          <span class="fw-bold">Mode:</span> {{ instance.mode }}
+          <span class="fw-bold">Mode:</span> <span id="mode-{{ instance.name }}">{{ instance.mode }}</span>
+        </div>
+        <div class="mb-2">
+          <span class="fw-bold">Uptime:</span> <span id="uptime-{{ instance.name }}"></span>
         </div>
         <a href="/instance?instance={{ instance.name|lower }}" class="btn btn-outline-primary btn-sm mt-2">View Instance</a>
       </div>
@@ -24,4 +27,35 @@
   </div>
   {% endfor %}
 </div>
+<script>
+function htmlColorConvert(text) {
+  // Replace ^[0-9] with span tags for color (simple client-side fallback)
+  const colorMap = {
+    '0': 'black', '1': 'red', '2': 'green', '3': 'yellow', '4': 'blue', '5': 'cyan', '6': 'purple', '7': 'white', '9': ''
+  };
+  return text.replace(/\^(\d)/g, (m, d) => colorMap[d] ? `<span style='color:${colorMap[d]}'>` : '').replace(/(<span style='color:[^>]+'>)([^<]*)/g, '$1$2</span>');
+}
+function updateInstanceCard(name) {
+  fetch(`/api/instance_status/` + name)
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) return;
+      document.getElementById(`server-name-`+name).innerHTML = htmlColorConvert(data.server_name);
+      document.getElementById(`players-count-`+name).innerText = data.players_count;
+      document.getElementById(`map-`+name).innerHTML = htmlColorConvert(data.map);
+      document.getElementById(`mode-`+name).innerHTML = htmlColorConvert(data.mode);
+      document.getElementById(`uptime-`+name).innerText = data.uptime;
+    });
+}
+document.addEventListener('DOMContentLoaded', function() {
+  {% for instance in view_bag.instances %}
+    updateInstanceCard("{{ instance.name }}");
+  {% endfor %}
+  setInterval(function() {
+    {% for instance in view_bag.instances %}
+      updateInstanceCard("{{ instance.name }}");
+    {% endfor %}
+  }, 10000);
+});
+</script>
 {% endblock %}

@@ -1,6 +1,6 @@
 import sqlite3
 import os
-from flask import Flask, request, render_template, redirect
+from flask import Flask, request, render_template, redirect, jsonify
 from flask_httpauth import HTTPBasicAuth
 from mbiiez import settings
 
@@ -199,6 +199,24 @@ def include_instances():
 
 app.register_blueprint(logs_api)
 app.register_blueprint(chat_api)
+
+def status_api(instance_name):
+        from mbiiez.instance import instance as MBInstance
+        try:
+            inst = MBInstance(instance_name)
+            status = inst.status()
+            return jsonify({
+                'server_name': status.get('server_name', ''),
+                'players_count': status.get('players_count', 0),
+                'map': status.get('map', ''),
+                'mode': status.get('mode', ''),
+                'uptime': status.get('uptime', ''),
+                'error': None
+            })
+        except Exception as e:
+            return jsonify({'error': str(e)})
+
+app.add_url_rule('/api/instance_status/<instance_name>', 'status_api', status_api, methods=['GET'])
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=settings.web_service.port, use_reloader=True)
