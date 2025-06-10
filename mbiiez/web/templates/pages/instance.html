@@ -21,20 +21,19 @@
             <span class="badge bg-danger">Stopped</span>
           {% endif %}
         </p>
-        <ul class="list-group mb-3">
-          <li class="list-group-item"><strong>Server Name:</strong> <span style="white-space:pre;" class="server-name-html">{{ view_bag.status.server_name_html|safe }}</span></li>
-          <li class="list-group-item"><strong>IP:</strong> {{ view_bag.status.full_address }}</li>
-          <li class="list-group-item"><strong>Port:</strong> {{ view_bag.status.port }}</li>
-          <li class="list-group-item"><strong>Map:</strong> {{ view_bag.status.map }}</li>
-          <li class="list-group-item"><strong>Mode:</strong> {{ view_bag.status.mode }}</li>
-          <li class="list-group-item"><strong>Uptime:</strong> {{ view_bag.status.uptime }}</li>
-          <li class="list-group-item"><strong>Engine:</strong> {{ view_bag.status.engine }}</li>
-        </ul>
         <div class="btn-group" role="group">
-          <button class="btn btn-outline-success" {% if view_bag.engine_running %}disabled{% endif %} onclick="sendCommand('start')">Start</button>
-          <button class="btn btn-outline-warning" {% if not view_bag.engine_running %}disabled{% endif %} onclick="sendCommand('stop')">Stop</button>
-          <button class="btn btn-outline-primary" {% if not view_bag.engine_running %}disabled{% endif %} onclick="sendCommand('restart')">Restart</button>
+          <button class="btn {% if view_bag.engine_running %}btn-secondary disabled-btn{% else %}btn-success{% endif %}" {% if view_bag.engine_running %}disabled{% endif %} onclick="sendCommand('start')">Start</button>
+          <button class="btn {% if not view_bag.engine_running %}btn-secondary disabled-btn{% else %}btn-warning{% endif %}" {% if not view_bag.engine_running %}disabled{% endif %} onclick="sendCommand('stop')">Stop</button>
+          <button class="btn {% if not view_bag.engine_running %}btn-secondary disabled-btn{% else %}btn-primary{% endif %}" {% if not view_bag.engine_running %}disabled{% endif %} onclick="sendCommand('restart')">Restart</button>
         </div>
+        <style>
+          .disabled-btn, .btn:disabled {
+            background-color: #e0e0e0 !important;
+            color: #888 !important;
+            border-color: #e0e0e0 !important;
+            pointer-events: none;
+          }
+        </style>
       </div>
     </div>
     <div class="card mb-3">
@@ -80,9 +79,14 @@
         {% if view_bag.players and view_bag.players|length > 0 %}
         <ul class="list-group">
           {% for player in view_bag.players %}
-            <li class="list-group-item d-flex justify-content-between align-items-center">
-              <span><strong>{{ player.player_html|safe }}</strong> <small class="text-muted">({{ player.ip }})</small></span>
-              <span class="badge bg-info">ID: {{ player.player_id }}</span>
+            <li class="list-group-item">
+              <div class="d-flex justify-content-between align-items-center">
+                <div>
+                  <span class="fw-bold" style="white-space:pre;">{{ player.player_html|safe }}</span>
+                  <div class="text-muted small">{{ player.ip }}</div>
+                </div>
+                <span class="badge bg-info">ID: {{ player.player_id }}</span>
+              </div>
             </li>
           {% endfor %}
         </ul>
