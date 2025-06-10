@@ -93,9 +93,10 @@
             <li class="list-group-item d-flex align-items-center justify-content-between">
               <div>
                 <span class="fw-bold" style="white-space:pre;">{{ player.player_html|safe }}</span>
-                <div class="text-muted small">{{ player.ip }}</div>
+		<span class="badge bg-primary">{{ player.ip }}</span>
+
               </div>
-              <span class="badge bg-info">ID: {{ player.id }}</span>
+              <span class="badge bg-info">{{ player.id }}</span>
             </li>
           {% endfor %}
         </ul>
