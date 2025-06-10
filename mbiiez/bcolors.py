@@ -40,4 +40,33 @@ class bcolors:
         text = text.replace("^0", self.BLACK)
         text = text.replace("^9", "")        
         return text
-        
+
+    def html_color_convert(self, text):
+        """
+        Convert ^-style color codes to HTML <span> tags with inline color styles.
+        """
+        color_map = {
+            '0': 'black',
+            '1': 'red',
+            '2': 'green',
+            '3': 'yellow',
+            '4': 'blue',
+            '5': 'cyan',
+            '6': 'purple',
+            '7': 'white',
+            '9': '',
+        }
+        import re
+        def repl(match):
+            code = match.group(1)
+            color = color_map.get(code, 'white')
+            if color:
+                return f'<span style="color: {color}">'  # open span
+            else:
+                return ''  # blank or reset
+        # Replace ^[0-9] with span
+        text = re.sub(r'\^(\d)', repl, text)
+        # Close all open spans at the end
+        # (For simplicity, close after each color change)
+        text = re.sub(r'(<span style="color: [^>]+">)([^<]*)', r'\1\2</span>', text)
+        return text

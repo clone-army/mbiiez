@@ -22,7 +22,7 @@
           {% endif %}
         </p>
         <ul class="list-group mb-3">
-          <li class="list-group-item"><strong>Server Name:</strong> {{ view_bag.status.server_name }}</li>
+          <li class="list-group-item"><strong>Server Name:</strong> <span style="white-space:pre;" class="server-name-html">{{ view_bag.status.server_name_html|safe }}</span></li>
           <li class="list-group-item"><strong>IP:</strong> {{ view_bag.status.full_address }}</li>
           <li class="list-group-item"><strong>Port:</strong> {{ view_bag.status.port }}</li>
           <li class="list-group-item"><strong>Map:</strong> {{ view_bag.status.map }}</li>
@@ -81,7 +81,7 @@
         <ul class="list-group">
           {% for player in view_bag.players %}
             <li class="list-group-item d-flex justify-content-between align-items-center">
-              <span><strong>{{ player.player }}</strong> <small class="text-muted">({{ player.ip }})</small></span>
+              <span><strong>{{ player.player_html|safe }}</strong> <small class="text-muted">({{ player.ip }})</small></span>
               <span class="badge bg-info">ID: {{ player.player_id }}</span>
             </li>
           {% endfor %}
