@@ -77,8 +77,11 @@ class main:
             exit()
         
         if(args.instance):
-        
-            if(len(args.instance) == 3):
+            # If the command is 'status', print the result of status_print()
+            if len(args.instance) >= 2 and args.instance[1] == 'status':
+                inst = self.get_instance(args.instance[0])
+                print(inst.status_print())
+            elif(len(args.instance) == 3):
                 getattr(self.get_instance(args.instance[0]), args.instance[1])(args.instance[2])
             elif(len(args.instance) == 4):
                  getattr(self.get_instance(args.instance[0]), args.instance[1])(args.instance[2], args.instance[3])           
