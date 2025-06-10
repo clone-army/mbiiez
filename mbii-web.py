@@ -15,6 +15,7 @@ from mbiiez.web.controllers.players import controller as players_c
 from mbiiez.web.controllers.instance import controller as instance_c
 from mbiiez.web.controllers.logs_api import logs_api
 from mbiiez.web.controllers.chat import controller as chat_c
+from mbiiez.web.controllers.chat_api import chat_api
 
 # Views
 from mbiiez.web.views.dashboard import view as dashboard_v
