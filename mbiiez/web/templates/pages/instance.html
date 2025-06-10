@@ -1,18 +1,53 @@
 {% extends 'base.html' %}
 {% block content %}
 <div class="page-header">
-  <h3 class="page-title">{{ view_bag.instance|capitalize }} Dashboard</h3>
+  <h3 class="page-title">{{ view_bag.instance|capitalize }} Status</h3>
   <nav aria-label="breadcrumb">
     <ol class="breadcrumb">
-      <li class="breadcrumb-item"><a href="#">Dashboards</a></li>
-      <li class="breadcrumb-item active" aria-current="page">{{ view_bag.instance|capitalize }} Dashboard</li>
+      <li class="breadcrumb-item"><a href="#">Instances</a></li>
+      <li class="breadcrumb-item active" aria-current="page">{{ view_bag.instance|capitalize }} Status</li>
     </ol>
   </nav>
 </div>
-<div>
-  <button onclick="sendCommand('start')">Start</button>
-  <button onclick="sendCommand('stop')">Stop</button>
-  <button onclick="sendCommand('restart')">Restart</button>
+<div class="row mb-4">
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-body">
+        <h5 class="card-title">Server Status</h5>
+        <p class="mb-2">
+          {% if view_bag.status %}
+            <span class="badge bg-success">Running</span>
+          {% else %}
+            <span class="badge bg-danger">Stopped</span>
+          {% endif %}
+        </p>
+        <div class="btn-group" role="group">
+          <button class="btn btn-outline-success" {% if view_bag.status %}disabled{% endif %} onclick="sendCommand('start')">Start</button>
+          <button class="btn btn-outline-warning" {% if not view_bag.status %}disabled{% endif %} onclick="sendCommand('stop')">Stop</button>
+          <button class="btn btn-outline-primary" {% if not view_bag.status %}disabled{% endif %} onclick="sendCommand('restart')">Restart</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-body">
+        <h5 class="card-title">Players</h5>
+        {% if view_bag.players and view_bag.players|length > 0 %}
+        <ul class="list-group">
+          {% for player in view_bag.players %}
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+              {{ player['player'] }}
+              <span class="badge bg-info">ID: {{ player['player_id'] }}</span>
+            </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-muted">No players online.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
 </div>
 <script>
 function sendCommand(cmd) {
@@ -26,43 +61,9 @@ function sendCommand(cmd) {
   .then(response => response.json())
   .then(data => {
     alert(data.output || data.error);
+    window.location.reload();
   })
   .catch(err => alert("Error: " + err));
 }
 </script>
-<div class="row ">
-  <div class="col-12 grid-margin">
-    <div class="card">
-      <div class="card-body">
-        <h4 class="card-title">Order Status</h4>
-        <div class="table-responsive">
-          <table class="table">
-            <thead>
-              <tr>
-                <th> Player ID </th>
-                <th> Player Name </th>
-                <th> Class  </th>
-                <th> IP </th>
-                <th> Model </th>
-                <th> Last Connected </th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for player in view_bag.players %}
-              <tr>
-                <td>{{ player['player_id'] }}</td>
-                <td> {{ player['player'] }} </td>
-                <td><div class="badge badge-outline-success">{{ player['class_name'] }}</div></td>
-                <td> {{ player['ip'] }} </td>							
-                <td> {{ player['model'] }} </td>
-                <td> {{ player['added'] }} </td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
 {% endblock %}

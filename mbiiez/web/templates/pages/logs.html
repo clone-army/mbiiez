@@ -1,52 +1,81 @@
 {% extends 'base.html' %}
 {% block content %}
 <div class="page-header">
-  <h3 class="page-title">{{ view_bag.instance|capitalize }} Logs</h3>
-  <h4>Page {{ view_bag.page }} of {{ view_bag.pages }}</h4>
+  <h3 class="page-title">Logs</h3>
   <nav aria-label="breadcrumb">
     <ol class="breadcrumb">
       <li class="breadcrumb-item"><a href="#">Logs</a></li>
-      <li class="breadcrumb-item active" aria-current="page">{{ view_bag.instance|capitalize }} Logs</li>
+      <li class="breadcrumb-item active" aria-current="page">Live Log Viewer</li>
     </ol>
   </nav>
 </div>
-<div class="row">
-  <div class="col-lg-12 grid-margin stretch-card">
-    <div class="card">
-      <div class="card-body">
-        <div class="row">
-          <select style="width:200px" class="form-control" id="page" autocomplete="off">
-            {% for n in range(view_bag.pages) %}<option value="{{ n+1 }}" {{ 'selected' if n+1| int == view_bag.page| int else '' }}>{{ n+1 }}</option>{% endfor %}
-          </select>
-          <a href="">
-            <i style="font-size:25px; margin-left:20px" class="mdi mdi-refresh"></i>
-          </a>
-        </div>
-        <div class="table-responsive">
-          <table class="table table-striped table-contextual">
-            <thead>
-              <tr>
-                <th> Added </th>
-                <th> Instance </th>
-                <th> Logged </th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for row in view_bag.rows %}
-              <tr class="{{ row['class'] }}">
-                <td class="py-1">
-                  {{ row['added'][:-7] }}
-                </td>
-                <td>{{ row['instance']|capitalize }}</td>
-                 </td>
-                <td>{{ row['log'] }}</td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
+<div class="card mb-4">
+  <div class="card-body">
+    <form class="form-inline mb-3" id="log-filter-form" onsubmit="return false;">
+      <div class="form-group mr-2">
+        <label for="log-tag" class="mr-2">Filter:</label>
+        <select id="log-tag" class="form-control">
+          <option value="">All</option>
+          <option value="SMOD">SMOD</option>
+          <option value="ClientConnect">Client Connect</option>
+          <option value="Exception">Exception/Error</option>
+        </select>
       </div>
+      <div class="form-group mr-2">
+        <label for="log-limit" class="mr-2">Show:</label>
+        <select id="log-limit" class="form-control">
+          <option value="50">50</option>
+          <option value="100" selected>100</option>
+          <option value="200">200</option>
+        </select>
+      </div>
+      <div class="form-group mr-2">
+        <label for="auto-refresh" class="mr-2">Auto Refresh</label>
+        <input type="checkbox" id="auto-refresh" checked>
+      </div>
+      <button class="btn btn-primary" onclick="loadLogs()">Apply</button>
+    </form>
+    <div style="max-height: 500px; overflow-y: auto;" id="logs-table-wrapper">
+      <table class="table table-sm table-striped" id="logs-table">
+        <thead>
+          <tr><th>Time</th><th>Log Line</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
     </div>
   </div>
 </div>
+<script>
+let logInterval = null;
+function loadLogs() {
+  const tag = document.getElementById('log-tag').value;
+  const limit = document.getElementById('log-limit').value;
+  fetch(`/logs/data?tag=${tag}&limit=${limit}`)
+    .then(r => r.json())
+    .then(data => {
+      const tbody = document.querySelector('#logs-table tbody');
+      tbody.innerHTML = '';
+      data.forEach(row => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${row.added}</td><td>${row.log_line}</td>`;
+        tbody.appendChild(tr);
+      });
+    });
+}
+function setupLogAutoRefresh() {
+  if (logInterval) clearInterval(logInterval);
+  if (document.getElementById('auto-refresh').checked) {
+    logInterval = setInterval(loadLogs, 3000);
+  }
+}
+document.getElementById('log-filter-form').addEventListener('change', function() {
+  loadLogs();
+  setupLogAutoRefresh();
+});
+document.getElementById('auto-refresh').addEventListener('change', setupLogAutoRefresh);
+window.onload = function() {
+  loadLogs();
+  setupLogAutoRefresh();
+};
+</script>
 {% endblock %}

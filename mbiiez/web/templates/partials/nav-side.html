@@ -1,8 +1,29 @@
- <nav id="sidebar" class="active">
+<nav id="sidebar" class="active">
             <div class="sidebar-header">
                 <img src="assets/img/bootstraper-logo.png" alt="bootraper logo" class="app-logo">
             </div>
             <ul class="list-unstyled components text-secondary">
+                <li>
+                    <a href="#instancesmenu" data-bs-toggle="collapse" aria-expanded="false" class="dropdown-toggle no-caret-down"><i class="fas fa-server"></i> Instances</a>
+                    <ul class="collapse list-unstyled" id="instancesmenu">
+                        {% for instance in instances %}
+                        <li>
+                            <a href="#instance-{{ instance|lower }}" data-bs-toggle="collapse" aria-expanded="false" class="dropdown-toggle no-caret-down">
+                                <i class="fas fa-angle-right"></i> {{ instance|capitalize }}
+                            </a>
+                            <ul class="collapse list-unstyled" id="instance-{{ instance|lower }}">
+                                <li>
+                                    <a href="/instance?instance={{ instance|lower }}"><i class="fas fa-info-circle"></i> Status</a>
+                                </li>
+                                <li>
+                                    <a href="/logs?instance={{ instance|lower }}"><i class="fas fa-list"></i> Logs</a>
+                                </li>
+                                <!-- More dropdowns can be added here, e.g. Settings, etc. -->
+                            </ul>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </li>
                 <li>
                     <a href="dashboard.html"><i class="fas fa-home"></i> Dashboard</a>
                 </li>

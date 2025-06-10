@@ -1,0 +1,39 @@
+from flask import Blueprint, request, jsonify, render_template
+from mbiiez.db import db
+import time
+
+logs_api = Blueprint('logs_api', __name__)
+
+@logs_api.route('/logs/data', methods=['GET'])
+def logs_data():
+    tag = request.args.get('tag', None)
+    instance = request.args.get('instance', None)
+    try:
+        limit = int(request.args.get('limit', 100))
+    except (TypeError, ValueError):
+        limit = 100
+    
+    q = "SELECT log_line, added FROM logs WHERE 1=1"
+    params = []
+    if instance:
+        q += " AND instance = ?"
+        params.append(instance)
+    if tag == 'SMOD':
+        q += " AND (log_line LIKE '%SMOD command%' OR log_line LIKE '%SMOD say:%')"
+    elif tag == 'ClientConnect':
+        q += " AND log_line LIKE '%ClientConnect%'"
+    elif tag == 'Exception':
+        q += " AND (log_line LIKE 'Exception%' OR log_line LIKE 'Error%')"
+    q += " ORDER BY added DESC LIMIT ?"
+    params.append(limit)
+    
+    conn = db().connect()
+    cur = conn.cursor()
+    try:
+        cur.execute(q, params)
+        logs = cur.fetchall()
+    except Exception:
+        logs = []
+    return jsonify([
+        {"log_line": row[0], "added": row[1]} for row in logs
+    ])

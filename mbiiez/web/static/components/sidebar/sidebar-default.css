@@ -11,10 +11,11 @@
     color: #fff;
     transition: all 0.3s;
     border-right: 1px solid #e6ecf5;
+    margin-left: 0 !important; /* Always visible */
 }
 
 #sidebar.active {
-    margin-left: -250px;
+    margin-left: 0 !important; /* Prevent hiding */
 }
 
 #sidebar .sidebar-header {
