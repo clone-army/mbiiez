@@ -12,7 +12,7 @@
                             <a href="#instance-{{ instance|lower }}" data-bs-toggle="collapse" aria-expanded="{{ 'true' if is_active_instance else 'false' }}" class="dropdown-toggle no-caret-down">
                                 <i class="fas fa-angle-right"></i> {{ instance|capitalize }}
                             </a>
-                            <ul class="collapse list-unstyled {% if is_active_instance %}show{% endif %}" id="instance-{{ instance|lower }}" style="padding-left: 1.5rem;">
+                            <ul class="collapse list-unstyled {% if is_active_instance %}show{% endif %}" id="instance-{{ instance|lower }}" style="padding-left: 1.5rem; background-color: #f8f9fa;">
                                 <li>
                                     <a href="/instance?instance={{ instance|lower }}" class="{% if request.path.startswith('/instance') and is_active_instance and not request.path.startswith('/instance/') %}active{% endif %}"><i class="fas fa-info-circle"></i> Status</a>
                                 </li>

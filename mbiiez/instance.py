@@ -157,10 +157,18 @@ class instance:
     # Run an SVSAY command
     def say(self, message):
         self.console.say(message)
-       
+        # Log to logs table
+        log().new(f"Server: {message}", self.name)
+        # Log to chatter table as PUBLIC
+        chatter().new("Server", self.name, "PUBLIC", message)
+
     # Run an SVTELL command
     def tell(self, player_id, message):
-        self.console.tell(player_id, message)       
+        self.console.tell(player_id, message)
+        # Log to logs table
+        log().new(f"Server -> {player_id}: {message}", self.name)
+        # Log to chatter table as TELL
+        chatter().new("Server", self.name, "TELL", message)
        
     # Get / Set current map
     def map(self, map_name = None):
