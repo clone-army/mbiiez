@@ -258,6 +258,7 @@ class instance:
     def players(self):
         """
         Get list of players in game - robustly parse status output using header columns.
+        Always use the last header/dash pair (player table) in the output.
         """
         players = []
         status = self.console.rcon("status notrunc")
@@ -268,24 +269,23 @@ class instance:
         lines = status.split("\n")
         header_line = None
         dash_line_idx = None
-        # Find header and dash line (robust)
+        # Find the LAST header and dash line (player table)
         for idx, line in enumerate(lines):
-            if header_line is None and re.search(r"\bcl\b.*\baddress\b", line):
+            if re.search(r"\\bcl\\b.*\\baddress\\b", line):
                 header_line = line
-                continue
-            if header_line and re.match(r"^-+$", line.strip()):
-                dash_line_idx = idx
-                break
+                # Look for next dash after this header
+                for j in range(idx+1, len(lines)):
+                    if re.match(r"^-+$", lines[j].strip()):
+                        dash_line_idx = j
+                        break
         if header_line is None or dash_line_idx is None:
-            # Could not find header or dash line
             return []
 
         # Find column start indices
-        columns = [m.start() for m in re.finditer(r'\S+', header_line)]
+        columns = [m.start() for m in re.finditer(r'\\S+', header_line)]
         columns.append(len(header_line))  # Add end for last column
         col_names = [header_line[columns[i]:columns[i+1]].strip() for i in range(len(columns)-1)]
         col_map = {name: i for i, name in enumerate(col_names)}
-        # Use actual header names
         required = ['cl', 'ping', 'name', 'address']
         for r in required:
             if r not in col_map:
