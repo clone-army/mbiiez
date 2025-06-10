@@ -15,7 +15,7 @@
     <div class="card">
       <div class="card-body">
         <h5 class="card-title">Change Map</h5>
-        <div>Current Map: <span id="current-map">{{ view_bag.status.map }}</span></div>
+        <div>Current Map: <span id="current-map">{{ view_bag.status.map|safe }}</span></div>
         <div class="input-group mt-2">
           <input type="text" id="map-input" class="form-control" placeholder="Enter new map name...">
           <button class="btn btn-primary" id="change-map">Change</button>
@@ -29,9 +29,15 @@
     <div class="card">
       <div class="card-body">
         <h5 class="card-title">Change Mode</h5>
-        <div>Current Mode: <span id="current-mode">{{ view_bag.status.mode }}</span></div>
+        <div>Current Mode: <span id="current-mode">{{ view_bag.status.mode_html|safe }}</span></div>
         <div class="input-group mt-2">
-          <input type="text" id="mode-input" class="form-control" placeholder="Enter new mode...">
+          <select id="mode-input" class="form-select">
+            <option value="0">Open</option>
+            <option value="1">Semi-Authentic</option>
+            <option value="2">Full-Authentic</option>
+            <option value="3">Duel</option>
+            <option value="4">Legends</option>
+          </select>
           <button class="btn btn-primary" id="change-mode">Change</button>
         </div>
         <div id="mode-status" class="mt-2"></div>
@@ -48,11 +54,11 @@
         <ul class="list-group">
           {% for player in view_bag.players %}
           <li class="list-group-item d-flex justify-content-between align-items-center">
-            <span>{{ player.name }} <span class="text-muted small">({{ player.ip }})</span></span>
+            <span>{{ player.name|safe }} <span class="text-muted small">({{ player.ip }})</span></span>
             <span>
               <button class="btn btn-sm btn-danger" onclick="banPlayer('{{ player.ip }}')">Ban</button>
               <button class="btn btn-sm btn-warning" onclick="kickPlayer('{{ player.id }}')">Kick</button>
-              <button class="btn btn-sm btn-info" onclick="showTellModal('{{ player.id }}', '{{ player.name }}')">Tell</button>
+              <button class="btn btn-sm btn-info" onclick="showTellModal('{{ player.id }}', '{{ player.name|escape }}')">Tell</button>
             </span>
           </li>
           {% endfor %}
@@ -98,7 +104,7 @@
 </div>
 <script>
 function showTellModal(playerId, playerName) {
-  document.getElementById('tell-player-name').innerText = 'To: ' + playerName;
+  document.getElementById('tell-player-name').innerHTML = 'To: ' + playerName;
   document.getElementById('tell-message').value = '';
   const modal = new bootstrap.Modal(document.getElementById('tellModal'));
   modal.show();
@@ -148,7 +154,7 @@ document.getElementById('change-map').onclick = function() {
   });
 };
 document.getElementById('change-mode').onclick = function() {
-  const mode = document.getElementById('mode-input').value.trim();
+  const mode = document.getElementById('mode-input').value;
   if (!mode) return;
   fetch(`/mod/mode`, {
     method: 'POST',

@@ -31,10 +31,7 @@
                                 <li>
                                     <a href="/rcon?instance={{ instance|lower }}" class="{% if request.path.startswith('/rcon') and is_active_instance %}active{% endif %}"><i class="fas fa-terminal"></i> RCON</a>
                                 </li>
-                                <li><a href="/mod?instance={{ instance|lower }}"><i class="fas fa-map"></i> Map</a></li>
-                                <li><a href="/mod?instance={{ instance|lower }}"><i class="fas fa-gamepad"></i> Mode</a></li>
-                                <li><a href="/mod?instance={{ instance|lower }}"><i class="fas fa-users"></i> Players</a></li>
-                                <li><a href="/mod?instance={{ instance|lower }}"><i class="fas fa-ban"></i> Bans</a></li>
+                                <li><a href="/mod?instance={{ instance|lower }}"><i class="fas fa-wrench"></i> Mod</a></li>
                             </ul>
                         </li>
                         {% endfor %}

@@ -1,5 +1,6 @@
 from flask import request, jsonify
 from mbiiez.instance import instance as MBInstance
+from mbiiez.bcolors import bcolors
 
 class controller:
     controller_bag = {}
@@ -8,8 +9,18 @@ class controller:
         self.controller_bag['instance'] = instance
         if instance:
             inst = MBInstance(instance)
-            self.controller_bag['status'] = inst.status()
-            self.controller_bag['players'] = inst.status().get('players', [])
+            status = inst.status()
+            bc = bcolors()
+            # Render color tags for map and mode
+            status['map'] = bc.html_color_convert(str(status.get('map', '')))
+            status['mode_html'] = bc.html_color_convert(str(status.get('mode', '')))
+            self.controller_bag['status'] = status
+            # Render color tags for player names
+            players = status.get('players', [])
+            for p in players:
+                p['name'] = bc.html_color_convert(str(p.get('name', '')))
+            self.controller_bag['players'] = players
+            # TODO: Fill bans with actual data if available
             self.controller_bag['bans'] = []  # To be filled by listbans logic
 
     @staticmethod
