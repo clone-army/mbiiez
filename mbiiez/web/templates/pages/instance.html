@@ -79,10 +79,12 @@
         {% if view_bag.players and view_bag.players|length > 0 %}
         <ul class="list-group">
           {% for player in view_bag.players %}
-            <li class="list-group-item">
-              <span class="badge bg-info" style="white-space:pre;">
-                {{ player.player_html|safe }} <span class="text-muted">({{ player.ip }})</span>
-              </span>
+            <li class="list-group-item d-flex align-items-center justify-content-between">
+              <div>
+                <span class="fw-bold" style="white-space:pre;">{{ player.player_html|safe }}</span>
+                <div class="text-muted small">{{ player.ip }}</div>
+              </div>
+              <span class="badge bg-info">ID: {{ player.id }}</span>
             </li>
           {% endfor %}
         </ul>
