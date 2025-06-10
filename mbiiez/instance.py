@@ -411,6 +411,7 @@ class instance:
             "map": self.map(None),
             "plugins": self.plugins_registered,
             "uptime": self.uptime(),
+            # Use player['name'] for web, not player['player']
             "players": self.players(),
             "players_count": self.players_count(),
             "services": [

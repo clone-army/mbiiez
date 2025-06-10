@@ -14,19 +14,17 @@ class controller:
         inst = Instance(instance)
         status = inst.status()
 
-        # Convert color codes in server name and player names for HTML
+        # Convert color codes in server name for HTML
         bc = bcolors()
-        if status.get('server_name'):
+        if 'server_name' in status and status['server_name']:
             status['server_name_html'] = bc.html_color_convert(status['server_name'])
         else:
             status['server_name_html'] = ''
-
         # Convert player names
         players = status.get('players', [])
         for p in players:
-            if 'player' in p:
-                p['player_html'] = bc.html_color_convert(p['player'])
-
+            if 'name' in p:
+                p['player_html'] = bc.html_color_convert(p['name'])
         self.controller_bag['status'] = status
         self.controller_bag['engine_running'] = status.get('server_running', False)
         self.controller_bag['status_text'] = 'Running' if status.get('server_running', False) else 'Stopped'
