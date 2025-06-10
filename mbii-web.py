@@ -16,6 +16,9 @@ from mbiiez.web.controllers.instance import controller as instance_c
 from mbiiez.web.controllers.logs_api import logs_api
 from mbiiez.web.controllers.chat import controller as chat_c
 from mbiiez.web.controllers.chat_api import chat_api
+from mbiiez.web.controllers.mod import controller as mod_c
+from mbiiez.web.controllers.rcon import controller as rcon_c
+from mbiiez.web.controllers.config import controller as config_c
 
 # Views
 from mbiiez.web.views.dashboard import view as dashboard_v
@@ -24,6 +27,9 @@ from mbiiez.web.views.stats import view as stats_v
 from mbiiez.web.views.players import view as players_v
 from mbiiez.web.views.instance import view as instance_v
 from mbiiez.web.views.chat import view as chat_v
+from mbiiez.web.views.mod import view as mod_v
+from mbiiez.web.views.rcon import view as rcon_v
+from mbiiez.web.views.config import view as config_v
 
 app = Flask(
     __name__,
@@ -109,6 +115,83 @@ def chat():
     instance = request.args.get('instance')
     c = chat_c(instance)
     return chat_v(c).render()
+
+@app.route('/mod', methods=['GET'])
+@auth.login_required
+def mod():
+    instance = request.args.get('instance')
+    c = mod_c(instance)
+    return mod_v(c).render()
+
+@app.route('/mod/map', methods=['POST'])
+@auth.login_required
+def mod_map():
+    data = request.get_json()
+    success, msg = mod_c.change_map(data['instance'], data['mapname'])
+    return {'success': success, 'error': None if success else msg}
+
+@app.route('/mod/mode', methods=['POST'])
+@auth.login_required
+def mod_mode():
+    data = request.get_json()
+    success, msg = mod_c.change_mode(data['instance'], data['mode'])
+    return {'success': success, 'error': None if success else msg}
+
+@app.route('/mod/kick', methods=['POST'])
+@auth.login_required
+def mod_kick():
+    data = request.get_json()
+    success, msg = mod_c.kick_player(data['instance'], data['player_id'])
+    return {'success': success, 'error': None if success else msg}
+
+@app.route('/mod/ban', methods=['POST'])
+@auth.login_required
+def mod_ban():
+    data = request.get_json()
+    success, msg = mod_c.ban_player(data['instance'], data['ip'])
+    return {'success': success, 'error': None if success else msg}
+
+@app.route('/mod/unban', methods=['POST'])
+@auth.login_required
+def mod_unban():
+    data = request.get_json()
+    success, msg = mod_c.unban_ip(data['instance'], data['ip'])
+    return {'success': success, 'error': None if success else msg}
+
+@app.route('/mod/tell', methods=['POST'])
+@auth.login_required
+def mod_tell():
+    data = request.get_json()
+    success, msg = mod_c.tell_player(data['instance'], data['player_id'], data['message'])
+    return {'success': success, 'error': None if success else msg}
+
+@app.route('/rcon', methods=['GET'])
+@auth.login_required
+def rcon():
+    instance = request.args.get('instance')
+    c = rcon_c(instance)
+    return rcon_v(c).render()
+
+@app.route('/rcon/send', methods=['POST'])
+@auth.login_required
+def rcon_send():
+    data = request.get_json()
+    success, response = rcon_c.send_rcon(data['instance'], data['command'])
+    return {'success': success, 'response': response if success else None, 'error': None if success else response}
+
+@app.route('/config', methods=['GET'])
+@auth.login_required
+def config():
+    instance = request.args.get('instance')
+    c = config_c(instance)
+    return config_v(c).render()
+
+@app.route('/config/save', methods=['POST'])
+@auth.login_required
+def config_save():
+    data = request.get_json()
+    success, msg = config_c.save_config(data['instance'], data['content'])
+    return {'success': success, 'error': None if success else msg}
 
 @app.context_processor
 def include_instances():

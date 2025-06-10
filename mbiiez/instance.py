@@ -437,12 +437,14 @@ class instance:
             # Use player['name'] for web, not player['player']
             "players": self.players(),
             "players_count": self.players_count(),
+            # Only include minimal info for services to avoid recursion
             "services": [
                 {
                     "name": service['name'],
                     "running": self.process_handler.process_status_name(service['name'])
                 }
-                for service in self.process_handler.services
+                for service in getattr(self.process_handler, 'services', [])
+                if isinstance(service, dict) and 'name' in service
             ],
             "server_running": self.server_running(),
         }

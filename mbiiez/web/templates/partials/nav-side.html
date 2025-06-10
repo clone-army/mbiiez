@@ -31,15 +31,10 @@
                                 <li>
                                     <a href="/rcon?instance={{ instance|lower }}" class="{% if request.path.startswith('/rcon') and is_active_instance %}active{% endif %}"><i class="fas fa-terminal"></i> RCON</a>
                                 </li>
-                                <li>
-                                    <a href="#mod-{{ instance|lower }}" data-bs-toggle="collapse" aria-expanded="false" class="dropdown-toggle no-caret-down"><i class="fas fa-wrench"></i> Mod</a>
-                                    <ul class="collapse list-unstyled" id="mod-{{ instance|lower }}" style="padding-left: 1.5rem; background-color: #f8f9fa;">
-                                        <li><a href="/mod/map?instance={{ instance|lower }}"><i class="fas fa-map"></i> Map</a></li>
-                                        <li><a href="/mod/mode?instance={{ instance|lower }}"><i class="fas fa-gamepad"></i> Mode</a></li>
-                                        <li><a href="/mod/players?instance={{ instance|lower }}"><i class="fas fa-users"></i> Players</a></li>
-                                        <li><a href="/mod/bans?instance={{ instance|lower }}"><i class="fas fa-ban"></i> Bans</a></li>
-                                    </ul>
-                                </li>
+                                <li><a href="/mod/map?instance={{ instance|lower }}"><i class="fas fa-map"></i> Map</a></li>
+                                <li><a href="/mod/mode?instance={{ instance|lower }}"><i class="fas fa-gamepad"></i> Mode</a></li>
+                                <li><a href="/mod/players?instance={{ instance|lower }}"><i class="fas fa-users"></i> Players</a></li>
+                                <li><a href="/mod/bans?instance={{ instance|lower }}"><i class="fas fa-ban"></i> Bans</a></li>
                             </ul>
                         </li>
                         {% endfor %}
