@@ -49,13 +49,12 @@ def verify_password(username, password):
 @app.route('/', methods=['GET', 'POST'])
 @auth.login_required
 def home():
-    return redirect("/dashboard", code=302)
+    return '<div style="margin:2em" class="alert alert-danger">Root page is disabled due to performance issues. Please use the Instance menu for management.</div>'
 
 @app.route('/dashboard', methods=['GET', 'POST'])
 @auth.login_required
 def dashboard():
-    c = dashboard_c()
-    return render_template('pages/dashboard.html', view_bag=c.controller_bag)
+    return '<div style="margin:2em" class="alert alert-danger">Dashboard is disabled due to performance issues. Please use the Instance menu for management.</div>'
 
 
 @app.route('/logs', methods=['GET', 'POST'])
