@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="page-header">
+  <h3 class="page-title">Chat - {{ view_bag.instance }}</h3>
+  <nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item"><a href="/instance?instance={{ view_bag.instance }}">Instance</a></li>
+      <li class="breadcrumb-item active" aria-current="page">Chat</li>
+    </ol>
+  </nav>
+</div>
+<div class="card mb-4">
+  <div class="card-body" style="display: flex; flex-direction: column; height: 500px;">
+    <div id="chat-messages" style="flex: 1 1 auto; overflow-y: auto; margin-bottom: 1rem;">
+      {% for msg in view_bag.messages %}
+        <div class="mb-2">
+          <span class="badge badge-secondary">{{ msg.player }}</span>
+          <span class="text-muted small">{{ msg.added }}</span><br>
+          <span>{{ msg.message }}</span>
+        </div>
+      {% endfor %}
+    </div>
+    <form id="chat-form" style="display: flex; flex-direction: row;" onsubmit="return false;">
+      <input type="text" id="chat-input" class="form-control" placeholder="Type a message..." autocomplete="off" style="flex: 1 1 auto; margin-right: 0.5rem;">
+      <button type="submit" class="btn btn-primary">Send</button>
+    </form>
+  </div>
+</div>
+<script>
+const instance = "{{ view_bag.instance }}";
+function loadChat() {
+  fetch(`/chat/data?instance=${encodeURIComponent(instance)}`)
+    .then(r => r.json())
+    .then(data => {
+      const chatDiv = document.getElementById('chat-messages');
+      chatDiv.innerHTML = '';
+      data.forEach(msg => {
+        chatDiv.innerHTML += `<div class='mb-2'><span class='badge badge-secondary'>${msg.player}</span> <span class='text-muted small'>${msg.added}</span><br><span>${msg.message}</span></div>`;
+      });
+      chatDiv.scrollTop = chatDiv.scrollHeight;
+    });
+}
+function sendChat() {
+  const input = document.getElementById('chat-input');
+  const message = input.value.trim();
+  if (!message) return;
+  fetch(`/chat/send`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ instance, message })
+  }).then(() => {
+    input.value = '';
+    loadChat();
+  });
+}
+document.getElementById('chat-form').addEventListener('submit', function(e) {
+  e.preventDefault();
+  sendChat();
+});
+document.getElementById('chat-input').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') {
+    sendChat();
+  }
+});
+let chatInterval = setInterval(loadChat, 2000);
+window.onload = loadChat;
+</script>
+{% endblock %}

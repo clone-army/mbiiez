@@ -14,6 +14,7 @@ from mbiiez.web.controllers.stats import controller as stats_c
 from mbiiez.web.controllers.players import controller as players_c
 from mbiiez.web.controllers.instance import controller as instance_c
 from mbiiez.web.controllers.logs_api import logs_api
+from mbiiez.web.controllers.chat import controller as chat_c
 
 # Views
 from mbiiez.web.views.dashboard import view as dashboard_v
@@ -21,6 +22,7 @@ from mbiiez.web.views.logs import view as logs_v
 from mbiiez.web.views.stats import view as stats_v
 from mbiiez.web.views.players import view as players_v
 from mbiiez.web.views.instance import view as instance_v
+from mbiiez.web.views.chat import view as chat_v
 
 app = Flask(
     __name__,
@@ -100,11 +102,19 @@ def instance_command(instance_name):
         return {"error": str(e)}, 500
 
 
+@app.route('/chat', methods=['GET', 'POST'])
+@auth.login_required
+def chat():
+    instance = request.args.get('instance')
+    c = chat_c(instance)
+    return chat_v(c).render()
+
 @app.context_processor
 def include_instances():
     return dict(instances=tools().list_of_instances())
 
 app.register_blueprint(logs_api)
+app.register_blueprint(chat_api)
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=settings.web_service.port, use_reloader=True)
