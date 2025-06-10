@@ -11,21 +11,65 @@
 </div>
 <div class="row mb-4">
   <div class="col-md-6">
-    <div class="card">
+    <div class="card mb-3">
       <div class="card-body">
         <h5 class="card-title">Server Status</h5>
         <p class="mb-2">
-          {% if view_bag.status %}
+          {% if view_bag.engine_running %}
             <span class="badge bg-success">Running</span>
           {% else %}
             <span class="badge bg-danger">Stopped</span>
           {% endif %}
         </p>
+        <ul class="list-group mb-3">
+          <li class="list-group-item"><strong>Server Name:</strong> {{ view_bag.status.server_name }}</li>
+          <li class="list-group-item"><strong>IP:</strong> {{ view_bag.status.full_address }}</li>
+          <li class="list-group-item"><strong>Port:</strong> {{ view_bag.status.port }}</li>
+          <li class="list-group-item"><strong>Map:</strong> {{ view_bag.status.map }}</li>
+          <li class="list-group-item"><strong>Mode:</strong> {{ view_bag.status.mode }}</li>
+          <li class="list-group-item"><strong>Uptime:</strong> {{ view_bag.status.uptime }}</li>
+          <li class="list-group-item"><strong>Engine:</strong> {{ view_bag.status.engine }}</li>
+        </ul>
         <div class="btn-group" role="group">
-          <button class="btn btn-outline-success" {% if view_bag.status %}disabled{% endif %} onclick="sendCommand('start')">Start</button>
-          <button class="btn btn-outline-warning" {% if not view_bag.status %}disabled{% endif %} onclick="sendCommand('stop')">Stop</button>
-          <button class="btn btn-outline-primary" {% if not view_bag.status %}disabled{% endif %} onclick="sendCommand('restart')">Restart</button>
+          <button class="btn btn-outline-success" {% if view_bag.engine_running %}disabled{% endif %} onclick="sendCommand('start')">Start</button>
+          <button class="btn btn-outline-warning" {% if not view_bag.engine_running %}disabled{% endif %} onclick="sendCommand('stop')">Stop</button>
+          <button class="btn btn-outline-primary" {% if not view_bag.engine_running %}disabled{% endif %} onclick="sendCommand('restart')">Restart</button>
         </div>
+      </div>
+    </div>
+    <div class="card mb-3">
+      <div class="card-body">
+        <h5 class="card-title">Services</h5>
+        {% if view_bag.status.services and view_bag.status.services|length > 0 %}
+        <ul class="list-group">
+          {% for service in view_bag.status.services %}
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+              {{ service.name }}
+              {% if service.running %}
+                <span class="badge bg-success">Running</span>
+              {% else %}
+                <span class="badge bg-danger">Stopped</span>
+              {% endif %}
+            </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-muted">No services found.</p>
+        {% endif %}
+      </div>
+    </div>
+    <div class="card mb-3">
+      <div class="card-body">
+        <h5 class="card-title">Plugins</h5>
+        {% if view_bag.status.plugins and view_bag.status.plugins|length > 0 %}
+        <ul class="list-group">
+          {% for plugin in view_bag.status.plugins %}
+            <li class="list-group-item">{{ plugin }}</li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-muted">No plugins loaded.</p>
+        {% endif %}
       </div>
     </div>
   </div>
@@ -37,8 +81,8 @@
         <ul class="list-group">
           {% for player in view_bag.players %}
             <li class="list-group-item d-flex justify-content-between align-items-center">
-              {{ player['player'] }}
-              <span class="badge bg-info">ID: {{ player['player_id'] }}</span>
+              <span><strong>{{ player.player }}</strong> <small class="text-muted">({{ player.ip }})</small></span>
+              <span class="badge bg-info">ID: {{ player.player_id }}</span>
             </li>
           {% endfor %}
         </ul>
