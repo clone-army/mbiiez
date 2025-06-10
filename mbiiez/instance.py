@@ -257,7 +257,7 @@ class instance:
     # Get list of players in game - Avoid client for quickness
     def players(self):
         """
-        Get list of players in game - robustly parse status output using ^7 as player name delimiter.
+        Get list of players in game - robustly parse status output using the last ^7 as player name delimiter.
         """
         players = []
         status = self.console.rcon("status notrunc")
@@ -271,27 +271,22 @@ class instance:
                 start_idx = idx + 2  # skip header and dashes
         player_lines = [l for l in lines[start_idx:] if l.strip() and not l.strip().startswith('print')]
         for line in player_lines:
-            # Defensive: skip lines that are too short
             if len(line.strip()) < 5:
                 continue
-            # Split by ^7 (end of name)
-            if '^7' not in line:
+            last_caret = line.rfind('^7')
+            if last_caret == -1:
                 continue
-            before_name, after_name = line.split('^7', 1)
+            before_name = line[:last_caret+2].rstrip()  # include ^7
+            after_name = line[last_caret+2:].strip()
             # before_name: cl, score, ping, name (with color codes and spaces)
             # after_name: ip:port rate
-            before_name = before_name.rstrip()
-            # Split before_name by spaces, but keep the last part as the name
             parts = before_name.split()
             if len(parts) < 4:
                 continue
             cl = parts[0]
             score = parts[1]
             ping = parts[2]
-            # The name may have spaces and color codes
-            name = ' '.join(parts[3:]) + '^7'
-            # after_name: e.g. '                   49.182.143.225:29372 50000'
-            after_name = after_name.strip()
+            name = ' '.join(parts[3:])
             if not after_name:
                 continue
             ip_rate = after_name.split()
@@ -299,7 +294,6 @@ class instance:
                 continue
             ip = ip_rate[0].split(':')[0]
             rate = ip_rate[1]
-            # Color ping
             try:
                 ping_int = int(ping)
                 if ping_int < 100:
