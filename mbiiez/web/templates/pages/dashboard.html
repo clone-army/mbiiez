@@ -1,22 +1,22 @@
 {% extends 'base.html' %}
 {% block content %}
 <div class="row">
-  {% for instance in instances %}
+  {% for instance in view_bag.instances %}
   <div class="col-xl-4 col-md-6 mb-4">
     <div class="card shadow h-100">
       <div class="card-body">
         <div class="d-flex justify-content-between align-items-center mb-2">
-          <h5 class="card-title mb-0">{{ instance.status.server_name }}</h5>
+          <h5 class="card-title mb-0">{{ instance.server_name }}</h5>
           <span class="badge bg-primary">{{ instance.name }}</span>
         </div>
         <div class="mb-2">
-          <span class="fw-bold">Players:</span> {{ instance.status.players_count }}
+          <span class="fw-bold">Players:</span> {{ instance.players_count }}
         </div>
         <div class="mb-2">
-          <span class="fw-bold">Map:</span> {{ instance.status.map }}
+          <span class="fw-bold">Map:</span> {{ instance.map }}
         </div>
         <div class="mb-2">
-          <span class="fw-bold">Mode:</span> {{ instance.status.mode }}
+          <span class="fw-bold">Mode:</span> {{ instance.mode }}
         </div>
         <a href="/instance?instance={{ instance.name|lower }}" class="btn btn-outline-primary btn-sm mt-2">View Instance</a>
       </div>
