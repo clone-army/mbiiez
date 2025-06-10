@@ -256,47 +256,71 @@ class instance:
             
     # Get list of players in game - Avoid client for quickness
     def players(self):
-        
-        players = []        
+        """
+        Get list of players in game - robustly parse status output using header columns.
+        """
+        players = []
         status = self.console.rcon("status notrunc")
 
-        if(status == None):
-            return {}
-            
-        # Start reading player info after a specific line containing "---" which follows the headers
+        if status is None:
+            return []
+
         lines = status.split("\n")
-        player_data_start = False
-        for line in lines:
-            if "---" in line:  # Look for the line of dashes indicating the start of player data
-                player_data_start = True
+        header_line = None
+        dash_line_idx = None
+        # Find header and dash line
+        for idx, line in enumerate(lines):
+            if line.strip().startswith("ID") and "Address" in line:
+                header_line = line
+            if set(line.strip()) == {'-'}:
+                dash_line_idx = idx
+                break
+        if header_line is None or dash_line_idx is None:
+            return []
+
+        # Find column start indices
+        columns = [m.start() for m in re.finditer(r'\S+', header_line)]
+        columns.append(len(header_line))  # Add end for last column
+        col_names = [header_line[columns[i]:columns[i+1]].strip() for i in range(len(columns)-1)]
+        # Map expected fields to their indices
+        col_map = {name: i for i, name in enumerate(col_names)}
+        # Required fields
+        required = ['ID', 'Ping', 'Name', 'Address']
+        for r in required:
+            if r not in col_map:
+                return []
+
+        # Parse player lines
+        for line in lines[dash_line_idx+1:]:
+            if not line.strip():
                 continue
-
-            if player_data_start and line.strip():  # Ensure that line is not empty and parsing has started
-                cleaned_line = line.replace("'", "\\'")
-                parts = shlex.split(cleaned_line)
-                if len(parts) < 7:
-                    continue  # Skip lines that don't have enough data
-
-                # Assuming the parts indices match your description
-                player_id = parts[0]
-                score = parts[1]
-                ping = parts[2]
-                name = parts[3]
-                address = parts[5]  # Concatenating IP and port
-                ip = address.split(':')[0]
-                rate = parts[6]
-
-                # Apply coloring based on ping value
-          
-                ping_color = f"{bcolors.GREEN}{ping}{bcolors.ENDC}"
-       
-                players.append({
-                    "id": player_id,
-                    "ping": ping_color,
-                    "name": bcolors().color_convert(name),
-                    "ip": ip,
-                })
-
+            # Slice fields by column positions
+            fields = [line[columns[i]:columns[i+1]].strip() for i in range(len(columns)-1)]
+            try:
+                player_id = fields[col_map['ID']]
+                ping = fields[col_map['Ping']]
+                name = fields[col_map['Name']]
+                address = fields[col_map['Address']]
+                ip = address.split(':')[0] if ':' in address else address
+            except Exception:
+                continue
+            # Apply coloring based on ping value
+            try:
+                ping_int = int(ping)
+                if ping_int < 100:
+                    ping_color = f"{bcolors.GREEN}{ping}{bcolors.ENDC}"
+                elif ping_int < 200:
+                    ping_color = f"{bcolors.YELLOW}{ping}{bcolors.ENDC}"
+                else:
+                    ping_color = f"{bcolors.RED}{ping}{bcolors.ENDC}"
+            except Exception:
+                ping_color = ping
+            players.append({
+                "id": player_id,
+                "ping": ping_color,
+                "name": bcolors().color_convert(name),
+                "ip": ip,
+            })
         return players
             
     # Print the server log
