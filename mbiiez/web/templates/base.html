@@ -1,0 +1,16 @@
+{% include '/partials/header.html' %}
+<body>
+    <div class="wrapper">
+        {% include '/partials/nav-side.html' %}
+        <div id="body" class="active">
+            {% include '/partials/nav-top.html' %}
+            <div class="main-panel">
+                <div class="content-wrapper">
+                    {% block content %}{% endblock %}
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- JS and other scripts can be included here or in header.html -->
+</body>
+</html>

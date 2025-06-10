@@ -1,82 +1,70 @@
-      <nav class="sidebar sidebar-offcanvas" id="sidebar">
-        <div class="sidebar-brand-wrapper d-none d-lg-flex align-items-center justify-content-center fixed-top">
-          <a class="sidebar-brand brand-logo" href="index.html"><img src="assets/images/logo.png" alt="logo" /></a>
-        </div>
-        <ul class="nav">       
-          <li class="nav-item menu-items">
-            <a class="nav-link" href="/">
-              <span class="menu-icon">
-                <i class="mdi mdi-speedometer"></i>
-              </span>
-              <span class="menu-title">Dashboard</span>
-            </a>
-          </li>
-		 <li class="nav-item menu-items">
-            <a class="nav-link" data-toggle="collapse" href="#instances" aria-expanded="false" aria-controls="instances">
-              <span class="menu-icon">
-                <i class="mdi mdi-laptop"></i>
-              </span>
-              <span class="menu-title">Instances</span>
-              <i class="menu-arrow"></i>
-            </a>
-            <div class="collapse" id="instances">
-              <ul class="nav flex-column sub-menu">
-				 {% for instance in instances %}
-                <li class="nav-item"> <a class="nav-link" href="/instance?instance={{ instance|lower }}">{{ instance|capitalize }}</a></li>
-				{% endfor %}
-              </ul>
+ <nav id="sidebar" class="active">
+            <div class="sidebar-header">
+                <img src="assets/img/bootstraper-logo.png" alt="bootraper logo" class="app-logo">
             </div>
-          </li>				  
-		  
-		  <li class="nav-item menu-items">
-            <a class="nav-link" data-toggle="collapse" href="#logs" aria-expanded="false" aria-controls="logs">
-              <span class="menu-icon">
-                <i class="mdi mdi-table-large"></i>
-              </span>
-              <span class="menu-title">Logs</span>
-              <i class="menu-arrow"></i>
-            </a>
-            <div class="collapse" id="logs">
-              <ul class="nav flex-column sub-menu">
-				 {% for instance in instances %}
-                <li class="nav-item"> <a class="nav-link" href="/logs?instance={{ instance|lower }}&page=1&per_page=100">{{ instance|capitalize }}</a></li>
-				{% endfor %}
-				<li class="nav-item"> <a class="nav-link" href="/logs?page=1&per_page=100">All</a></li>
-              </ul>
-            </div>
-          </li>		
-		  <li class="nav-item menu-items">
-            <a class="nav-link" data-toggle="collapse" href="#stats" aria-expanded="false" aria-controls="stats">
-              <span class="menu-icon">
-                <i class="mdi mdi-chart-bar"></i>
-              </span>
-              <span class="menu-title">Stats</span>
-              <i class="menu-arrow"></i>
-            </a>
-            <div class="collapse" id="stats">
-              <ul class="nav flex-column sub-menu">
-				 {% for instance in instances %}
-                <li class="nav-item"> <a class="nav-link" href="/stats?instance={{ instance|lower }}">{{ instance|capitalize }}</a></li>
-				{% endfor %}
-				<li class="nav-item"> <a class="nav-link" href="/stats">All</a></li>
-              </ul>
-            </div>
-          </li>		
-          <li class="nav-item menu-items">
-            <a class="nav-link" data-toggle="collapse" href="#auth" aria-expanded="false" aria-controls="auth">
-              <span class="menu-icon">
-                <i class="mdi mdi-security"></i>
-              </span>
-              <span class="menu-title">Players</span>
-              <i class="menu-arrow"></i>
-            </a>
-            <div class="collapse" id="auth">
-              <ul class="nav flex-column sub-menu">
-                <li class="nav-item"> <a class="nav-link" href="/players?page=1&per_page=10">Most Play Time</a></li>
-                <li class="nav-item"> <a class="nav-link" href="/players?page=1&per_page=10">Highiest Rank</a></li>
-              </ul>
-            </div>
-          </li>
+            <ul class="list-unstyled components text-secondary">
+                <li>
+                    <a href="dashboard.html"><i class="fas fa-home"></i> Dashboard</a>
+                </li>
+                <li>
+                    <a href="forms.html"><i class="fas fa-file-alt"></i> Forms</a>
+                </li>
+                <li>
+                    <a href="tables.html"><i class="fas fa-table"></i> Tables</a>
+                </li>
+                <li>
+                    <a href="charts.html"><i class="fas fa-chart-bar"></i> Charts</a>
+                </li>
+                <li>
+                    <a href="icons.html"><i class="fas fa-icons"></i> Icons</a>
+                </li>
+                <li>
+                    <a href="#uielementsmenu" data-bs-toggle="collapse" aria-expanded="false" class="dropdown-toggle no-caret-down"><i class="fas fa-layer-group"></i> UI Elements</a>
+                    <ul class="collapse list-unstyled" id="uielementsmenu">
 
-        </ul>
-      </nav>
+                        {% for instance in instances %}
+
+				                <li>
+                            <a href="/instance?instance={{ instance|lower }}"><i class="fas fa-angle-right"></i> {{ instance|capitalize }}</a>
+                        </li>
+                       
+                        {% endfor %}
+                    </ul>
+                </li>
+                <li>
+                    <a href="#authmenu" data-bs-toggle="collapse" aria-expanded="false" class="dropdown-toggle no-caret-down"><i class="fas fa-user-shield"></i> Authentication</a>
+                    <ul class="collapse list-unstyled" id="authmenu">
+                        <li>
+                            <a href="login.html"><i class="fas fa-lock"></i> Login</a>
+                        </li>
+                        <li>
+                            <a href="signup.html"><i class="fas fa-user-plus"></i> Signup</a>
+                        </li>
+                        <li>
+                            <a href="forgot-password.html"><i class="fas fa-user-lock"></i> Forgot password</a>
+                        </li>
+                    </ul>
+                </li>
+                <li>
+                    <a href="#pagesmenu" data-bs-toggle="collapse" aria-expanded="false" class="dropdown-toggle no-caret-down"><i class="fas fa-copy"></i> Pages</a>
+                    <ul class="collapse list-unstyled" id="pagesmenu">
+                        <li>
+                            <a href="blank.html"><i class="fas fa-file"></i> Blank page</a>
+                        </li>
+                        <li>
+                            <a href="404.html"><i class="fas fa-info-circle"></i> 404 Error page</a>
+                        </li>
+                        <li>
+                            <a href="500.html"><i class="fas fa-info-circle"></i> 500 Error page</a>
+                        </li>
+                    </ul>
+                </li>
+                <li>
+                    <a href="users.html"><i class="fas fa-user-friends"></i>Users</a>
+                </li>
+                <li>
+                    <a href="settings.html"><i class="fas fa-cog"></i>Settings</a>
+                </li>
+            </ul>
+        </nav>
+

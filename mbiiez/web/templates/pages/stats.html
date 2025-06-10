@@ -1,226 +1,30 @@
-{% include '/partials/header.html' %}
-  <body>
-    <div class="container-scroller">
-      <!-- partial:../../partials/_sidebar.html -->
-      {% include '/partials/nav-side.html' %}
-      <!-- partial -->
-      <div class="container-fluid page-body-wrapper">
-        <!-- partial:../../partials/_navbar.html -->
-		{% include '/partials/nav-top.html' %}
-        <!-- partial -->
-         <div class="main-panel">
-          <div class="content-wrapper">
-            <div class="page-header">
-              <h3 class="page-title">{{ view_bag.instance|capitalize }} Stats </h3>
-              <nav aria-label="breadcrumb">
-                <ol class="breadcrumb">
-                  <li class="breadcrumb-item"><a href="#">Stats</a></li>
-                  <li class="breadcrumb-item active" aria-current="page">{{ view_bag.instance|capitalize }} Stats </li>
-                </ol>
-              </nav>
-            </div>
-            <div class="row">
-              <div class="col-lg-6 grid-margin stretch-card">
-				<div class="card">
-                  <div class="card-body">
-                    <h4 class="card-title">Connections Last 30 Days on {{ view_bag.instance|capitalize }}</h4>
-                    <canvas id="areaChart" style="height:250px"></canvas>
-                  </div>
-                </div>
-              </div>
-              <div class="col-lg-6 grid-margin stretch-card">
-                <div class="card">
-                  <div class="card-body">
-                    <h4 class="card-title">Top 10 Players Last 30 Days on {{ view_bag.instance|capitalize }}</h4>
-                    <canvas id="barChart" style="height:230px"></canvas>
-                  </div>
-                </div>
-              </div>
-            </div>
-		  </div>
-          <!-- content-wrapper ends -->
-          <!-- partial:../../partials/_footer.html -->
-          <footer class="footer">
-            <div class="d-sm-flex justify-content-center justify-content-sm-between">
-              <span class="text-muted d-block text-center text-sm-left d-sm-inline-block">Copyright © bootstrapdash.com 2020</span>
-              <span class="float-none float-sm-right d-block mt-1 mt-sm-0 text-center"> Free <a href="https://www.bootstrapdash.com/bootstrap-admin-template/" target="_blank">Bootstrap admin templates</a> from Bootstrapdash.com</span>
-            </div>
-          </footer>
-          <!-- partial -->
-        </div>
-        <!-- main-panel ends -->
+{% extends 'base.html' %}
+{% block content %}
+<div class="page-header">
+  <h3 class="page-title">{{ view_bag.instance|capitalize }} Stats</h3>
+  <nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item"><a href="#">Stats</a></li>
+      <li class="breadcrumb-item active" aria-current="page">{{ view_bag.instance|capitalize }} Stats</li>
+    </ol>
+  </nav>
+</div>
+<div class="row">
+  <div class="col-lg-6 grid-margin stretch-card">
+    <div class="card">
+      <div class="card-body">
+        <h4 class="card-title">Connections Last 30 Days on {{ view_bag.instance|capitalize }}</h4>
+        <canvas id="areaChart" style="height:250px"></canvas>
       </div>
-      <!-- page-body-wrapper ends -->
     </div>
-    <!-- container-scroller -->
-    <!-- plugins:js -->
-    <script src="../../assets/vendors/js/vendor.bundle.base.js"></script>
-    <script src="../../assets/vendors/chart.js/Chart.min.js"></script>
-    <script src="../../assets/js/settings.js"></script>
-    <script src="../../assets/js/todolist.js"></script>
-    <script src="../../assets/js/off-canvas.js"></script>
-    <script src="../../assets/js/hoverable-collapse.js"></script>
-    <script src="../../assets/js/misc.js"></script>
-	
-	<script>
-	
-	function pad(n){return n<10 ? '0'+n : n}
-	
-	$(function() {
-	  /* ChartJS
-	   * -------
-	   * Data and config for chartjs
-	   */
-	  'use strict';
-
-	  var options = {
-		scales: {
-		  yAxes: [{
-			ticks: {
-			  beginAtZero: true
-			},
-			gridLines: {
-			  color: "rgba(204, 204, 204,0.1)"
-			}
-		  }],
-		  xAxes: [{
-			gridLines: {
-			  color: "rgba(204, 204, 204,0.1)"
-			}
-		  }]
-		},
-		legend: {
-		  display: false
-		},
-		elements: {
-		  point: {
-			radius: 0
-		  }
-		}
-	  };
-	  
-	/* START GET Player Data */
-	  
-	var players_names = []
-	var players_connections = []
-	{% for row in view_bag.players %}
-	players_names.push("{{ row['player'] }}")	  
-	players_connections.push({{ row['connections'] }})
-	{% endfor %}	  
-
-	/* Construct Bar Chart Player Data */
-	var player_data = {
-		labels: players_names,
-		datasets: [{
-			label: 'Connections',
-			data: players_connections,
-			backgroundColor: [
-				'rgba(255, 99, 132, 0.2)',
-				'rgba(54, 162, 235, 0.2)',
-				'rgba(255, 206, 86, 0.2)',
-				'rgba(75, 192, 192, 0.2)',
-				'rgba(153, 102, 255, 0.2)',
-				'rgba(255, 159, 64, 0.2)'
-			],
-			borderColor: [
-				'rgba(255,99,132,1)',
-				'rgba(54, 162, 235, 1)',
-				'rgba(255, 206, 86, 1)',
-				'rgba(75, 192, 192, 1)',
-				'rgba(153, 102, 255, 1)',
-				'rgba(255, 159, 64, 1)'
-			],
-			borderWidth: 1,
-			fill: false
-		}]
-	};
-
-	// Get context with jQuery - using jQuery's .get() method.
-	if ($("#barChart").length) {
-		var barChartCanvas = $("#barChart").get(0).getContext("2d");
-		// This will get the first returned node in the jQuery collection.
-		var barChart = new Chart(barChartCanvas, {
-		  type: 'bar',
-		  data: player_data,
-		  options: options
-		});
-	}
-	  	  
-	/* END GET Player Data */
-	  
-	/* START GET Connection Data */
-	var instances = {}  
-	var connections_dates = []
-	var today = new Date()
-	var colors = ["#283abf","#2e9e4c","#f0472e","#b06d0e","#ffffff","#a326bf","#c4b918","#9dd158","#091ad6"]
-	
-	/* Gives us a string array starting at 30 days ago up to now */
-	for (var i = 0; i <= 30; i++){
-	  var d = new Date().setDate(today.getDate()-i)
-	  var c = new Date(d).getDate()
-	  c = pad(c.toString())
-	  connections_dates.push(c)	
-	}
-	
-	{% for row in view_bag.connections %}
-			instances["{{ row['instance'] }}"] = {}
-	{% endfor %}
-	
-	
-	{% for row in view_bag.connections %}
-		for (var a in connections_dates){
-			instances["{{ row['instance'] }}"][connections_dates[a]] = 0	
-		}
-	{% endfor %}
-	
-	
-	{% for row in view_bag.connections %}
-
-		instances["{{ row['instance'] }}"]["{{ row['date'] }}"] = ("{{ row['connections'] }}")	
-	{% endfor %}
-	
-
-	var connectionsData = {
-		labels: connections_dates.reverse(),
-		datasets: []
-	};
-
-	/* For Each Instance */
-	var c = 0
-	for (var instance in instances){
-		var d = []
-
-		for(var dataPoint in instances[instance]){
-			d.push(parseInt(instances[instance][dataPoint]))
-		}
-		console.log(d)
-		connectionsData.datasets.push({
-			label: instance,
-			data: d,
-			borderColor: [
-			  colors[c]
-			],
-			borderWidth: 2,
-			fill: false
-		})
-		
-		c++;
-	}
-
-	if ($("#areaChart").length) {
-		var multiAreaCanvas = $("#areaChart").get(0).getContext("2d");
-		var multiAreaChart = new Chart(multiAreaCanvas, {
-			type: 'line',
-			data: connectionsData
-		});
-
-	}
-	
-	/* END GET Connection Data */
-	});
-	</script>
-    <!-- endinject -->
-    <!-- Custom js for this page -->
-    <!-- End custom js for this page -->
-  </body>
-</html>
+  </div>
+  <div class="col-lg-6 grid-margin stretch-card">
+    <div class="card">
+      <div class="card-body">
+        <h4 class="card-title">Top 10 Players Last 30 Days on {{ view_bag.instance|capitalize }}</h4>
+        <canvas id="barChart" style="height:230px"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

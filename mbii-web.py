@@ -67,6 +67,29 @@ def instance():
     return instance_v(c).render()     
 
 
+@app.route('/instance/<instance_name>/command', methods=['POST'])
+@auth.login_required
+def instance_command(instance_name):
+    from mbiiez.instance import instance as MBInstance
+    data = request.get_json()
+    cmd = data.get('command')
+    inst = MBInstance(instance_name)
+    try:
+        if cmd == 'start':
+            inst.start()
+            return {"output": f"Instance {instance_name} started."}
+        elif cmd == 'stop':
+            inst.stop()
+            return {"output": f"Instance {instance_name} stopped."}
+        elif cmd == 'restart':
+            inst.restart()
+            return {"output": f"Instance {instance_name} restarted."}
+        else:
+            return {"error": "Unknown command."}, 400
+    except Exception as e:
+        return {"error": str(e)}, 500
+
+
 @app.context_processor
 def include_instances():
     return dict(instances=tools().list_of_instances())
