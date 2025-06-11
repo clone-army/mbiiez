@@ -1,4 +1,5 @@
 import math
+from flask import request, jsonify
 from mbiiez.db import db
 
 class controller:
@@ -47,3 +48,40 @@ class controller:
             
             if(instance == None or instance.lower() == "all"):
                 self.controller_bag['instance'] = "All"
+                
+# Example Flask route for /logs/data
+def get_logs_data():
+    tag = request.args.get('tag', '')
+    limit = int(request.args.get('limit', 100))
+    search = request.args.get('search', '').strip()
+
+    conn = db().connect()
+    cur = conn.cursor()
+
+    where_clauses = []
+    params = []
+
+    if tag:
+        where_clauses.append('log_line LIKE ?')
+        params.append(f'%{tag}%')
+    if search:
+        where_clauses.append('log_line LIKE ?')
+        params.append(f'%{search}%')
+
+    where_sql = ''
+    if where_clauses:
+        where_sql = 'WHERE ' + ' AND '.join(where_clauses)
+
+    q = f'''SELECT * FROM logs {where_sql} ORDER BY added DESC LIMIT ?;'''
+    params.append(limit)
+    cur.execute(q, params)
+    rows = cur.fetchall()
+
+    # Adapt to your schema
+    return jsonify([
+        {'added': row['added'], 'log_line': row['log_line']}
+        for row in rows
+    ])
+
+# If using Flask, register:
+# app.route('/logs/data')(get_logs_data)
