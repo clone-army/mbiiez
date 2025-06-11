@@ -8,11 +8,12 @@ logs_api = Blueprint('logs_api', __name__)
 def logs_data():
     tag = request.args.get('tag', None)
     instance = request.args.get('instance', None)
+    search = request.args.get('search', '').strip()
     try:
         limit = int(request.args.get('limit', 100))
     except (TypeError, ValueError):
         limit = 100
-    
+
     q = "SELECT log, added FROM logs WHERE 1=1"
     params = []
     if instance:
@@ -24,9 +25,13 @@ def logs_data():
         q += " AND log LIKE '%ClientConnect%'"
     elif tag == 'Exception':
         q += " AND (log LIKE 'Exception%' OR log LIKE 'Error%')"
+    # Add free text search filter
+    if search:
+        q += " AND log LIKE ?"
+        params.append(f"%{search}%")
     q += " ORDER BY added DESC LIMIT ?"
     params.append(limit)
-    
+
     conn = db().connect()
     cur = conn.cursor()
     try:
