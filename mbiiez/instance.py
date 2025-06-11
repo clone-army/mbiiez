@@ -91,7 +91,7 @@ class instance:
 
         self.start_cmd = cmd
         
-        print(bcolors.CYAN + cmd  + bcolors.ENDC )  
+        #print(bcolors.CYAN + cmd  + bcolors.ENDC )  
         print()  
       
         self.process_handler.register_service("OpenJK", cmd, 1) 

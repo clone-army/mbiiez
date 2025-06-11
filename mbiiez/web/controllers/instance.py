@@ -10,6 +10,7 @@ class controller:
 
         self.controller_bag['instance'] = instance
         inst = Instance(instance)
+        status = None
         try:
             status = inst.status()
             # Get MBII version via RCON
@@ -56,7 +57,7 @@ class controller:
             self.controller_bag['map'] = status.get('map_html', '')
             self.controller_bag['mode'] = status.get('mode_html', '')
         else:
-            status['server_name_html'] = status.get('server_name', '')
+            status['server_name_html'] = ''
             status['map_html'] = ''
             status['mode_html'] = ''
             self.controller_bag['players'] = []

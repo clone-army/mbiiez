@@ -20,11 +20,14 @@ class process_handler:
     def __init__(self, instance):
         self.instance = instance
                
-    def register_service(self, name, func, priority = 99, awaiter = None):
-        """ 
-            Register a function as a service. Runs as a fork with PIDs stored in database
-        """
-        self.services.append({"name": name, "func": func, "priority": priority, "awaiter": awaiter})
+    def register_service(self, name, func, priority=99, awaiter=None):
+        if not any(s["name"] == name for s in self.services):
+            self.services.append({
+                "name": name,
+                "func": func,
+                "priority": priority,
+                "awaiter": awaiter
+            })
 
     def launch_services(self):
         """ 
