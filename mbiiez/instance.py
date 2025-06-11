@@ -325,7 +325,24 @@ class instance:
     # Print the server log
     def log(self):
         print("do to")
-        
+
+    # Search the server log for entries containing the search text (case-insensitive)
+    def search_log(self, search_text):
+        """
+        Search the server log for entries containing the search text (case-insensitive).
+        Returns a list of matching log lines.
+        """
+        log_path = self.config['server'].get('log_path')
+        if not log_path or not os.path.exists(log_path):
+            return []
+        matches = []
+        search_text_lower = search_text.lower()
+        with open(log_path, 'r', encoding='utf-8', errors='ignore') as f:
+            for line in f:
+                if search_text_lower in line.lower():
+                    matches.append(line.rstrip('\n'))
+        return matches
+
     # Run an automated test on a number of things printing results
     def test(self):
         output = []

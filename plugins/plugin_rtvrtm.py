@@ -287,9 +287,9 @@ class plugin:
 
         # Check if they previously voted (for messaging)
         if any(pid in v for v in self.map_votes.values() if v is not self.map_votes[m]):
-            self.instance.say(f'{player}{self.COLOR_WHITE} changed their vote to {self.COLOR_RED}{m}{self.COLOR_WHITE} ({len(self.map_votes[m])})')
+            self.instance.tell(pid, f'You changed your vote to {self.COLOR_RED}{m}{self.COLOR_WHITE} ({len(self.map_votes[m])})')
         else:
-            self.instance.say(f'{player}{self.COLOR_WHITE} voted for {self.COLOR_RED}{m}{self.COLOR_WHITE} ({len(self.map_votes[m])})')
+            self.instance.tell(pid, f'You voted for {self.COLOR_RED}{m}{self.COLOR_WHITE} ({len(self.map_votes[m])})')
 
     def _end_rtv(self):
         self.instance.say(f'RTV closed with {len(self.rtv_votes)} votes')
