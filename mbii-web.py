@@ -237,5 +237,5 @@ def status_api(instance_name):
 app.add_url_rule('/api/instance_status/<instance_name>', 'status_api', status_api, methods=['GET'])
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=settings.web_service.port, use_reloader=True)
+    app.run(debug=False, host='0.0.0.0', port=settings.web_service.port, use_reloader=False)
 
