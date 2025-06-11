@@ -94,12 +94,12 @@ def instance_command(instance_name):
     inst = MBInstance(instance_name)
     try:
         if cmd == 'start':
-            if inst.is_running():
+            if inst.server_running():
                 return {"output": f"Instance {instance_name} is already running."}
             inst.start()
             return {"output": f"Instance {instance_name} started."}
         elif cmd == 'stop':
-            if not inst.is_running():
+            if not inst.server_running():
                 return {"output": f"Instance {instance_name} is already stopped."}
             inst.stop()
             return {"output": f"Instance {instance_name} stopped."}
