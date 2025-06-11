@@ -99,8 +99,7 @@ def instance_command(instance_name):
             if inst.server_running():
                 return {"output": f"Instance {instance_name} is already running."}
             inst.start()
-            import time
-           
+            time.sleep(2)
             return {"output": f"Instance {instance_name} started."}
         elif cmd == 'stop':
             if not inst.server_running():
