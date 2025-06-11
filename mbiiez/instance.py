@@ -325,24 +325,7 @@ class instance:
     # Print the server log
     def log(self):
         print("do to")
-
-    # Search the server log for entries containing the search text (case-insensitive)
-    def search_log(self, search_text):
-        """
-        Search the server log for entries containing the search text (case-insensitive).
-        Returns a list of matching log lines.
-        """
-        log_path = self.config['server'].get('log_path')
-        if not log_path or not os.path.exists(log_path):
-            return []
-        matches = []
-        search_text_lower = search_text.lower()
-        with open(log_path, 'r', encoding='utf-8', errors='ignore') as f:
-            for line in f:
-                if search_text_lower in line.lower():
-                    matches.append(line.rstrip('\n'))
-        return matches
-
+        
     # Run an automated test on a number of things printing results
     def test(self):
         output = []
@@ -367,10 +350,7 @@ class instance:
          
     # Start this instance
     def start(self):
-        if self.server_running():
-            print(f"[INFO] Instance {self.name} is already running. Start aborted.")
-            return
-
+    
         self.stop()
         time.sleep(1)
 
@@ -488,14 +468,6 @@ class instance:
             output.append(f"{bcolors.CYAN}Map: {bcolors.ENDC}{info['map']}")
             output.append(f"{bcolors.CYAN}Plugins: {bcolors.ENDC}{','.join(info['plugins'])}")
             output.append(f"{bcolors.CYAN}Uptime: {bcolors.ENDC}{info['uptime']}")
-            # Add MBII version if available
-            if hasattr(self, 'version'):
-                try:
-                    version = self.version()
-                except Exception:
-                    version = None
-                if version:
-                    output.append(f"{bcolors.CYAN}Version: {bcolors.ENDC}{version}")
             if info['players_count'] > 0:
                 output.append(f"{bcolors.CYAN}Players: {bcolors.ENDC}{bcolors.GREEN}{info['players_count']}/32{bcolors.ENDC}")
             else:
@@ -525,19 +497,9 @@ class instance:
             output.append("-------------------------------------------")
         return "\n".join(output)
 
-    def version(self):
-        """Return the MBII version string from RCON 'gamename'."""
-        try:
-            return self.cvar('gamename')
-        except Exception:
-            return "Unknown"
-
  # Stop the instance
     def stop(self, force = False):
-        if not self.server_running():
-            print(f"[INFO] Instance {self.name} is already stopped. Stop aborted.")
-            return
-
+    
         if(self.server_running()):   
             players = self.players()
             confirm = 'n'
@@ -557,4 +519,4 @@ class instance:
     def restart(self):     
         self.stop()
         time.sleep(2)
-        self.start()
+        self.start()    
