@@ -51,7 +51,9 @@ def conditional_auth(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         if getattr(settings.web_service, 'auth_enabled', False):
-            return auth.login_required(f)(*args, **kwargs)
+            auth_result = auth.current_user()
+            if not auth_result:
+                return auth.authenticate()
         return f(*args, **kwargs)
     return decorated
 
