@@ -468,6 +468,14 @@ class instance:
             output.append(f"{bcolors.CYAN}Map: {bcolors.ENDC}{info['map']}")
             output.append(f"{bcolors.CYAN}Plugins: {bcolors.ENDC}{','.join(info['plugins'])}")
             output.append(f"{bcolors.CYAN}Uptime: {bcolors.ENDC}{info['uptime']}")
+            # Add MBII version if available
+            if hasattr(self, 'version'):
+                try:
+                    version = self.version()
+                except Exception:
+                    version = None
+                if version:
+                    output.append(f"{bcolors.CYAN}Version: {bcolors.ENDC}{version}")
             if info['players_count'] > 0:
                 output.append(f"{bcolors.CYAN}Players: {bcolors.ENDC}{bcolors.GREEN}{info['players_count']}/32{bcolors.ENDC}")
             else:
@@ -497,6 +505,13 @@ class instance:
             output.append("-------------------------------------------")
         return "\n".join(output)
 
+    def version(self):
+        """Return the MBII version string from RCON 'gamename'."""
+        try:
+            return self.cvar('gamename')
+        except Exception:
+            return "Unknown"
+
  # Stop the instance
     def stop(self, force = False):
     
@@ -519,4 +534,4 @@ class instance:
     def restart(self):     
         self.stop()
         time.sleep(2)
-        self.start()    
+        self.start()

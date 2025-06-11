@@ -12,8 +12,9 @@ class controller:
         inst = Instance(instance)
         try:
             status = inst.status()
+            # Get MBII version via RCON
+            version = inst.version() if status.get('server_running', False) else ''
         except ConnectionRefusedError:
-            # Server is stopped, so fake a minimal status dict
             status = {
                 'server_running': False,
                 'server_name': instance,
@@ -23,11 +24,13 @@ class controller:
                 'uptime': '',
                 'services': [],
             }
+            version = ''
         bc = bcolors()
         self.controller_bag['status'] = status
         self.controller_bag['engine_running'] = status.get('server_running', False)
         self.controller_bag['status_text'] = 'Running' if status.get('server_running', False) else 'Stopped'
         self.controller_bag['uptime'] = status.get('uptime', '')
+        self.controller_bag['version'] = version
         # Only process map/mode/players if running
         if status.get('server_running', False):
             # Convert color codes in server name for HTML
