@@ -91,6 +91,7 @@ def instance_command(instance_name):
     from mbiiez.instance import instance as MBInstance
     data = request.get_json()
     cmd = data.get('command')
+    time.sleep(4)
     inst = MBInstance(instance_name)
     try:
         if cmd == 'start':
@@ -98,7 +99,7 @@ def instance_command(instance_name):
                 return {"output": f"Instance {instance_name} is already running."}
             inst.start()
             import time
-            time.sleep(2)
+           
             return {"output": f"Instance {instance_name} started."}
         elif cmd == 'stop':
             if not inst.server_running():
