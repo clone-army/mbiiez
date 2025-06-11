@@ -9,11 +9,20 @@ class controller:
     def __init__(self, instance = None):
 
         self.controller_bag['instance'] = instance
-
-        # Get instance status using new status() method
         inst = Instance(instance)
-        status = inst.status()
-
+        try:
+            status = inst.status()
+        except ConnectionRefusedError:
+            # Server is stopped, so fake a minimal status dict
+            status = {
+                'server_running': False,
+                'server_name': instance,
+                'map': '',
+                'mode': '',
+                'players': [],
+                'uptime': '',
+                'services': [],
+            }
         bc = bcolors()
         self.controller_bag['status'] = status
         self.controller_bag['engine_running'] = status.get('server_running', False)
