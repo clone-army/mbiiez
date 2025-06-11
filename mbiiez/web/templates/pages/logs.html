@@ -11,7 +11,7 @@
 </div>
 <div class="card mb-4">
   <div class="card-body">
-    <form class="form-inline mb-3" id="log-filter-form" onsubmit="loadLogs(); return false;">
+    <form class="form-inline mb-3" id="log-filter-form">
       <div class="form-group mr-2">
         <label for="log-tag" class="mr-2">Filter:</label>
         <select id="log-tag" class="form-control">
@@ -31,7 +31,7 @@
       </div>
       <div class="form-group mr-2">
         <label for="log-search" class="mr-2">Search:</label>
-        <input type="text" id="log-search" class="form-control" placeholder="Free text search">
+        <input type="text" id="log-search" class="form-control" placeholder="search...">
       </div>
       <div class="form-group mr-2">
         <label for="auto-refresh" class="mr-2">Auto Refresh</label>
@@ -83,6 +83,11 @@ function setupLogAutoRefresh() {
   }
 }
 document.getElementById('log-filter-form').addEventListener('change', function() {
+  loadLogs();
+  setupLogAutoRefresh();
+});
+document.getElementById('log-filter-form').addEventListener('submit', function(e) {
+  e.preventDefault();
   loadLogs();
   setupLogAutoRefresh();
 });
