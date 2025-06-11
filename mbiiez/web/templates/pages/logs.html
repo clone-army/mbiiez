@@ -11,7 +11,7 @@
 </div>
 <div class="card mb-4">
   <div class="card-body">
-    <form class="form-inline mb-3" id="log-filter-form" onsubmit="return false;">
+    <form class="form-inline mb-3" id="log-filter-form" onsubmit="loadLogs(); return false;">
       <div class="form-group mr-2">
         <label for="log-tag" class="mr-2">Filter:</label>
         <select id="log-tag" class="form-control">
@@ -30,10 +30,14 @@
         </select>
       </div>
       <div class="form-group mr-2">
+        <label for="log-search" class="mr-2">Search:</label>
+        <input type="text" id="log-search" class="form-control" placeholder="Free text search">
+      </div>
+      <div class="form-group mr-2">
         <label for="auto-refresh" class="mr-2">Auto Refresh</label>
         <input type="checkbox" id="auto-refresh" checked>
       </div>
-      <button class="btn btn-primary" onclick="loadLogs()">Apply</button>
+      <button class="btn btn-primary" type="submit">Apply</button>
     </form>
     <div style="max-height: 500px; overflow-y: auto;" id="logs-table-wrapper">
       <table class="table table-sm table-striped" id="logs-table">
@@ -50,7 +54,8 @@ let logInterval = null;
 function loadLogs() {
   const tag = document.getElementById('log-tag').value;
   const limit = document.getElementById('log-limit').value;
-  fetch(`/logs/data?tag=${tag}&limit=${limit}`)
+  const search = document.getElementById('log-search').value;
+  fetch(`/logs/data?tag=${encodeURIComponent(tag)}&limit=${encodeURIComponent(limit)}&search=${encodeURIComponent(search)}`)
     .then(r => r.json())
     .then(data => {
       const tbody = document.querySelector('#logs-table tbody');

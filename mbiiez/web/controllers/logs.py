@@ -17,7 +17,7 @@ class controller:
                 where_clauses.append('instance = ?')
                 params.append(instance)
             if search:
-                where_clauses.append('log LIKE ?')
+                where_clauses.append('log_line LIKE ?')
                 params.append(f'%{search}%')
 
             where_sql = ''
