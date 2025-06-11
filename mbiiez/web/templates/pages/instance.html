@@ -130,10 +130,10 @@ function sendCommand(cmd) {
   setButtonSpinner(btn, true);
   let reloadTimeout = null;
   if (cmd === 'start') {
-    reloadTimeout = setTimeout(function() { location.reload(); }, 5000);
+    reloadTimeout = setTimeout(function() { location.reload(); }, 10000);
   }
   if (cmd === 'restart') {
-    reloadTimeout = setTimeout(function() { location.reload(); }, 8000);
+    reloadTimeout = setTimeout(function() { location.reload(); }, 10000);
   }
   fetch(`/instance/${instance}/command`, {
     method: 'POST',
