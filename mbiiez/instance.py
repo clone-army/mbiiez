@@ -497,3 +497,26 @@ class instance:
             output.append("-------------------------------------------")
         return "\n".join(output)
 
+ # Stop the instance
+    def stop(self, force = False):
+    
+        if(self.server_running()):   
+            players = self.players()
+            confirm = 'n'
+            
+            if len(players) >= 2 and !force:
+                confirm = input(bcolors.RED + "There are more than 2 active players. Are you sure you want to stop the instance? (y/n): " + bcolors.ENDC).lower()
+
+            if len(players) < 2 or confirm == 'y':
+                self.process_handler.stop_all()
+
+                if os.path.exists(self.config['server']['log_path']):
+                    os.remove(self.config['server']['log_path'])
+        else:
+            self.process_handler.stop_all()
+       
+    # Stop then start the instance
+    def restart(self):     
+        self.stop()
+        time.sleep(2)
+        self.start()    
