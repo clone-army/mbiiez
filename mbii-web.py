@@ -3,6 +3,7 @@ import os
 from flask import Flask, request, render_template, redirect, jsonify
 from flask_httpauth import HTTPBasicAuth
 from mbiiez import settings
+from functools import wraps
 
 # Web Tools
 from mbiiez.web.tools import tools
@@ -45,20 +46,28 @@ auth = HTTPBasicAuth()
 def verify_password(username, password):
     if(username == settings.web_service.username and password == settings.web_service.password):
         return username
-                
+
+def conditional_auth(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if getattr(settings.web_service, 'auth_enabled', False):
+            return auth.login_required(f)(*args, **kwargs)
+        return f(*args, **kwargs)
+    return decorated
+
 @app.route('/', methods=['GET', 'POST'])
-@auth.login_required
+@conditional_auth
 def home():
     return redirect("/dashboard", code=302)
 
 @app.route('/dashboard', methods=['GET', 'POST'])
-@auth.login_required
+@conditional_auth
 def dashboard():
     return render_template('pages/dashboard.html', view_bag={})
 
 
 @app.route('/logs', methods=['GET', 'POST'])
-@auth.login_required
+@conditional_auth
 def log():
     instance = request.args.get('instance')
     page = request.args.get('page') or 1
@@ -67,26 +76,26 @@ def log():
     return logs_v(c).render()
     
 @app.route('/players', methods=['GET', 'POST'])
-@auth.login_required
+@conditional_auth
 def players():
     c = players_c(request.args.get('filter'), request.args.get('page'), request.args.get('per_page'))
     return players_v(c).render()    
     
 @app.route('/stats', methods=['GET', 'POST'])
-@auth.login_required
+@conditional_auth
 def stats():
     c = stats_c(request.args.get('instance'))
     return stats_v(c).render()    
 
 @app.route('/instance', methods=['GET', 'POST'])
-@auth.login_required
+@conditional_auth
 def instance():
     c = instance_c(request.args.get('instance'))
     return instance_v(c).render()     
 
 
 @app.route('/instance/<instance_name>/command', methods=['POST'])
-@auth.login_required
+@conditional_auth
 def instance_command(instance_name):
     from mbiiez.instance import instance as MBInstance
     data = request.get_json()
@@ -109,84 +118,84 @@ def instance_command(instance_name):
 
 
 @app.route('/chat', methods=['GET', 'POST'])
-@auth.login_required
+@conditional_auth
 def chat():
     instance = request.args.get('instance')
     c = chat_c(instance)
     return chat_v(c).render()
 
 @app.route('/mod', methods=['GET'])
-@auth.login_required
+@conditional_auth
 def mod():
     instance = request.args.get('instance')
     c = mod_c(instance)
     return mod_v(c).render()
 
 @app.route('/mod/map', methods=['POST'])
-@auth.login_required
+@conditional_auth
 def mod_map():
     data = request.get_json()
     success, msg = mod_c.change_map(data['instance'], data['mapname'])
     return {'success': success, 'error': None if success else msg}
 
 @app.route('/mod/mode', methods=['POST'])
-@auth.login_required
+@conditional_auth
 def mod_mode():
     data = request.get_json()
     success, msg = mod_c.change_mode(data['instance'], data['mode'])
     return {'success': success, 'error': None if success else msg}
 
 @app.route('/mod/kick', methods=['POST'])
-@auth.login_required
+@conditional_auth
 def mod_kick():
     data = request.get_json()
     success, msg = mod_c.kick_player(data['instance'], data['player_id'])
     return {'success': success, 'error': None if success else msg}
 
 @app.route('/mod/ban', methods=['POST'])
-@auth.login_required
+@conditional_auth
 def mod_ban():
     data = request.get_json()
     success, msg = mod_c.ban_player(data['instance'], data['ip'])
     return {'success': success, 'error': None if success else msg}
 
 @app.route('/mod/unban', methods=['POST'])
-@auth.login_required
+@conditional_auth
 def mod_unban():
     data = request.get_json()
     success, msg = mod_c.unban_ip(data['instance'], data['ip'])
     return {'success': success, 'error': None if success else msg}
 
 @app.route('/mod/tell', methods=['POST'])
-@auth.login_required
+@conditional_auth
 def mod_tell():
     data = request.get_json()
     success, msg = mod_c.tell_player(data['instance'], data['player_id'], data['message'])
     return {'success': success, 'error': None if success else msg}
 
 @app.route('/rcon', methods=['GET'])
-@auth.login_required
+@conditional_auth
 def rcon():
     instance = request.args.get('instance')
     c = rcon_c(instance)
     return rcon_v(c).render()
 
 @app.route('/rcon/send', methods=['POST'])
-@auth.login_required
+@conditional_auth
 def rcon_send():
     data = request.get_json()
     success, response = rcon_c.send_rcon(data['instance'], data['command'])
     return {'success': success, 'response': response if success else None, 'error': None if success else response}
 
 @app.route('/config', methods=['GET'])
-@auth.login_required
+@conditional_auth
 def config():
     instance = request.args.get('instance')
     c = config_c(instance)
     return config_v(c).render()
 
 @app.route('/config/save', methods=['POST'])
-@auth.login_required
+@conditional_auth
 def config_save():
     data = request.get_json()
     success, msg = config_c.save_config(data['instance'], data['content'])

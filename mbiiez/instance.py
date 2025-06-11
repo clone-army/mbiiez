@@ -367,7 +367,10 @@ class instance:
          
     # Start this instance
     def start(self):
-    
+        if self.server_running():
+            print(f"[INFO] Instance {self.name} is already running. Start aborted.")
+            return
+
         self.stop()
         time.sleep(1)
 
@@ -531,7 +534,10 @@ class instance:
 
  # Stop the instance
     def stop(self, force = False):
-    
+        if not self.server_running():
+            print(f"[INFO] Instance {self.name} is already stopped. Stop aborted.")
+            return
+
         if(self.server_running()):   
             players = self.players()
             confirm = 'n'
