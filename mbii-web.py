@@ -104,8 +104,15 @@ def instance_command(instance_name):
                 if inst.server_running():
                     return {"output": f"Instance {instance_name} is already running."}
                 inst.start()
-                time.sleep(2)
-                return {"output": f"Instance {instance_name} started."}
+                # Poll for up to 3 seconds to see if process is running
+                for _ in range(6):
+                    if inst.server_running():
+                        break
+                    time.sleep(0.5)
+                if inst.server_running():
+                    return {"output": f"Instance {instance_name} started."}
+                else:
+                    return {"error": f"Instance {instance_name} failed to start."}, 500
             elif cmd == 'stop':
                 if not inst.server_running():
                     return {"output": f"Instance {instance_name} is already stopped."}
