@@ -1,6 +1,7 @@
 import sqlite3
 import os
 import time
+import threading
 from flask import Flask, request, render_template, redirect, jsonify
 from flask_httpauth import HTTPBasicAuth
 from mbiiez import settings
@@ -85,6 +86,7 @@ def instance():
     c = instance_c(request.args.get('instance'))
     return instance_v(c).render()     
 
+instance_locks = {}
 
 @app.route('/instance/<instance_name>/command', methods=['POST'])
 @auth.login_required
@@ -93,26 +95,29 @@ def instance_command(instance_name):
     data = request.get_json()
     cmd = data.get('command')
     time.sleep(4)
-    inst = MBInstance(instance_name)
-    try:
-        if cmd == 'start':
-            if inst.server_running():
-                return {"output": f"Instance {instance_name} is already running."}
-            inst.start()
-            time.sleep(2)
-            return {"output": f"Instance {instance_name} started."}
-        elif cmd == 'stop':
-            if not inst.server_running():
-                return {"output": f"Instance {instance_name} is already stopped."}
-            inst.stop()
-            return {"output": f"Instance {instance_name} stopped."}
-        elif cmd == 'restart':
-            inst.restart()
-            return {"output": f"Instance {instance_name} restarted."}
-        else:
-            return {"error": "Unknown command."}, 400
-    except Exception as e:
-        return {"error": str(e)}, 500
+    # Lock per instance
+    lock = instance_locks.setdefault(instance_name, threading.Lock())
+    with lock:
+        inst = MBInstance(instance_name)
+        try:
+            if cmd == 'start':
+                if inst.server_running():
+                    return {"output": f"Instance {instance_name} is already running."}
+                inst.start()
+                time.sleep(2)
+                return {"output": f"Instance {instance_name} started."}
+            elif cmd == 'stop':
+                if not inst.server_running():
+                    return {"output": f"Instance {instance_name} is already stopped."}
+                inst.stop()
+                return {"output": f"Instance {instance_name} stopped."}
+            elif cmd == 'restart':
+                inst.restart()
+                return {"output": f"Instance {instance_name} restarted."}
+            else:
+                return {"error": "Unknown command."}, 400
+        except Exception as e:
+            return {"error": str(e)}, 500
 
 
 @app.route('/chat', methods=['GET', 'POST'])
