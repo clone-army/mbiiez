@@ -504,7 +504,7 @@ class instance:
             players = self.players()
             confirm = 'n'
             
-            if len(players) >= 2 and !force:
+            if len(players) >= 2 and not force:
                 confirm = input(bcolors.RED + "There are more than 2 active players. Are you sure you want to stop the instance? (y/n): " + bcolors.ENDC).lower()
 
             if len(players) < 2 or confirm == 'y':
