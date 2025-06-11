@@ -108,20 +108,46 @@
   </div>
 </div>
 <script>
+function setButtonSpinner(btn, spinning) {
+  if (spinning) {
+    btn.dataset.originalHtml = btn.innerHTML;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> ' + btn.innerHTML;
+    btn.disabled = true;
+  } else {
+    if (btn.dataset.originalHtml) btn.innerHTML = btn.dataset.originalHtml;
+    btn.disabled = false;
+  }
+}
 function sendCommand(cmd) {
-  fetch(`/instance/{{ view_bag.instance }}/command`, {
+  var instance = "{{ view_bag.instance }}";
+  var btns = document.querySelectorAll('.btn-group button');
+  btns.forEach(b => b.disabled = true);
+  var btn = null;
+  if (cmd === 'start') btn = btns[0];
+  if (cmd === 'stop') btn = btns[1];
+  if (cmd === 'restart') btn = btns[2];
+  setButtonSpinner(btn, true);
+  fetch(`/instance/${instance}/command`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ command: cmd })
   })
-  .then(response => response.json())
+  .then(r => r.json())
   .then(data => {
-    alert(data.output || data.error);
-    window.location.reload();
+    setButtonSpinner(btn, false);
+    btns.forEach(b => b.disabled = false);
+    if (data.output) {
+      alert(data.output);
+      location.reload();
+    } else if (data.error) {
+      alert('Error: ' + data.error);
+    }
   })
-  .catch(err => alert("Error: " + err));
+  .catch(e => {
+    setButtonSpinner(btn, false);
+    btns.forEach(b => b.disabled = false);
+    alert('Error: ' + e);
+  });
 }
 </script>
 {% endblock %}
