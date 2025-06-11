@@ -127,6 +127,13 @@ function sendCommand(cmd) {
   if (cmd === 'stop') btn = btns[1];
   if (cmd === 'restart') btn = btns[2];
   setButtonSpinner(btn, true);
+  let reloadTimeout = null;
+  if (cmd === 'start') {
+    reloadTimeout = setTimeout(function() { location.reload(); }, 5000);
+  }
+  if (cmd === 'restart') {
+    reloadTimeout = setTimeout(function() { location.reload(); }, 8000);
+  }
   fetch(`/instance/${instance}/command`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -136,6 +143,7 @@ function sendCommand(cmd) {
   .then(data => {
     setButtonSpinner(btn, false);
     btns.forEach(b => b.disabled = false);
+    if (reloadTimeout) clearTimeout(reloadTimeout);
     if (data.output) {
       alert(data.output);
       location.reload();
@@ -146,6 +154,7 @@ function sendCommand(cmd) {
   .catch(e => {
     setButtonSpinner(btn, false);
     btns.forEach(b => b.disabled = false);
+    if (reloadTimeout) clearTimeout(reloadTimeout);
     alert('Error: ' + e);
   });
 }
