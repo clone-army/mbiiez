@@ -48,9 +48,12 @@ def verify_password(username, password):
         return username
 
 def conditional_auth(f):
-    if getattr(settings.web_service, 'auth_enabled', False):
-        return auth.login_required(f)
-    return f
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if getattr(settings.web_service, 'auth_enabled', False):
+            return auth.login_required(f)(*args, **kwargs)
+        return f(*args, **kwargs)
+    return decorated
 
 @app.route('/', methods=['GET', 'POST'])
 @conditional_auth
