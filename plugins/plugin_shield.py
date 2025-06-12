@@ -16,6 +16,7 @@ class plugin:
 
     def __init__(self, instance):
         self.instance = instance
+        self.config = self.instance.config['plugins']['shield']
 
     def register(self):
         self.instance.event_handler.register_event("player_connected", self.vpn_check)
@@ -63,7 +64,8 @@ class plugin:
         return False
 
     def geo_ip_is_vpn(self, ip):
-        url = f"https://api.ipgeolocation.io/ipgeo?apiKey=APIKEYHERE={ip}"
+
+        url = f"https://api.ipgeolocation.io/ipgeo?apiKey{self.config['ipgeolocation_apikey']}={ip}"
         try:
             response = requests.get(url)
             response.raise_for_status()  # Raise an error for bad responses
