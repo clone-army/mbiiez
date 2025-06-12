@@ -143,14 +143,15 @@ function sendCommand(cmd) {
     if (data.output) {
       alert(data.output);
       let delay = 0;
-      if (cmd === 'start') delay = 8000;
+      if (cmd === 'start') delay = 5000;
       else if (cmd === 'stop') delay = 5000;
-      else if (cmd === 'restart') delay = 10000;
+      else if (cmd === 'restart') delay = 50000;
       setTimeout(() => {
         location.reload();
       }, delay);
     } else if (data.error) {
-      alert('Error: ' + data.error);
+      console.log('Error: ' + data.error);
+      location.reload();
     }
   })
   .catch(e => {
