@@ -437,12 +437,11 @@ class instance:
             # Only include minimal info for services to avoid recursion
             "services": [
                 {
-                    "name": service['name'],
-                    "running": self.process_handler.process_status_name(service['name'])
+                    "name": row["name"],
+                    "running": self.process_handler.process_status_pid(row["pid"])
                 }
-                for service in getattr(self.process_handler, 'services', [])
-                if isinstance(service, dict) and 'name' in service
-            ],
+                for row in db().select("processes", {"instance": self.name})
+            ]
             "server_running": self.server_running(),
         }
         return info
