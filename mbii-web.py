@@ -2,6 +2,7 @@ import sqlite3
 import os
 import time
 import threading
+import subprocess
 from flask import Flask, request, render_template, redirect, jsonify
 from flask_httpauth import HTTPBasicAuth
 from mbiiez import settings
@@ -91,40 +92,21 @@ instance_locks = {}
 @app.route('/instance/<instance_name>/command', methods=['POST'])
 @auth.login_required
 def instance_command(instance_name):
-    from mbiiez.instance import instance as MBInstance
     data = request.get_json()
     cmd = data.get('command')
-    time.sleep(4)
-    # Lock per instance
-    lock = instance_locks.setdefault(instance_name, threading.Lock())
-    with lock:
-        inst = MBInstance(instance_name)
-        try:
-            if cmd == 'start':
-                if inst.server_running():
-                    return {"output": f"Instance {instance_name} is already running."}
-                inst.start()
-                # Poll for up to 3 seconds to see if process is running
-                for _ in range(6):
-                    if inst.server_running():
-                        break
-                    time.sleep(0.5)
-                if inst.server_running():
-                    return {"output": f"Instance {instance_name} started."}
-                else:
-                    return {"error": f"Instance {instance_name} failed to start."}, 500
-            elif cmd == 'stop':
-                if not inst.server_running():
-                    return {"output": f"Instance {instance_name} is already stopped."}
-                inst.stop()
-                return {"output": f"Instance {instance_name} stopped."}
-            elif cmd == 'restart':
-                inst.restart()
-                return {"output": f"Instance {instance_name} restarted."}
-            else:
-                return {"error": "Unknown command."}, 400
-        except Exception as e:
-            return {"error": str(e)}, 500
+    if cmd not in ['start', 'stop', 'restart']:
+        return {"error": "Unknown command."}, 400
+    cli_cmd = ["mbii", "-i", instance_name, cmd]
+    try:
+        result = subprocess.run(cli_cmd, capture_output=True, text=True, timeout=30)
+        output = (result.stdout or "") + ("\n" + result.stderr if result.stderr else "")
+        output = output.strip()
+        if result.returncode == 0:
+            return {"output": output or f"Instance {instance_name} {cmd}ed."}
+        else:
+            return {"error": output or f"Failed to {cmd} instance {instance_name}."}, 500
+    except Exception as e:
+        return {"error": str(e)}, 500
 
 
 @app.route('/chat', methods=['GET', 'POST'])
