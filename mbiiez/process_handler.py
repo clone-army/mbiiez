@@ -195,6 +195,9 @@ class process_handler:
 
         # The above is quite good for keeping track of processes, ultimately it does not work....
         # This is the brute force... burn it all, command
+        
+        self.services.clear()
+        
         cmd = "ps aux | grep -ie " + self.instance.name + "- | awk '{print $2}' | xargs kill -15 >/dev/null 2>&1"
         os.system(cmd)                 
 
@@ -205,6 +208,8 @@ class process_handler:
         """         
         pr = db().select("processes",{"instance": self.instance.name, "name": name})
         db().execute("delete from processes where instance = \"{}\" and name = \"{}\"".format(self.instance.name, name))
+        
+        self.services = [s for s in self.services if s["name"] != name]
         
         if(len(pr) == 0): # Without its pid we cant do anything here
             return False
