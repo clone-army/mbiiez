@@ -441,7 +441,7 @@ class instance:
                     "running": self.process_handler.process_status_pid(row["pid"])
                 }
                 for row in db().select("processes", {"instance": self.name})
-            ]
+            ],
             "server_running": self.server_running(),
         }
         return info
