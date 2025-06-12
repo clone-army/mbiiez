@@ -142,7 +142,17 @@ function sendCommand(cmd) {
     if (reloadTimeout) clearTimeout(reloadTimeout);
     if (data.output) {
       alert(data.output);
-      location.reload();
+      let delay = 0;
+      if (cmd === 'start') delay = 8000;
+      else if (cmd === 'stop') delay = 5000;
+      else if (cmd === 'restart') delay = 10000;
+      if (delay > 0) {
+        setTimeout(() => {
+          location.reload();
+        }, delay);
+      } else {
+        location.reload();
+      }
     } else if (data.error) {
       alert('Error: ' + data.error);
     }
