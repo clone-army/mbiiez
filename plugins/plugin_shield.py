@@ -65,7 +65,7 @@ class plugin:
 
     def geo_ip_is_vpn(self, ip):
 
-        url = f"https://api.ipgeolocation.io/ipgeo?apiKey{self.config['ipgeolocation_apikey']}={ip}"
+        url = f"https://api.ipgeolocation.io/ipgeo?apiKey={self.config['ipgeolocation_apikey']}&ip={ip}"
         try:
             response = requests.get(url)
             response.raise_for_status()  # Raise an error for bad responses
