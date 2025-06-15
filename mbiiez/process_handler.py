@@ -196,7 +196,7 @@ class process_handler:
         # The above is quite good for keeping track of processes, ultimately it does not work....
         # This is the brute force... burn it all, command
         
-        self.services.clear()
+        #self.services.clear()
         
         cmd = "ps aux | grep -ie " + self.instance.name + "- | awk '{print $2}' | xargs kill -15 >/dev/null 2>&1"
         os.system(cmd)                 
