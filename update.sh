@@ -1,94 +1,57 @@
 #!/usr/bin/env bash
-#
-# update.sh — MBII updater only, with consolidated log, spinner & colors
-#                Conditional update if more than 2 files changed
 
-set -o errexit      # -e
-set -o nounset      # -u
-set -o pipefail     # fail on any pipe member
-set -o errtrace     # ERR trap inherited by functions/subshells
+set -euo pipefail
 IFS=$'\n\t'
 
-# ─── Colors ───────────────────────────────────────────────────────────────
-RED='\033[31m'; GREEN='\033[32m'; YELLOW='\033[33m'; BLUE='\033[36m'; NC='\033[0m'
+# Get absolute path of this script
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# ─── Single log file ──────────────────────────────────────────────────────
-readonly LOG_FILE="/tmp/update_mbii.log"
+# Paths
+gamedir="/opt/openjk"
+updater_dll="$SCRIPT_DIR/updater/MBII_CommandLine_Update_XPlatform.dll"
+mbii_dir="$gamedir/MBII"
+config_dir="$SCRIPT_DIR/configs"
+
+# Log file (optional)
+LOG_FILE="/tmp/mbii_update.log"
 : > "$LOG_FILE"
 
-# ─── Globals for trap ─────────────────────────────────────────────────────
-current_step=""
+echo "Checking for MBII updates..." | tee -a "$LOG_FILE"
+update_output=$(dotnet "$updater_dll" -c -path "$gamedir" 2>&1)
+echo "$update_output" | tee -a "$LOG_FILE"
 
-# ─── Error handler ─────────────────────────────────────────────────────────
-error_exit() {
-  echo
-  printf "${RED}✗ Error during: %s${NC}\n" "$current_step"
-  printf "${YELLOW}See full log at: %s${NC}\n" "$LOG_FILE"
-  exit 1
-}
-trap error_exit ERR
+# Extract update count from output
+update_count=$(echo "$update_output" | grep -Eo '^[0-9]+' || echo 0)
 
-# ─── Spinner (0.2s) ────────────────────────────────────────────────────────
-spinner(){
-  local pid=$1 chars='|/-\\' i=0
-  while kill -0 "$pid" 2>/dev/null; do
-    printf "${YELLOW}%c${NC}" "${chars:i++%${#chars}:1}"
-    sleep 0.2
-    printf "\b"
-  done
+if (( update_count > 0 )); then
+    echo "Update available: $update_count files to update. Applying update..." | tee -a "$LOG_FILE"
+    dotnet "$updater_dll" -path "$gamedir" >> "$LOG_FILE" 2>&1
 
-}
+    # Rename engine library if needed
+    if [[ -f "$mbii_dir/jampgamei386.nopp.so" ]]; then
+        echo "Renaming jampgamei386.so..." | tee -a "$LOG_FILE"
+        mv -f "$mbii_dir/jampgamei386.so" "$mbii_dir/jampgamei386.jamp.so" 2>/dev/null || true
+        cp "$mbii_dir/jampgamei386.nopp.so" "$mbii_dir/jampgamei386.so"
+    else
+        echo "Warning: jampgamei386.nopp.so not found. Skipping rename." | tee -a "$LOG_FILE"
+    fi
 
-# ─── run_step: wrap a long command with spinner + log ─────────────────────
-run_step(){
-  current_step="$1"
-  printf "${BLUE}→ %s...${NC} " "$current_step"
-  bash -c "$2" >>"$LOG_FILE" 2>&1 & local pid=$!
-  spinner "$pid"
-  wait "$pid"
-  printf "${GREEN}✔${NC}\n"
-}
+    # Restart instances
+    shopt -s nullglob
+    configs=("$config_dir"/*.json)
 
-# ─── Require root ─────────────────────────────────────────────────────────
-(( EUID == 0 )) || { printf "${RED}Error:${NC} must run as root (sudo \$0)\n"; exit 1; }
+    if (( ${#configs[@]} == 0 )); then
+        echo "⚠ No config files found in $config_dir. Skipping instance restarts." | tee -a "$LOG_FILE"
+    else
+        echo "Restarting all instances..." | tee -a "$LOG_FILE"
+        for cfg in "${configs[@]}"; do
+            name=$(basename "$cfg" .json)
+            echo "→ Restarting instance: $name" | tee -a "$LOG_FILE"
+            mbii -i "$name" restart >> "$LOG_FILE" 2>&1
+        done
+    fi
 
-# ─── Paths ────────────────────────────────────────────────────────────────
-readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-readonly BASE="/opt/openjk"
-readonly MBII_DIR="/opt/openjk/MBII"
-
-# ─── Check update count ────────────────────────────────────────────────────
-current_step="Checking MBII update count"
-printf "${BLUE}→ %s...${NC} " "$current_step"
-# Run updater with -c to get count of files needing update
-update_count=$(dotnet "${SCRIPT_DIR}/updater/MBII_CommandLine_Update_XPlatform.dll" -c -path "$BASE")
-
-# ─── Conditional Update ────────────────────────────────────────────────────
-if (( update_count > 2 )); then
-  run_step "Updating MBII" \
-    "dotnet \"${SCRIPT_DIR}/updater/MBII_CommandLine_Update_XPlatform.dll\" -path \"$BASE\""
-  printf "
-${GREEN}✅ MBII update applied (${update_count} files updated)!${NC}
-"
-  # Restart all instances defined by config JSON files
-  for cfg in "$SCRIPT_DIR/config"/*.json; do
-    name=$(basename "$cfg" .json)
-    run_step "Restarting instance $name" \
-      "mbii -i \"$name\" restart"
-  done
-  
-# ─── Rename MBII engine library ─────────────────────────────────────────
-  run_step "Renaming JAMP Library" \
-    "if [ -f \"$MBII_DIR/jampgamei386.nopp.so\" ]; then \
-       mv -f \"$MBII_DIR/jampgamei386.nopp.so\" \"$MBII_DIR/jampgamei386.so\"; \
-     else \
-       printf \"${YELLOW}Warning:${NC} jampgamei386.nopp.so not found, skipping rename\\n\"; \
-     fi"
-	 
-fi
-
-if (( update_count < 3 )); then
-
-printf "\n${BLUE}→ %s...${NC} No Update Needed: $update_count \n"
-
+    echo "✅ Update complete." | tee -a "$LOG_FILE"
+else
+    echo "No update needed ($update_count files)." | tee -a "$LOG_FILE"
 fi
