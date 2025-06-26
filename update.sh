@@ -27,15 +27,6 @@ if (( update_count > 0 )); then
     echo "Update available: $update_count files to update. Applying update..." | tee -a "$LOG_FILE"
     dotnet "$updater_dll" -path "$gamedir" >> "$LOG_FILE" 2>&1
 
-    # Rename engine library if needed
-    if [[ -f "$mbii_dir/jampgamei386.nopp.so" ]]; then
-        echo "Renaming jampgamei386.so..." | tee -a "$LOG_FILE"
-        mv -f "$mbii_dir/jampgamei386.so" "$mbii_dir/jampgamei386.jamp.so" 2>/dev/null || true
-        cp "$mbii_dir/jampgamei386.nopp.so" "$mbii_dir/jampgamei386.so"
-    else
-        echo "Warning: jampgamei386.nopp.so not found. Skipping rename." | tee -a "$LOG_FILE"
-    fi
-
     # Restart instances
     shopt -s nullglob
     configs=("$config_dir"/*.json)
@@ -54,4 +45,9 @@ if (( update_count > 0 )); then
     echo "✅ Update complete." | tee -a "$LOG_FILE"
 else
     echo "No update needed ($update_count files)." | tee -a "$LOG_FILE"
+fi
+
+    # Rename engine library if needed
+if [[ -f "$mbii_dir/jampgamei386.nopp.so" ]]; then
+	mv "$mbii_dir/jampgamei386.nopp.so" "$mbii_dir/jampgamei386.so"
 fi
