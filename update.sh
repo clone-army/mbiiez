@@ -47,7 +47,7 @@ else
     echo "No update needed ($update_count files)." | tee -a "$LOG_FILE"
 fi
 
-    # Rename engine library if needed
+# Copy engine library if needed
 if [[ -f "$mbii_dir/jampgamei386.nopp.so" ]]; then
-	mv "$mbii_dir/jampgamei386.nopp.so" "$mbii_dir/jampgamei386.so"
+    cp "$mbii_dir/jampgamei386.nopp.so" "$mbii_dir/jampgamei386.so"
 fi
