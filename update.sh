@@ -42,12 +42,13 @@ if (( update_count > 0 )); then
         done
     fi
 
+    # Copy engine library if needed (only after update)
+    if [[ -f "$mbii_dir/jampgamei386.nopp.so" ]]; then
+        cp "$mbii_dir/jampgamei386.nopp.so" "$mbii_dir/jampgamei386.so"
+        echo "→ Copied engine library" | tee -a "$LOG_FILE"
+    fi
+
     echo "✅ Update complete." | tee -a "$LOG_FILE"
 else
     echo "No update needed ($update_count files)." | tee -a "$LOG_FILE"
-fi
-
-# Copy engine library if needed
-if [[ -f "$mbii_dir/jampgamei386.nopp.so" ]]; then
-    cp "$mbii_dir/jampgamei386.nopp.so" "$mbii_dir/jampgamei386.so"
 fi
