@@ -281,7 +281,6 @@ class log_handler:
             # Determine event type and trigger
             if message.startswith("!") and not is_team:
                 # Command event
-                self.instance.log_handler.log("Triggering player_chat_command event for message: '{}'".format(message))
                 self.instance.event_handler.run_event("player_chat_command", {
                     "message": message, 
                     "player_id": player_id, 

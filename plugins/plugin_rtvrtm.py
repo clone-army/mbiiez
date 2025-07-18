@@ -84,9 +84,30 @@ class plugin:
         # Post-round cooldown lock
         self.vote_locked     = False
         self._lock_start     = 0
-       
-                
 
+        if(self.instance.has_plugin("auto_message")):
+            # Create dynamic message based on enabled features
+            features = []
+            if self.enable_rtv:
+                features.append("!rtv for map changes")
+            if self.enable_rtm:
+                features.append("!rtm for mode changes")
+            
+            if features:
+                if len(features) == 1:
+                    message = f"This server uses RTVRTM plugin. Type {features[0]}."
+                else:
+                    message = f"This server uses RTVRTM plugin. Type {' or '.join(features)}."
+                
+                self.instance.config['plugins']['auto_message']['messages'].append(message)
+            else:
+                # Both disabled - add a generic message
+                self.instance.config['plugins']['auto_message']['messages'].append("This server has RTVRTM plugin installed but voting is currently disabled.")
+            
+            # Add beta message
+            self.instance.config['plugins']['auto_message']['messages'].append("This servers uses a new still in beta re-write of RTVRTM as a plugin for MBIIEZ. Please report any issues on the discord.")
+
+      
     def register(self):
         eh = self.instance.event_handler
         
