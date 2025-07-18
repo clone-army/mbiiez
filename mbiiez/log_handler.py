@@ -215,43 +215,49 @@ class log_handler:
             self.instance.exception_handler.log(e)
     
     def _process_chat_message(self, last_line, is_team=False):
-        """Process chat messages with format-specific robust parsing for MBII logs"""
+        """Process chat messages with simplified but robust parsing for MBII logs"""
         try:
             chat_keyword = "sayteam:" if is_team else "say:"
             
             # MBII log format: "TIMESTAMP PLAYER_ID: say: PLAYER_NAME: \"MESSAGE\""
-            # Example: "  1:10 1: say: ^7CA^1[CG]^7Cpt-^5Fenix: \"server crashed\""
+            # Let's use a simpler approach that works with the actual format
             
-            # Find the position of the chat keyword
-            chat_pos = last_line.find(chat_keyword)
-            if chat_pos == -1:
-                self.instance.log_handler.log("Chat keyword '{}' not found in: {}".format(chat_keyword, last_line[:100]))
+            # Split by the chat keyword first
+            if chat_keyword not in last_line:
                 return
             
-            # Everything after the chat keyword contains: " PLAYER_NAME: \"MESSAGE\""
-            remainder = last_line[chat_pos + len(chat_keyword):]
-            
-            # Find the message by looking for the pattern: ": \"" followed by closing quote
-            # This is more reliable than splitting by colons since names can contain colons
-            message_pattern = ': "'
-            message_start_idx = remainder.rfind(message_pattern)
-            
-            if message_start_idx == -1:
-                self.instance.log_handler.log("Message pattern not found in chat: {}".format(last_line[:100]))
+            # Split the line into parts by colon
+            parts = last_line.split(":")
+            if len(parts) < 4:
+                self.instance.log_handler.log("Not enough parts in chat line: {}".format(last_line[:100]))
                 return
             
-            # Extract player name (everything before the message pattern, stripped)
-            player_name_raw = remainder[:message_start_idx].strip()
+            # For chat: parts[0] = timestamp, parts[1] = player_id, parts[2] = " say" or " sayteam", parts[3] = " player_name", parts[4+] = message
             
-            # Extract message (between the quotes)
-            message_part = remainder[message_start_idx + len(message_pattern):]
-            if not message_part.endswith('"'):
-                self.instance.log_handler.log("Message doesn't end with quote: {}".format(last_line[:100]))
+            # Extract player name (remove leading/trailing whitespace)
+            if len(parts) >= 4:
+                player_name_raw = parts[3].strip()
+            else:
+                self.instance.log_handler.log("Cannot extract player name from chat: {}".format(last_line[:100]))
                 return
             
-            message = message_part[:-1]  # Remove closing quote
+            # Extract message (join remaining parts and remove quotes)
+            if len(parts) >= 5:
+                message_parts = parts[4:]
+                message_with_quotes = ":".join(message_parts).strip()
+                
+                # Remove surrounding quotes if present
+                if message_with_quotes.startswith(' "') and message_with_quotes.endswith('"'):
+                    message = message_with_quotes[2:-1]  # Remove ' "' at start and '"' at end
+                elif message_with_quotes.startswith('"') and message_with_quotes.endswith('"'):
+                    message = message_with_quotes[1:-1]  # Remove quotes
+                else:
+                    message = message_with_quotes.strip()
+            else:
+                self.instance.log_handler.log("Cannot extract message from chat: {}".format(last_line[:100]))
+                return
             
-            # Clean player name for database storage but keep original for display
+            # Clean player name for database storage
             player_clean = self._clean_player_name(player_name_raw)
             
             # Validate extracted data
@@ -259,12 +265,18 @@ class log_handler:
                 self.instance.log_handler.log("Empty player name after cleaning: '{}' from line: {}".format(player_name_raw, last_line[:100]))
                 return
             
+            if not message.strip():
+                self.instance.log_handler.log("Empty message from line: {}".format(last_line[:100]))
+                return
+            
             # Get player ID safely
             try:
                 player_id = connection().get_player_id_from_name(player_clean)
-            except Exception as e:
-                # Don't log this as an error since it's common for player lookups to fail
+            except Exception:
                 player_id = None
+            
+            # Log successful parsing for debugging
+            self.instance.log_handler.log("Chat parsed - Player: '{}' Message: '{}'".format(player_clean, message[:50]))
             
             # Determine event type and trigger
             if message.startswith("!") and not is_team:
