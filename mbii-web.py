@@ -145,13 +145,37 @@ def instance_command_async(instance_name):
     try:
         # Start the process in the background without waiting
         # Use proper detachment to prevent server from stopping when web UI stops
-        # On Unix/Linux, use setsid to create new session
-        subprocess.Popen(
-            cli_cmd, 
-            stdout=subprocess.DEVNULL, 
-            stderr=subprocess.DEVNULL,
-            preexec_fn=os.setsid
-        )
+        # Create a completely independent process using double fork technique
+        def detached_process():
+            # First fork
+            pid = os.fork()
+            if pid > 0:
+                # Parent process exits immediately
+                return
+            
+            # Child process - become session leader
+            os.setsid()
+            
+            # Second fork to prevent zombie processes
+            pid = os.fork()
+            if pid > 0:
+                # First child exits
+                os._exit(0)
+            
+            # Grandchild process - completely detached
+            # Redirect file descriptors
+            with open(os.devnull, 'r') as devnull_in:
+                with open(os.devnull, 'w') as devnull_out:
+                    os.dup2(devnull_in.fileno(), 0)  # stdin
+                    os.dup2(devnull_out.fileno(), 1)  # stdout
+                    os.dup2(devnull_out.fileno(), 2)  # stderr
+            
+            # Execute the command
+            os.execvp(cli_cmd[0], cli_cmd)
+        
+        # Start the detached process
+        detached_process()
+        
         return {"output": f"Instance {instance_name} {cmd} initiated.", "async": True}
     except Exception as e:
         return {"error": str(e)}, 500
