@@ -361,30 +361,6 @@ class log_handler:
         except Exception as e:
             self.instance.log_handler.log("Fallback chat parsing also failed: {} - Line: {}".format(str(e), last_line[:100]))
     
-    def _clean_player_name(self, raw_name):
-        """Clean player name by removing color codes and extra formatting"""
-        try:
-            # Remove common color codes (^1, ^2, ^3, etc.)
-            import re
-            cleaned = re.sub(r'\^[0-9]', '', raw_name)
-            
-            # Remove other common formatting codes
-            cleaned = re.sub(r'\^[a-zA-Z]', '', cleaned)
-            
-            # Remove extra whitespace
-            cleaned = cleaned.strip()
-            
-            # Limit length to prevent extremely long names from breaking things
-            if len(cleaned) > 50:
-                cleaned = cleaned[:50]
-                self.instance.log_handler.log("Warning: Truncated extremely long player name: {}...".format(cleaned))
-            
-            return cleaned
-            
-        except Exception as e:
-            self.instance.log_handler.log("Error cleaning player name '{}': {} - Using raw name".format(raw_name, str(e)))
-            return raw_name.strip()[:50]  # Fallback to just trimmed and limited raw name
-    
     def _process_kill_message(self, last_line):
         """Process kill messages safely"""
         try:

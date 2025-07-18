@@ -464,7 +464,6 @@ class instance:
             output.append(f"{bcolors.CYAN}Map: {bcolors.ENDC}{info['map']}")
             output.append(f"{bcolors.CYAN}Plugins: {bcolors.ENDC}{','.join(info['plugins'])}")
             output.append(f"{bcolors.CYAN}Uptime: {bcolors.ENDC}{info['uptime']}")
-            output.append(f"{bcolors.CYAN}Version: {bcolors.ENDC}{info['uptime']}")           
             output.append(f"{bcolors.CYAN}Version: {bcolors.ENDC}{self.version()}")
 
             if info['players_count'] > 0:
