@@ -97,11 +97,17 @@ def instance_command(instance_name):
     if cmd not in ['start', 'stop', 'restart']:
         return {"error": "Unknown command."}, 400
     
-    # For stop and restart commands, always use --force to avoid confirmation prompts
-    if cmd in ['stop', 'restart']:
-        cli_cmd = ["mbii", "-i", instance_name, cmd, "--force"]
+    # Change "start" to actually run "restart" for cleaner startup
+    if cmd == 'start':
+        actual_cmd = 'restart'
     else:
-        cli_cmd = ["mbii", "-i", instance_name, cmd]
+        actual_cmd = cmd
+    
+    # For stop and restart commands, always use --force to avoid confirmation prompts
+    if actual_cmd in ['stop', 'restart']:
+        cli_cmd = ["mbii", "-i", instance_name, actual_cmd, "--force"]
+    else:
+        cli_cmd = ["mbii", "-i", instance_name, actual_cmd]
     
     try:
         result = subprocess.run(cli_cmd, capture_output=True, text=True, timeout=30)
@@ -111,6 +117,35 @@ def instance_command(instance_name):
             return {"output": output or f"Instance {instance_name} {cmd}ed."}
         else:
             return {"error": output or f"Failed to {cmd} instance {instance_name}."}, 500
+    except Exception as e:
+        return {"error": str(e)}, 500
+
+
+@app.route('/instance/<instance_name>/command_async', methods=['POST'])
+@auth.login_required
+def instance_command_async(instance_name):
+    """Non-blocking command execution for start/restart operations"""
+    data = request.get_json()
+    cmd = data.get('command')
+    if cmd not in ['start', 'stop', 'restart']:
+        return {"error": "Unknown command."}, 400
+    
+    # Change "start" to actually run "restart" for cleaner startup
+    if cmd == 'start':
+        actual_cmd = 'restart'
+    else:
+        actual_cmd = cmd
+    
+    # For stop and restart commands, always use --force to avoid confirmation prompts
+    if actual_cmd in ['stop', 'restart']:
+        cli_cmd = ["mbii", "-i", instance_name, actual_cmd, "--force"]
+    else:
+        cli_cmd = ["mbii", "-i", instance_name, actual_cmd]
+    
+    try:
+        # Start the process in the background without waiting
+        subprocess.Popen(cli_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        return {"output": f"Instance {instance_name} {cmd} initiated.", "async": True}
     except Exception as e:
         return {"error": str(e)}, 500
 
@@ -217,10 +252,42 @@ def status_api(instance_name):
                 'map': status.get('map', ''),
                 'mode': status.get('mode', ''),
                 'uptime': status.get('uptime', ''),
+                'running': status.get('server_running', False),
                 'error': None
             })
         except Exception as e:
             return jsonify({'error': str(e)})
+
+@app.route('/api/check_server/<instance_name>', methods=['GET'])
+@auth.login_required
+def check_server_status(instance_name):
+    """Check if server is running by attempting UDP connection"""
+    import socket
+    from mbiiez.instance import instance as MBInstance
+    
+    try:
+        inst = MBInstance(instance_name)
+        config = inst.config
+        
+        # Get server IP and port from config
+        server_ip = config.get('server', {}).get('ip', '127.0.0.1')
+        server_port = int(config.get('server', {}).get('port', 29070))
+        
+        # Try to connect to UDP port
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.settimeout(1)  # 1 second timeout
+        
+        try:
+            # Send a simple UDP packet to test if port is open
+            sock.sendto(b'', (server_ip, server_port))
+            sock.close()
+            return jsonify({'running': True, 'error': None})
+        except:
+            sock.close()
+            return jsonify({'running': False, 'error': None})
+            
+    except Exception as e:
+        return jsonify({'running': False, 'error': str(e)})
 
 app.add_url_rule('/api/instance_status/<instance_name>', 'status_api', status_api, methods=['GET'])
 

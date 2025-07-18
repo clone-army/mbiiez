@@ -130,7 +130,11 @@ function sendCommand(cmd) {
   setButtonSpinner(btn, true);
   let reloadTimeout = null;
 
-  fetch(`/instance/${instance}/command`, {
+  // Use async endpoint for start/restart to avoid waiting
+  const endpoint = (cmd === 'start' || cmd === 'restart') ? 
+    `/instance/${instance}/command_async` : `/instance/${instance}/command`;
+
+  fetch(endpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ command: cmd })
@@ -140,28 +144,22 @@ function sendCommand(cmd) {
     setButtonSpinner(btn, false);
     btns.forEach(b => b.disabled = false);
     if (reloadTimeout) clearTimeout(reloadTimeout);
+    
     if (data.output) {
-      // Handle different commands differently
-      if (cmd === 'start') {
-        // Start: Show message, wait 5 seconds, then reload
+      if (cmd === 'start' || cmd === 'restart') {
+        // For start/restart, show message and start monitoring
         alert(data.output);
-        setTimeout(() => {
-          location.reload();
-        }, 5000);
+        monitorServerStartup(instance);
       } else if (cmd === 'stop') {
-        // Stop: Log to console and reload immediately
-        console.log('Stop command output:', data.output);
-        location.reload();
-      } else if (cmd === 'restart') {
-        // Restart: Show message, wait 10 seconds, then reload
+        // Stop: Show message and reload after brief delay
         alert(data.output);
         setTimeout(() => {
           location.reload();
-        }, 10000);
+        }, 2000);
       }
     } else if (data.error) {
       console.log('Error: ' + data.error);
-      location.reload();
+      alert('Error: ' + data.error);
     }
   })
   .catch(e => {
@@ -170,6 +168,42 @@ function sendCommand(cmd) {
     if (reloadTimeout) clearTimeout(reloadTimeout);
     alert('Error: ' + e);
   });
+}
+
+function monitorServerStartup(instance) {
+  let attempts = 0;
+  const maxAttempts = 60; // Monitor for up to 60 seconds
+  
+  const checkServer = () => {
+    attempts++;
+    
+    fetch(`/api/check_server/${instance}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.running) {
+          // Server is running, reload page
+          location.reload();
+        } else if (attempts < maxAttempts) {
+          // Server not running yet, check again in 1 second
+          setTimeout(checkServer, 1000);
+        } else {
+          // Timeout reached, reload page anyway
+          alert('Server startup monitoring timed out. Reloading page...');
+          location.reload();
+        }
+      })
+      .catch(e => {
+        console.log('Error checking server status:', e);
+        if (attempts < maxAttempts) {
+          setTimeout(checkServer, 1000);
+        } else {
+          location.reload();
+        }
+      });
+  };
+  
+  // Start monitoring after a brief delay
+  setTimeout(checkServer, 2000);
 }
 </script>
 {% endblock %}
