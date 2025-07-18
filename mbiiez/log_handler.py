@@ -11,6 +11,8 @@ import time
 import re
 import os
 import random
+import threading
+import queue
 from mbiiez.helpers import helpers
 
 from mbiiez.models import chatter, log, frag, connection
@@ -23,6 +25,40 @@ class log_handler:
     def __init__(self, instance):
         self.instance = instance
         self.log_file = self.instance.config['server']['log_path']
+        
+        # Initialize message queue for high-volume processing
+        self.message_queue = queue.Queue(maxsize=1000)  # Limit queue size to prevent memory issues
+        self.processing_thread = None
+        self.shutdown_event = threading.Event()
+        
+        # Start message processing thread
+        self.start_message_processor()
+    
+    def start_message_processor(self):
+        """Start a separate thread to process messages from the queue"""
+        if self.processing_thread is None or not self.processing_thread.is_alive():
+            self.processing_thread = threading.Thread(target=self._process_message_queue, daemon=True)
+            self.processing_thread.start()
+            self.instance.log_handler.log("Message processing thread started")
+    
+    def _process_message_queue(self):
+        """Process messages from the queue in a separate thread"""
+        while not self.shutdown_event.is_set():
+            try:
+                # Get message from queue with timeout
+                message = self.message_queue.get(timeout=1.0)
+                self._process_line_safe(message)
+                self.message_queue.task_done()
+            except queue.Empty:
+                continue
+            except Exception as e:
+                self.instance.exception_handler.log(e)
+    
+    def shutdown(self):
+        """Shutdown the message processor gracefully"""
+        self.shutdown_event.set()
+        if self.processing_thread and self.processing_thread.is_alive():
+            self.processing_thread.join(timeout=5.0)
 
 
     def log_await(self):
@@ -53,10 +89,14 @@ class log_handler:
         try:
         
             for line in tailer.follow(open(self.instance.config['server']['log_path'])):
-                self.instance.log_handler.process(line)
+                # Add to queue instead of processing directly
+                try:
+                    self.message_queue.put_nowait(line)
+                except queue.Full:
+                    self.instance.log_handler.log("Warning: Message queue full, dropping message")
 
         except Exception as e:
-            #self.instance.exception_handler.log(e)    
+            self.instance.exception_handler.log(e)    
             self.log_watcher()
 
     def log_line_count(self):
@@ -86,134 +126,410 @@ class log_handler:
         
     def process(self, last_line):
         """
-        Processes a log line in the log file
+        Legacy method - now just adds to queue for processing
         """   
         try:
+            self.message_queue.put_nowait(last_line)
+        except queue.Full:
+            self.instance.log_handler.log("Warning: Message queue full, dropping message in legacy process method")
         
+    def _safe_split(self, text, delimiter, expected_parts=None, description=""):
+        """
+        Safely split text and validate the result
+        """
+        try:
+            parts = text.split(delimiter)
+            if expected_parts and len(parts) < expected_parts:
+                self.instance.log_handler.log("Warning: Expected {} parts when splitting {} by '{}', got {} - Line: {}".format(
+                    expected_parts, description, delimiter, len(parts), text[:100]))
+                return None
+            return parts
+        except Exception as e:
+            self.instance.log_handler.log("Error splitting {} by '{}': {} - Line: {}".format(
+                description, delimiter, str(e), text[:100]))
+            return None
+    
+    def _safe_extract_substring(self, text, start_marker, end_marker, description=""):
+        """
+        Safely extract substring between markers
+        """
+        try:
+            start_idx = text.find(start_marker)
+            if start_idx == -1:
+                return None
+            start_idx += len(start_marker)
+            
+            end_idx = text.find(end_marker, start_idx)
+            if end_idx == -1:
+                return None
+                
+            return text[start_idx:end_idx]
+        except Exception as e:
+            self.instance.log_handler.log("Error extracting {} from text: {} - Line: {}".format(
+                description, str(e), text[:100]))
+            return None
+        
+    def _process_line_safe(self, last_line):
+        """
+        Safely processes a log line with comprehensive error handling
+        """   
+        try:
+            # Always log the line first
             self.log(last_line)
             
-            # Was a chat
-            if('say:' in last_line):
-            
-                # Ignore if sent by server
-                if('server:' in last_line):
-                    return
-                
-                player = last_line.split(":")[3].strip()
-                message = last_line.split(":")[4].strip()[1:-1]
-                player_id = connection().get_player_id_from_name(player)
-                # Run command event
-                if(message.startswith("!")):                 
-                    self.instance.event_handler.run_event("player_chat_command",{"message": message, "player_id": player_id, "player": player})
-                     
-                else:     
-                    # Run chat event     
-                    self.instance.event_handler.run_event("player_chat",{"type": "PUBLIC", "message": message, "player_id": player_id, "player": player})  
+            # Process chat messages
+            if 'say:' in last_line and 'server:' not in last_line:
+                self._process_chat_message(last_line, is_team=False)
                     
-            if('sayteam:' in last_line):
-                player = last_line.split(":")[3].strip().lstrip()
-                message = last_line.split(":")[4].strip()[1:-1]
-                player_id = connection().get_player_id_from_name(player)
+            elif 'sayteam:' in last_line:
+                self._process_chat_message(last_line, is_team=True)
                 
-                # Run chat event     
-                self.instance.event_handler.run_event("player_chat_team",{"type": "TEAM", "message": message, "player_id": player_id, "player": player})  
+            elif 'Kill:' in last_line:
+                self._process_kill_message(last_line)
                 
-            if('Kill:' in last_line):
-                frag_info = last_line.split(":")[3]
-                weapon = frag_info.split(" by ")[1]
-                players = frag_info.split(" by ")[0]
-                fragger = players.split(" killed ")[0].lstrip()
-                fragged = players.split(" killed ")[1].rstrip()
-                
-                if(fragger == fragged or "<world>" in fragger):
-                    fragger = "SELF"
-                
-                # Run player killed event    
-                self.instance.event_handler.run_event("player_killed",{"fragger": fragger, "fragged": fragged, "weapon": weapon})  
+            elif 'ClientConnect:' in last_line:
+                self._process_client_connect(last_line)
 
-            if 'ClientConnect:' in last_line:
-                # Extract player name
-                player_name_start = last_line.find('(') + 1
-                player_name_end = last_line.find(')', player_name_start)
-                player = last_line[player_name_start:player_name_end]
-
-                # Extract player ID
-                player_id_start = last_line.find('ID: ') + len('ID: ')
-                player_id_end = last_line.find(' ', player_id_start)
-                player_id = last_line[player_id_start:player_id_end]
-
-                # Extract IP address
-                ip_start = last_line.find('IP: ') + len('IP: ')
-                ip_end = last_line.find(')', ip_start)
-                ip_with_port = last_line[ip_start:ip_end]
-
-                # Remove the port from the IP address
-                ip = ip_with_port.split(':')[0]
-
-                self.instance.event_handler.run_event("player_connected", {"ip": ip, "player_id": player_id, "player": player})               
-                self.instance.event_handler.run_event("player_ip", {"ip": ip, "player_id": player_id})
-
-            if('ClientDisconnect:' in last_line):
-                player = ""
-                player_id = last_line.split(":")[2][1:]
-                ip = ""
-                self.instance.event_handler.run_event("player_disconnected",{"ip": ip, "player_id": player_id, "player": player})
+            elif 'ClientDisconnect:' in last_line:
+                self._process_client_disconnect(last_line)
                  
-                
-            if('ClientBegin:' in last_line):
-                player = ""
-                player_id = last_line.split(":")[2][1:]                  
-                self.instance.event_handler.run_event("player_begin",{"player_id": player_id, "player": player})  
+            elif 'ClientBegin:' in last_line:
+                self._process_client_begin(last_line)
 
-            if('ShutdownGame:' in last_line):              
+            elif 'ShutdownGame:' in last_line:              
                 self.instance.event_handler.run_event("new_round", {"data": last_line})  
 
-            if('ClientUserinfoChanged' in last_line):
+            elif 'ClientUserinfoChanged' in last_line:
                 self.instance.event_handler.run_event("player_info_change",{"data": last_line})
 
-            if "SMOD command (" in last_line:
-                match = re.search(r'SMOD command \((.*?)\) executed by (.+?)\(adminID: (\d+)\) \(IP: (.+?)\)', last_line)
-                if match:
-                    command = match.group(1)
-                    admin = match.group(2).strip()
-                    admin_id = match.group(3)
-                    ip = match.group(4)
-                    self.instance.event_handler.run_event("smod_command", {
-                        "command": command,
-                        "admin": admin,
-                        "admin_id": admin_id,
-                        "ip": ip
-                    })
+            elif "SMOD command (" in last_line:
+                self._process_smod_command(last_line)
 
-            if "SMOD say:" in last_line:
-                match = re.search(r'SMOD say: (.+?) \(adminID: (\d+)\) \(IP: (.+?)\) : (.+)', last_line)
-                if match:
-                    admin = match.group(1).strip()
-                    admin_id = match.group(2)
-                    ip = match.group(3)
-                    message = match.group(4).strip()
-                    self.instance.event_handler.run_event("smod_say", {
-                        "admin": admin,
-                        "admin_id": admin_id,
-                        "ip": ip,
-                        "message": message
-                    })
+            elif "SMOD say:" in last_line:
+                self._process_smod_say(last_line)
 
-            if "Successful SMOD login by" in last_line:
-                match = re.search(r'Successful SMOD login by (.+?) \(adminID: (\d+)\) \(IP: (.+?)\)', last_line)
-                if match:
-                    admin = match.group(1).strip()
-                    admin_id = match.group(2)
-                    ip = match.group(3)
-                    self.instance.event_handler.run_event("smod_login", {
-                        "admin": admin,
-                        "admin_id": admin_id,
-                        "ip": ip
-                    })
-
-
+            elif "Successful SMOD login by" in last_line:
+                self._process_smod_login(last_line)
 
         except Exception as e:
+            self.instance.log_handler.log("Critical error processing log line: {} - Line: {}".format(str(e), last_line[:100]))
             self.instance.exception_handler.log(e)
+    
+    def _process_chat_message(self, last_line, is_team=False):
+        """Process chat messages with format-specific robust parsing for MBII logs"""
+        try:
+            chat_keyword = "sayteam:" if is_team else "say:"
+            
+            # MBII log format: "TIMESTAMP PLAYER_ID: say: PLAYER_NAME: \"MESSAGE\""
+            # Example: "  1:10 1: say: ^7CA^1[CG]^7Cpt-^5Fenix: \"server crashed\""
+            
+            # Find the position of the chat keyword
+            chat_pos = last_line.find(chat_keyword)
+            if chat_pos == -1:
+                self.instance.log_handler.log("Chat keyword '{}' not found in: {}".format(chat_keyword, last_line[:100]))
+                return
+            
+            # Everything after the chat keyword contains: " PLAYER_NAME: \"MESSAGE\""
+            remainder = last_line[chat_pos + len(chat_keyword):]
+            
+            # Find the message by looking for the pattern: ": \"" followed by closing quote
+            # This is more reliable than splitting by colons since names can contain colons
+            message_pattern = ': "'
+            message_start_idx = remainder.rfind(message_pattern)
+            
+            if message_start_idx == -1:
+                self.instance.log_handler.log("Message pattern not found in chat: {}".format(last_line[:100]))
+                return
+            
+            # Extract player name (everything before the message pattern, stripped)
+            player_name_raw = remainder[:message_start_idx].strip()
+            
+            # Extract message (between the quotes)
+            message_part = remainder[message_start_idx + len(message_pattern):]
+            if not message_part.endswith('"'):
+                self.instance.log_handler.log("Message doesn't end with quote: {}".format(last_line[:100]))
+                return
+            
+            message = message_part[:-1]  # Remove closing quote
+            
+            # Clean player name for database storage but keep original for display
+            player_clean = self._clean_player_name(player_name_raw)
+            
+            # Validate extracted data
+            if not player_clean.strip():
+                self.instance.log_handler.log("Empty player name after cleaning: '{}' from line: {}".format(player_name_raw, last_line[:100]))
+                return
+            
+            # Get player ID safely
+            try:
+                player_id = connection().get_player_id_from_name(player_clean)
+            except Exception as e:
+                # Don't log this as an error since it's common for player lookups to fail
+                player_id = None
+            
+            # Determine event type and trigger
+            if message.startswith("!") and not is_team:
+                # Command event
+                self.instance.event_handler.run_event("player_chat_command", {
+                    "message": message, 
+                    "player_id": player_id, 
+                    "player": player_clean,
+                    "player_raw": player_name_raw
+                })
+            else:
+                # Regular chat event
+                event_name = "player_chat_team" if is_team else "player_chat"
+                chat_type_str = "TEAM" if is_team else "PUBLIC"
+                self.instance.event_handler.run_event(event_name, {
+                    "type": chat_type_str, 
+                    "message": message, 
+                    "player_id": player_id, 
+                    "player": player_clean,
+                    "player_raw": player_name_raw
+                })
+                
+        except Exception as e:
+            self.instance.log_handler.log("Error processing {} message: {} - Line: {}".format(
+                "team chat" if is_team else "chat", str(e), last_line[:100]))
+    
+    def _clean_player_name(self, player_name):
+        """Remove color codes and clean player name for database storage"""
+        try:
+            if not player_name:
+                return ""
+            
+            # Remove Quake 3 color codes (^0-^9 and some letters)
+            import re
+            cleaned = re.sub(r'\^[0-9a-zA-Z]', '', player_name)
+            
+            # Remove control characters and extra whitespace
+            cleaned = ''.join(char for char in cleaned if ord(char) >= 32)
+            cleaned = cleaned.strip()
+            
+            # If cleaning resulted in empty string, try to extract something useful
+            if not cleaned and player_name:
+                # Extract alphanumeric characters and basic punctuation
+                cleaned = re.sub(r'[^\w\-\[\]() ]', '', player_name).strip()
+            
+            return cleaned if cleaned else "Unknown"
+            
+        except Exception as e:
+            # If cleaning fails completely, return a safe fallback
+            return "Unknown"
+    
+    def _process_chat_fallback(self, last_line, is_team, after_marker):
+        """Fallback chat parsing when quote-based parsing fails"""
+        try:
+            # Try the old split-based approach as fallback
+            line_parts = self._safe_split(last_line, ":", expected_parts=4, description="chat fallback")
+            if line_parts is None or len(line_parts) < 4:
+                self.instance.log_handler.log("Fallback parsing failed - insufficient parts: {}".format(last_line[:100]))
+                return
+            
+            # Try to extract player and message from the parts
+            if len(line_parts) >= 4:
+                player = self._clean_player_name(line_parts[3].strip())
+                
+                # Message might be in parts[4] or might be spread across multiple parts
+                if len(line_parts) >= 5:
+                    message_parts = line_parts[4:]
+                    message = ":".join(message_parts).strip()
+                    
+                    # Remove quotes if present
+                    if message.startswith('"') and message.endswith('"') and len(message) > 1:
+                        message = message[1:-1]
+                else:
+                    message = ""
+                
+                if player and message:
+                    try:
+                        player_id = connection().get_player_id_from_name(player)
+                    except Exception:
+                        player_id = None
+                    
+                    # Trigger events
+                    if message.startswith("!") and not is_team:
+                        self.instance.event_handler.run_event("player_chat_command", {
+                            "message": message, "player_id": player_id, "player": player
+                        })
+                    else:
+                        event_name = "player_chat_team" if is_team else "player_chat"
+                        chat_type_str = "TEAM" if is_team else "PUBLIC"
+                        self.instance.event_handler.run_event(event_name, {
+                            "type": chat_type_str, "message": message, "player_id": player_id, "player": player
+                        })
+                        
+        except Exception as e:
+            self.instance.log_handler.log("Fallback chat parsing also failed: {} - Line: {}".format(str(e), last_line[:100]))
+    
+    def _clean_player_name(self, raw_name):
+        """Clean player name by removing color codes and extra formatting"""
+        try:
+            # Remove common color codes (^1, ^2, ^3, etc.)
+            import re
+            cleaned = re.sub(r'\^[0-9]', '', raw_name)
+            
+            # Remove other common formatting codes
+            cleaned = re.sub(r'\^[a-zA-Z]', '', cleaned)
+            
+            # Remove extra whitespace
+            cleaned = cleaned.strip()
+            
+            # Limit length to prevent extremely long names from breaking things
+            if len(cleaned) > 50:
+                cleaned = cleaned[:50]
+                self.instance.log_handler.log("Warning: Truncated extremely long player name: {}...".format(cleaned))
+            
+            return cleaned
+            
+        except Exception as e:
+            self.instance.log_handler.log("Error cleaning player name '{}': {} - Using raw name".format(raw_name, str(e)))
+            return raw_name.strip()[:50]  # Fallback to just trimmed and limited raw name
+    
+    def _process_kill_message(self, last_line):
+        """Process kill messages safely"""
+        try:
+            line_parts = self._safe_split(last_line, ":", expected_parts=4, description="kill message")
+            if line_parts is None:
+                return
+                
+            frag_info = line_parts[3]
+            
+            # Check if the format contains " by " and " killed "
+            if " by " not in frag_info or " killed " not in frag_info:
+                self.instance.log_handler.log("Invalid kill message format - Line: {}".format(last_line[:100]))
+                return
+            
+            by_parts = self._safe_split(frag_info, " by ", expected_parts=2, description="kill weapon")
+            if by_parts is None:
+                return
+                
+            weapon = by_parts[1].strip()
+            players_part = by_parts[0].strip()
+            
+            killed_parts = self._safe_split(players_part, " killed ", expected_parts=2, description="kill players")
+            if killed_parts is None:
+                return
+                
+            fragger = killed_parts[0].strip()
+            fragged = killed_parts[1].strip()
+            
+            # Handle self-kills and world kills
+            if fragger == fragged or "<world>" in fragger:
+                fragger = "SELF"
+            
+            # Run player killed event    
+            self.instance.event_handler.run_event("player_killed", {
+                "fragger": fragger, "fragged": fragged, "weapon": weapon
+            })
+            
+        except Exception as e:
+            self.instance.log_handler.log("Error processing kill message: {} - Line: {}".format(str(e), last_line[:100]))
+    
+    def _process_client_connect(self, last_line):
+        """Process client connect messages safely"""
+        try:
+            # Extract player name
+            player = self._safe_extract_substring(last_line, "(", ")", "player name")
+            if player is None:
+                player = "Unknown"
+
+            # Extract player ID
+            player_id = self._safe_extract_substring(last_line, "ID: ", " ", "player ID")
+            if player_id is None:
+                player_id = "0"
+
+            # Extract IP address
+            ip_with_port = self._safe_extract_substring(last_line, "IP: ", ")", "IP address")
+            if ip_with_port:
+                ip = ip_with_port.split(':')[0] if ':' in ip_with_port else ip_with_port
+            else:
+                ip = "Unknown"
+
+            self.instance.event_handler.run_event("player_connected", {
+                "ip": ip, "player_id": player_id, "player": player
+            })               
+            self.instance.event_handler.run_event("player_ip", {
+                "ip": ip, "player_id": player_id
+            })
+            
+        except Exception as e:
+            self.instance.log_handler.log("Error processing client connect: {} - Line: {}".format(str(e), last_line[:100]))
+
+    def _process_client_disconnect(self, last_line):
+        """Process client disconnect messages safely"""
+        try:
+            line_parts = self._safe_split(last_line, ":", expected_parts=3, description="client disconnect")
+            if line_parts is None:
+                return
+                
+            player_id = line_parts[2][1:] if len(line_parts[2]) > 1 else "0"
+            
+            self.instance.event_handler.run_event("player_disconnected", {
+                "ip": "", "player_id": player_id, "player": ""
+            })
+            
+        except Exception as e:
+            self.instance.log_handler.log("Error processing client disconnect: {} - Line: {}".format(str(e), last_line[:100]))
+
+    def _process_client_begin(self, last_line):
+        """Process client begin messages safely"""
+        try:
+            line_parts = self._safe_split(last_line, ":", expected_parts=3, description="client begin")
+            if line_parts is None:
+                return
+                
+            player_id = line_parts[2][1:] if len(line_parts[2]) > 1 else "0"
+            
+            self.instance.event_handler.run_event("player_begin", {
+                "player_id": player_id, "player": ""
+            })
+            
+        except Exception as e:
+            self.instance.log_handler.log("Error processing client begin: {} - Line: {}".format(str(e), last_line[:100]))
+
+    def _process_smod_command(self, last_line):
+        """Process SMOD command messages safely"""
+        try:
+            match = re.search(r'SMOD command \((.*?)\) executed by (.+?)\(adminID: (\d+)\) \(IP: (.+?)\)', last_line)
+            if match:
+                command = match.group(1)
+                admin = match.group(2).strip()
+                admin_id = match.group(3)
+                ip = match.group(4)
+                self.instance.event_handler.run_event("smod_command", {
+                    "command": command, "admin": admin, "admin_id": admin_id, "ip": ip
+                })
+        except Exception as e:
+            self.instance.log_handler.log("Error processing SMOD command: {} - Line: {}".format(str(e), last_line[:100]))
+
+    def _process_smod_say(self, last_line):
+        """Process SMOD say messages safely"""
+        try:
+            match = re.search(r'SMOD say: (.+?) \(adminID: (\d+)\) \(IP: (.+?)\) : (.+)', last_line)
+            if match:
+                admin = match.group(1).strip()
+                admin_id = match.group(2)
+                ip = match.group(3)
+                message = match.group(4).strip()
+                self.instance.event_handler.run_event("smod_say", {
+                    "admin": admin, "admin_id": admin_id, "ip": ip, "message": message
+                })
+        except Exception as e:
+            self.instance.log_handler.log("Error processing SMOD say: {} - Line: {}".format(str(e), last_line[:100]))
+
+    def _process_smod_login(self, last_line):
+        """Process SMOD login messages safely"""
+        try:
+            match = re.search(r'Successful SMOD login by (.+?) \(adminID: (\d+)\) \(IP: (.+?)\)', last_line)
+            if match:
+                admin = match.group(1).strip()
+                admin_id = match.group(2)
+                ip = match.group(3)
+                self.instance.event_handler.run_event("smod_login", {
+                    "admin": admin, "admin_id": admin_id, "ip": ip
+                })
+        except Exception as e:
+            self.instance.log_handler.log("Error processing SMOD login: {} - Line: {}".format(str(e), last_line[:100]))
 
   
