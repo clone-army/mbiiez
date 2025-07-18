@@ -182,15 +182,42 @@ test_model() {
 install_python_deps() {
     print_status "Installing Python dependencies..."
     
-    if command_exists pip3; then
-        pip3 install requests
-        print_success "Python dependencies installed"
-    elif command_exists pip; then
-        pip install requests
-        print_success "Python dependencies installed"
-    else
-        print_warning "pip not found. Please install 'requests' manually: pip install requests"
+    # First try system package manager
+    if command_exists apt-get; then
+        if sudo apt-get update && sudo apt-get install -y python3-requests; then
+            print_success "Python dependencies installed via apt"
+            return 0
+        fi
+    elif command_exists yum; then
+        if sudo yum install -y python3-requests; then
+            print_success "Python dependencies installed via yum"
+            return 0
+        fi
+    elif command_exists dnf; then
+        if sudo dnf install -y python3-requests; then
+            print_success "Python dependencies installed via dnf"
+            return 0
+        fi
     fi
+    
+    # If system package manager fails, try pip with --break-system-packages
+    if command_exists pip3; then
+        if pip3 install requests --break-system-packages; then
+            print_success "Python dependencies installed via pip3"
+            return 0
+        fi
+    elif command_exists pip; then
+        if pip install requests --break-system-packages; then
+            print_success "Python dependencies installed via pip"
+            return 0
+        fi
+    fi
+    
+    print_warning "Could not install Python dependencies automatically."
+    print_warning "Please install 'requests' manually using one of:"
+    print_warning "  sudo apt install python3-requests"
+    print_warning "  pip3 install requests --break-system-packages"
+    print_warning "  Or create a virtual environment"
 }
 
 # Function to display system requirements

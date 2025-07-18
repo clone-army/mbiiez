@@ -59,7 +59,7 @@ from urllib.parse import urljoin
 
 class plugin:
 
-    plugin_name = "C-3PO Protocol Droid"
+    plugin_name = "C3PO LLM"
     plugin_author = "Louis Varley"
     plugin_url = "https://github.com/clone-army/mbiiez"
 
@@ -298,7 +298,7 @@ class plugin:
                 return None
                 
         except Exception as e:
-            self.instance.exception_handler.log(f"C-3PO Ollama query failed: {str(e)}")
+            self.instance.exception_handler.log(e)
             return None
             
     def say(self, message):
