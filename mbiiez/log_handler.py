@@ -11,8 +11,6 @@ import time
 import re
 import os
 import random
-import threading
-import queue
 from mbiiez.helpers import helpers
 
 from mbiiez.models import chatter, log, frag, connection
@@ -25,41 +23,7 @@ class log_handler:
     def __init__(self, instance):
         self.instance = instance
         self.log_file = self.instance.config['server']['log_path']
-        
-        # Initialize message queue for high-volume processing
-        self.message_queue = queue.Queue(maxsize=1000)  # Limit queue size to prevent memory issues
-        self.processing_thread = None
-        self.shutdown_event = threading.Event()
-        
-        # Start message processing thread
-        self.start_message_processor()
     
-    def start_message_processor(self):
-        """Start a separate thread to process messages from the queue"""
-        if self.processing_thread is None or not self.processing_thread.is_alive():
-            self.processing_thread = threading.Thread(target=self._process_message_queue, daemon=True)
-            self.processing_thread.start()
-    
-    def _process_message_queue(self):
-        """Process messages from the queue in a separate thread"""
-        while not self.shutdown_event.is_set():
-            try:
-                # Get message from queue with timeout
-                message = self.message_queue.get(timeout=1.0)
-                self._process_line_safe(message)
-                self.message_queue.task_done()
-            except queue.Empty:
-                continue
-            except Exception as e:
-                self.instance.exception_handler.log(e)
-    
-    def shutdown(self):
-        """Shutdown the message processor gracefully"""
-        self.shutdown_event.set()
-        if self.processing_thread and self.processing_thread.is_alive():
-            self.processing_thread.join(timeout=5.0)
-
-
     def log_await(self):
         x = 0
         
@@ -88,11 +52,8 @@ class log_handler:
         try:
         
             for line in tailer.follow(open(self.instance.config['server']['log_path'])):
-                # Add to queue instead of processing directly
-                try:
-                    self.message_queue.put_nowait(line)
-                except queue.Full:
-                    self.instance.log_handler.log("Warning: Message queue full, dropping message")
+                # Process lines directly instead of using queue
+                self._process_line_safe(line)
 
         except Exception as e:
             self.instance.exception_handler.log(e)    
@@ -125,12 +86,9 @@ class log_handler:
         
     def process(self, last_line):
         """
-        Legacy method - now just adds to queue for processing
+        Process a single log line directly
         """   
-        try:
-            self.message_queue.put_nowait(last_line)
-        except queue.Full:
-            self.instance.log_handler.log("Warning: Message queue full, dropping message in legacy process method")
+        self._process_line_safe(last_line)
         
     def _safe_split(self, text, delimiter, expected_parts=None, description=""):
         """
@@ -281,6 +239,7 @@ class log_handler:
             # Determine event type and trigger
             if message.startswith("!") and not is_team:
                 # Command event
+                self.instance.log_handler.log("Triggering player_chat_command event for message: '{}'".format(message))
                 self.instance.event_handler.run_event("player_chat_command", {
                     "message": message, 
                     "player_id": player_id, 
@@ -291,6 +250,7 @@ class log_handler:
                 # Regular chat event
                 event_name = "player_chat_team" if is_team else "player_chat"
                 chat_type_str = "TEAM" if is_team else "PUBLIC"
+                self.instance.log_handler.log("Triggering {} event for message: '{}'".format(event_name, message))
                 self.instance.event_handler.run_event(event_name, {
                     "type": chat_type_str, 
                     "message": message, 
