@@ -511,10 +511,15 @@ class instance:
             players = self.players()
             confirm = 'n'
             
-            if len(players) >= 2 and not force:
+            # Check if we're being called from a web interface context
+            # by checking if stdin is not a TTY (terminal)
+            import sys
+            is_web_context = not sys.stdin.isatty()
+            
+            if len(players) >= 2 and not force and not is_web_context:
                 confirm = input(bcolors.RED + "There are more than 2 active players. Are you sure you want to stop the instance? (y/n): " + bcolors.ENDC).lower()
 
-            if len(players) < 2 or confirm == 'y':
+            if len(players) < 2 or confirm == 'y' or is_web_context:
                 self.process_handler.stop_all()
 
                 if os.path.exists(self.config['server']['log_path']):

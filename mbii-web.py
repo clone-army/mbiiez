@@ -96,7 +96,13 @@ def instance_command(instance_name):
     cmd = data.get('command')
     if cmd not in ['start', 'stop', 'restart']:
         return {"error": "Unknown command."}, 400
-    cli_cmd = ["mbii", "-i", instance_name, cmd]
+    
+    # For stop and restart commands, always use --force to avoid confirmation prompts
+    if cmd in ['stop', 'restart']:
+        cli_cmd = ["mbii", "-i", instance_name, cmd, "--force"]
+    else:
+        cli_cmd = ["mbii", "-i", instance_name, cmd]
+    
     try:
         result = subprocess.run(cli_cmd, capture_output=True, text=True, timeout=30)
         output = (result.stdout or "") + ("\n" + result.stderr if result.stderr else "")

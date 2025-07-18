@@ -2,6 +2,7 @@
 import sys, getopt
 import argparse
 import os
+import time
 
 from mbiiez.bcolors import bcolors
 from mbiiez.instance import instance
@@ -22,7 +23,8 @@ class main:
         print("-u                                        Update          Check for MBII Updates, Update when ALL instances are empty")
         print("-v                                        Verbose         Enable verbose mode")     
         print("-c <name>                                 Client          Show stats from all instances for a client / player") 
-        print("-a [command] [optional args]              All             Use to run a command against all instances")         
+        print("-a [command] [optional args]              All             Use to run a command against all instances")
+        print("--force                                   Force           Force action without confirmation prompts")         
         print("-h                                        Help            Show this help screen")  
         
         print("")
@@ -31,8 +33,8 @@ class main:
         print("Option             Description")
         print("------------------------------------")        
         print("start              Start Instance")
-        print("stop               Stop Instance") 
-        print("restart            Restart Instance") 
+        print("stop               Stop Instance (use --force to skip confirmation)") 
+        print("restart            Restart Instance (use --force to skip confirmation)") 
         print("status             Instance Status") 
         print("rcon               Issue RCON Command In Argument") 
         print("say                Issue a Server say to the Server")         
@@ -56,6 +58,7 @@ class main:
         group.add_argument("-a", type=str, help="Action on Instances", nargs="+", metavar="INSTANCE", dest="instances")        
         group.add_argument("-h", action="store_true",              help="Help Usage",          dest="help")
         parser.add_argument("-v", action="store_true",              help="Verbose Output",      dest="verbose")
+        parser.add_argument("--force", action="store_true",         help="Force action without confirmation",  dest="force")
 
 
                 
@@ -82,11 +85,33 @@ class main:
                 inst = self.get_instance(args.instance[0])
                 print(inst.status_print())
             elif(len(args.instance) == 3):
-                getattr(self.get_instance(args.instance[0]), args.instance[1])(args.instance[2])
+                # Check if it's a stop or restart command and we have the force flag
+                if args.instance[1] in ['stop', 'restart'] and args.force:
+                    if args.instance[1] == 'stop':
+                        getattr(self.get_instance(args.instance[0]), args.instance[1])(force=True)
+                    else:
+                        # For restart, we need to modify the instance to accept force
+                        inst = self.get_instance(args.instance[0])
+                        inst.stop(force=True)
+                        time.sleep(2)
+                        inst.start()
+                else:
+                    getattr(self.get_instance(args.instance[0]), args.instance[1])(args.instance[2])
             elif(len(args.instance) == 4):
                  getattr(self.get_instance(args.instance[0]), args.instance[1])(args.instance[2], args.instance[3])           
             else:
-                getattr(self.get_instance(args.instance[0]), args.instance[1])()
+                # Check if it's a stop or restart command and we have the force flag
+                if args.instance[1] in ['stop', 'restart'] and args.force:
+                    if args.instance[1] == 'stop':
+                        getattr(self.get_instance(args.instance[0]), args.instance[1])(force=True)
+                    else:
+                        # For restart, we need to modify the instance to accept force
+                        inst = self.get_instance(args.instance[0])
+                        inst.stop(force=True)
+                        time.sleep(2)
+                        inst.start()
+                else:
+                    getattr(self.get_instance(args.instance[0]), args.instance[1])()
 
         if(args.instances):
             action = args.instances[0]
