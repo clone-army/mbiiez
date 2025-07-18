@@ -39,7 +39,6 @@ class log_handler:
         if self.processing_thread is None or not self.processing_thread.is_alive():
             self.processing_thread = threading.Thread(target=self._process_message_queue, daemon=True)
             self.processing_thread.start()
-            self.instance.log_handler.log("Message processing thread started")
     
     def _process_message_queue(self):
         """Process messages from the queue in a separate thread"""
