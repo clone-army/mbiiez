@@ -144,7 +144,14 @@ def instance_command_async(instance_name):
     
     try:
         # Start the process in the background without waiting
-        subprocess.Popen(cli_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        # Use proper detachment to prevent server from stopping when web UI stops
+        # On Unix/Linux, use setsid to create new session
+        subprocess.Popen(
+            cli_cmd, 
+            stdout=subprocess.DEVNULL, 
+            stderr=subprocess.DEVNULL,
+            preexec_fn=os.setsid
+        )
         return {"output": f"Instance {instance_name} {cmd} initiated.", "async": True}
     except Exception as e:
         return {"error": str(e)}, 500

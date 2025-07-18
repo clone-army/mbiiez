@@ -141,23 +141,26 @@ function sendCommand(cmd) {
   })
   .then(r => r.json())
   .then(data => {
-    setButtonSpinner(btn, false);
-    btns.forEach(b => b.disabled = false);
     if (reloadTimeout) clearTimeout(reloadTimeout);
     
     if (data.output) {
       if (cmd === 'start' || cmd === 'restart') {
         // For start/restart, show message and start monitoring
+        // DON'T remove spinner yet - keep it until server is detected
         alert(data.output);
-        monitorServerStartup(instance);
+        monitorServerStartup(instance, btn, btns);
       } else if (cmd === 'stop') {
         // Stop: Show message and reload after brief delay
+        setButtonSpinner(btn, false);
+        btns.forEach(b => b.disabled = false);
         alert(data.output);
         setTimeout(() => {
           location.reload();
         }, 2000);
       }
     } else if (data.error) {
+      setButtonSpinner(btn, false);
+      btns.forEach(b => b.disabled = false);
       console.log('Error: ' + data.error);
       alert('Error: ' + data.error);
     }
@@ -170,9 +173,9 @@ function sendCommand(cmd) {
   });
 }
 
-function monitorServerStartup(instance) {
+function monitorServerStartup(instance, btn, btns) {
   let attempts = 0;
-  const maxAttempts = 60; // Monitor for up to 60 seconds
+  const maxAttempts = 90; // Monitor for up to 90 seconds (longer for restart)
   
   const checkServer = () => {
     attempts++;
@@ -181,13 +184,19 @@ function monitorServerStartup(instance) {
       .then(r => r.json())
       .then(data => {
         if (data.running) {
-          // Server is running, reload page
-          location.reload();
+          // Server is running, wait 2 seconds for full initialization, then reload
+          setTimeout(() => {
+            setButtonSpinner(btn, false);
+            btns.forEach(b => b.disabled = false);
+            location.reload();
+          }, 2000);
         } else if (attempts < maxAttempts) {
           // Server not running yet, check again in 1 second
           setTimeout(checkServer, 1000);
         } else {
-          // Timeout reached, reload page anyway
+          // Timeout reached, stop spinner and reload page anyway
+          setButtonSpinner(btn, false);
+          btns.forEach(b => b.disabled = false);
           alert('Server startup monitoring timed out. Reloading page...');
           location.reload();
         }
@@ -197,6 +206,8 @@ function monitorServerStartup(instance) {
         if (attempts < maxAttempts) {
           setTimeout(checkServer, 1000);
         } else {
+          setButtonSpinner(btn, false);
+          btns.forEach(b => b.disabled = false);
           location.reload();
         }
       });

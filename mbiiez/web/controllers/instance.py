@@ -51,8 +51,14 @@ class controller:
             # Convert player names
             players = status.get('players', [])
             for p in players:
-                if 'name' in p:
+                if 'name_raw' in p:
+                    # Use name_raw (with ^-codes) for web interface HTML conversion
+                    p['player_html'] = bc.html_color_convert(p['name_raw'])
+                elif 'name' in p:
+                    # Fallback to name if name_raw not available
                     p['player_html'] = bc.html_color_convert(p['name'])
+                else:
+                    p['player_html'] = 'Unknown'
             self.controller_bag['players'] = players
             self.controller_bag['map'] = status.get('map_html', '')
             self.controller_bag['mode'] = status.get('mode_html', '')

@@ -317,6 +317,7 @@ class instance:
                 "score": score,
                 "ping": ping_color,
                 "name": bcolors().color_convert(name),
+                "name_raw": name,  # Keep original with ^-codes for web interface
                 "ip": ip,
                 "rate": rate
             })
@@ -483,9 +484,14 @@ class instance:
                 try:
                     import prettytable
                     x = prettytable.PrettyTable()
-                    x.field_names = list(info['players'][0].keys())
+                    x.field_names = ["ID", "Ping", "IP", "Name"]
                     for player in info['players']:
-                        x.add_row(player.values())
+                        x.add_row([
+                            player.get('id', ''),
+                            player.get('ping', ''),
+                            player.get('ip', ''),
+                            player.get('name', '')
+                        ])
                     output.append(str(x))
                 except Exception:
                     output.append("[Error displaying player table]")
