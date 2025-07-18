@@ -123,7 +123,7 @@ run_step "Installing .NET 6 SDK & Runtime" \
 run_step "Setting up Python venv & pip packages" \
   "python3 -m venv \"$VENV_DIR\" && \
    \"$VENV_DIR/bin/pip\" install --upgrade pip && \
-   packages=(watchgod tailer six prettytable pysqlite3 psutil flask flask_httpauth discord.py requests) && \
+   packages=(watchgod tailer six prettytable pysqlite3 psutil flask flask_httpauth discord.py requests inotify) && \
    for pkg in \"\${packages[@]}\"; do \
      if \"$VENV_DIR/bin/pip\" install \"\$pkg\"; then \
        printf \"${GREEN}✔ Installed %s${NC}\n\" \"\$pkg\"; \
