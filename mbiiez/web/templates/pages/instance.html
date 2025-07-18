@@ -141,14 +141,24 @@ function sendCommand(cmd) {
     btns.forEach(b => b.disabled = false);
     if (reloadTimeout) clearTimeout(reloadTimeout);
     if (data.output) {
-      alert(data.output);
-      let delay = 0;
-      if (cmd === 'start') delay = 5000;
-      else if (cmd === 'stop') delay = 5000;
-      else if (cmd === 'restart') delay = 50000;
-      setTimeout(() => {
+      // Handle different commands differently
+      if (cmd === 'start') {
+        // Start: Show message, wait 5 seconds, then reload
+        alert(data.output);
+        setTimeout(() => {
+          location.reload();
+        }, 5000);
+      } else if (cmd === 'stop') {
+        // Stop: Log to console and reload immediately
+        console.log('Stop command output:', data.output);
         location.reload();
-      }, delay);
+      } else if (cmd === 'restart') {
+        // Restart: Show message, wait 10 seconds, then reload
+        alert(data.output);
+        setTimeout(() => {
+          location.reload();
+        }, 10000);
+      }
     } else if (data.error) {
       console.log('Error: ' + data.error);
       location.reload();
