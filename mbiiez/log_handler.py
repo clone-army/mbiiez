@@ -177,10 +177,10 @@ class log_handler:
             self.log(last_line)
             
             # Process chat messages
-            if 'say:' in last_line and 'server:' not in last_line:
+            if ': say: ' in last_line and 'server:' not in last_line:
                 self._process_chat_message(last_line, is_team=False)
                     
-            elif 'sayteam:' in last_line:
+            elif ': sayteam: ' in last_line:
                 self._process_chat_message(last_line, is_team=True)
                 
             elif 'Kill:' in last_line:
@@ -217,10 +217,10 @@ class log_handler:
     def _process_chat_message(self, last_line, is_team=False):
         """Process chat messages with simplified but robust parsing for MBII logs"""
         try:
-            chat_keyword = "sayteam:" if is_team else "say:"
+            chat_keyword = ": sayteam: " if is_team else ": say: "
             
             # MBII log format: "TIMESTAMP PLAYER_ID: say: PLAYER_NAME: \"MESSAGE\""
-            # Let's use a simpler approach that works with the actual format
+            # Example: "  0:28 0: say: CA^8[212]^7CE-Ricks: \"!rtv\""
             
             # Split by the chat keyword first
             if chat_keyword not in last_line:
@@ -228,11 +228,11 @@ class log_handler:
             
             # Split the line into parts by colon
             parts = last_line.split(":")
-            if len(parts) < 4:
+            if len(parts) < 5:  # Now we need at least 5 parts due to the extra space
                 self.instance.log_handler.log("Not enough parts in chat line: {}".format(last_line[:100]))
                 return
             
-            # For chat: parts[0] = timestamp, parts[1] = player_id, parts[2] = " say" or " sayteam", parts[3] = " player_name", parts[4+] = message
+            # For chat: parts[0] = timestamp, parts[1] = player_id, parts[2] = " say", parts[3] = " player_name", parts[4+] = message
             
             # Extract player name (remove leading/trailing whitespace)
             if len(parts) >= 4:
