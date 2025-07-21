@@ -294,24 +294,84 @@ class plugin:
             response = self.query_ollama(full_prompt)
             
             if response:
-                # Ensure response isn't too long for game chat
-                if len(response) > 120:
-                    response = response[:117] + "..."
-                    
-                # Add C-3PO color and ensure proper formatting
-                if not response.startswith("^6"):
-                    response = f"^6{response}"
-                    
-                self.say(response)
+                # Split long responses into multiple messages
+                self.send_chunked_response(response)
             else:
                 # Use smart fallback based on message content
                 fallback = self.get_smart_fallback(message if not is_system else "map")
-                self.say(fallback)
+                self.send_chunked_response(fallback)
                 
         except Exception as e:
             self.instance.exception_handler.log(e)
             fallback = self.get_smart_fallback("error")
-            self.say(fallback)
+            self.send_chunked_response(fallback)
+            
+    def send_chunked_response(self, response):
+        """Split long responses into multiple chat messages"""
+        # Add C-3PO color if not present
+        if not response.startswith("^6"):
+            response = f"^6{response}"
+            
+        max_length = 120  # Maximum characters per chat message
+        
+        # If response fits in one message, send it directly
+        if len(response) <= max_length:
+            self.say(response)
+            return
+            
+        # Split the response into chunks
+        chunks = []
+        current_chunk = ""
+        
+        # Split by sentences first to keep them together
+        sentences = response.replace(". ", ".|").replace("! ", "!|").replace("? ", "?|").split("|")
+        
+        for sentence in sentences:
+            sentence = sentence.strip()
+            if not sentence:
+                continue
+                
+            # If adding this sentence would exceed the limit, start a new chunk
+            if len(current_chunk) + len(sentence) + 1 > max_length:
+                if current_chunk:
+                    chunks.append(current_chunk.strip())
+                    current_chunk = f"^6{sentence}"  # Start new chunk with color
+                else:
+                    # Single sentence is too long, split by words
+                    words = sentence.split()
+                    for word in words:
+                        if len(current_chunk) + len(word) + 1 > max_length:
+                            if current_chunk:
+                                chunks.append(current_chunk.strip())
+                                current_chunk = f"^6{word}"
+                            else:
+                                # Single word is too long, truncate it
+                                chunks.append(f"^6{word[:max_length-3]}...")
+                                current_chunk = ""
+                        else:
+                            if current_chunk:
+                                current_chunk += f" {word}"
+                            else:
+                                current_chunk = f"^6{word}"
+            else:
+                if current_chunk:
+                    current_chunk += f" {sentence}"
+                else:
+                    current_chunk = f"^6{sentence}"
+        
+        # Add any remaining text
+        if current_chunk.strip():
+            chunks.append(current_chunk.strip())
+            
+        # Send each chunk with a small delay to avoid flooding
+        for i, chunk in enumerate(chunks):
+            if i == 0:
+                # Send first chunk immediately
+                self.say(chunk)
+            else:
+                # Delay subsequent chunks slightly
+                delay = i * 1.5  # 1.5 seconds between messages
+                threading.Timer(delay, lambda c=chunk: self.say(c)).start()
             
     def get_smart_fallback(self, message):
         """Get a contextual fallback response based on message content"""
@@ -377,10 +437,6 @@ class plugin:
                 
                 # Clean and format the response
                 if generated_text:
-                    # Ensure it's not too long
-                    if len(generated_text) > 150:
-                        generated_text = generated_text[:147] + "..."
-                    
                     # Add C-3PO characteristic phrases if missing
                     if not any(phrase in generated_text.lower() for phrase in ["oh my", "how", "the odds", "do be", "i do"]):
                         if "?" in generated_text:
@@ -400,9 +456,12 @@ class plugin:
             return None
             
     def say(self, message):
-        """Send a message to all players"""
-        self.instance.say(message)
+        """Send a message to all players with C-3PO prefix"""
+        # Add C-3PO prefix to make it clear who's speaking
+        formatted_message = f"^6C-3PO: {message.replace('^6', '')}"
+        self.instance.say(formatted_message)
         
     def tell(self, player_id, message):
-        """Send a private message to a specific player"""
-        self.instance.tell(player_id, message)
+        """Send a private message to a specific player with C-3PO prefix"""
+        formatted_message = f"^6C-3PO: {message.replace('^6', '')}"
+        self.instance.tell(player_id, formatted_message)
