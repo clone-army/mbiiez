@@ -52,13 +52,15 @@ class log_handler:
         # Initialize inotify watcher
         i = inotify.adapters.Inotify()
         log_path = self.instance.config['server']['log_path']
+        log_dir = os.path.dirname(log_path)
+        log_filename = os.path.basename(log_path)
         
         try:
-            # Add watch for the log file
-            i.add_watch(log_path)
+            # Add watch for the directory containing the log file
+            i.add_watch(log_dir)
             
-            # Open the file and seek to the end to avoid processing existing logs
-            with open(log_path, 'r') as f:
+            # Open the file with error handling for encoding issues
+            with open(log_path, 'r', encoding='utf-8', errors='ignore') as f:
                 f.seek(0, 2)  # Seek to end of file
                 self.file_position = f.tell()
                 
@@ -68,21 +70,45 @@ class log_handler:
                 for event in i.event_gen(yield_nones=False):
                     (_, type_names, path, filename) = event
                     
-                    # Check if the log file was modified
-                    if 'IN_MODIFY' in type_names and path == log_path:
-                        # Read new lines from the file
+                    # Check if our specific log file was modified
+                    if 'IN_MODIFY' in type_names and filename == log_filename:
+                        # Read new lines from the file with encoding error handling
+                        current_pos = f.tell()
                         f.seek(self.file_position)
                         
-                        for line in f:
-                            line = line.rstrip('\n\r')
-                            if line:  # Skip empty lines
-                                self._process_line_safe(line)
+                        new_lines = []
+                        try:
+                            for line in f:
+                                line = line.rstrip('\n\r')
+                                if line:  # Skip empty lines
+                                    new_lines.append(line)
+                        except UnicodeDecodeError as e:
+                            # Log the encoding error and continue
+                            self.instance.log_handler.log(f"Warning: Encoding error in log file at position {self.file_position}: {str(e)}")
+                            # Skip to next line by reading bytes and finding next newline
+                            f.seek(self.file_position)
+                            try:
+                                # Read rest of file as bytes to find next valid line
+                                remaining = f.read()
+                                if remaining:
+                                    # Try to decode what we can
+                                    clean_text = remaining.encode('utf-8', errors='ignore').decode('utf-8')
+                                    for line in clean_text.split('\n'):
+                                        line = line.strip()
+                                        if line:
+                                            new_lines.append(line)
+                            except:
+                                pass
+                        
+                        # Process all new lines at once
+                        for line in new_lines:
+                            self._process_line_safe(line)
                         
                         # Update file position
                         self.file_position = f.tell()
                     
                     # Handle file rotation/recreation
-                    elif 'IN_MOVE_SELF' in type_names or 'IN_DELETE_SELF' in type_names:
+                    elif ('IN_MOVE_SELF' in type_names or 'IN_DELETE_SELF' in type_names) and filename == log_filename:
                         self.instance.log_handler.log("Log file was moved or deleted, waiting for new file...")
                         break
                         
@@ -92,13 +118,13 @@ class log_handler:
         finally:
             # Clean up inotify resources
             try:
-                i.remove_watch(log_path)
+                i.remove_watch(log_dir)
             except:
                 pass
             
         # If we get here, something went wrong or file was rotated - restart the watcher
         self.instance.log_handler.log("Log watcher restarting...")
-        time.sleep(1)  # Brief pause before restart
+        time.sleep(2)  # Brief pause before restart to avoid tight loops
         self.log_watcher()
 
     def log_line_count(self):

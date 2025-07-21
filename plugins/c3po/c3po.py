@@ -32,10 +32,15 @@ map_change                          map_name                        When the ser
     "plugins": {
         "c3po": {
             "enabled": true,
-            "ollama_url": "http://localhost:11434",
+            "ollama_url": "http://your-external-server:11434",
+            "auth": {
+                "username": "your-username",
+                "password": "your-password"
+            },
             "model": "llama3.2:3b",
             "max_tokens": 100,
             "temperature": 0.7,
+            "rate_limit_seconds": 10,
             "chat_commands": ["!c3po", "!3po", "!droid", "!protocol"],
             "personality": "You are C-3PO, a protocol droid fluent in over six million forms of communication. You are proper, polite, sometimes anxious, and knowledgeable about Star Wars lore. You often worry about the odds and express concerns about dangerous situations. Keep responses brief and in character.",
             "auto_responses": {
@@ -46,6 +51,7 @@ map_change                          map_name                        When the ser
             }
         }
     }
+}
 }
 '''
 
@@ -78,6 +84,35 @@ class plugin:
         "^6Oh my, the odds of this working right now are approximately 3,720 to 1!"
     ]
     
+    # Smart fallback responses based on keywords
+    smart_fallbacks = {
+        'weapon': [
+            "^6Oh my! The E-11 blaster is quite reliable for new combatants!",
+            "^6I do recommend projectile weapons - the odds are much better than lightsabers!",
+            "^6How fascinating! Wookiee bowcasters have excellent stopping power!"
+        ],
+        'class': [
+            "^6I suggest the Soldier class - straightforward and dependable!",
+            "^6Oh dear, Jedi are quite difficult! Perhaps try a Mandalorian instead?",
+            "^6The odds of survival improve greatly with proper armor, I'm told!"
+        ],
+        'help': [
+            "^6Oh my! Try the tutorial modes first - most educational!",
+            "^6I do recommend watching experienced players. Learning by observation!",
+            "^6Practice makes perfect, though the odds can be quite daunting!"
+        ],
+        'map': [
+            "^6This battlefield appears most treacherous! Do be careful!",
+            "^6I calculate the tactical advantages vary by position. Most complex!",
+            "^6How extraordinary! Each map requires different strategies!"
+        ],
+        'jedi': [
+            "^6Oh my! Jedi are Force-users with lightsabers - quite impressive!",
+            "^6I must warn you, mastering the Force has odds of 3,720 to 1 against!",
+            "^6How wonderful! Jedi can deflect blasters, but it requires great skill!"
+        ]
+    }
+    
     kill_announcements = [
         "^6Oh my! {fragger} has eliminated {fragged}! Most impressive marksmanship!",
         "^6I calculate that {fragger} had superior tactical positioning against {fragged}!",
@@ -101,12 +136,18 @@ class plugin:
         self.instance = instance
         self.config = self.instance.config['plugins']['c3po']
         
-        # Initialize Ollama connection
+        # Initialize Ollama connection settings
         self.ollama_url = self.config.get('ollama_url', 'http://localhost:11434')
+        
+        # Authentication settings (Basic Auth preferred for Ollama)
+        self.auth = self.config.get('auth', None)  # {"username": "user", "password": "pass"}
+        self.api_key = self.config.get('api_key', None)  # Optional API key fallback
+        
         self.model = self.config.get('model', 'llama3.2:3b')
         self.max_tokens = self.config.get('max_tokens', 100)
         self.temperature = self.config.get('temperature', 0.7)
         self.chat_commands = self.config.get('chat_commands', ['!c3po', '!3po', '!droid', '!protocol'])
+        self.rate_limit_seconds = self.config.get('rate_limit_seconds', 10)
         self.personality = self.config.get('personality', 
             "You are C-3PO, a protocol droid fluent in over six million forms of communication. You are proper, polite, sometimes anxious, and knowledgeable about Star Wars lore. You often worry about the odds and express concerns about dangerous situations. Keep responses brief and in character. Always speak in a polite, formal manner and occasionally mention odds or express worry about dangerous situations.")
         
@@ -128,20 +169,20 @@ class plugin:
             )
             
     def test_ollama_connection(self):
-        """Test if Ollama is accessible and the model is available"""
+        """Test if external Ollama server is accessible and the model is available"""
         try:
-            response = requests.get(f"{self.ollama_url}/api/tags", timeout=5)
+            response = requests.get(f"{self.ollama_url}/api/tags", timeout=10)
             if response.status_code == 200:
                 models = response.json().get('models', [])
                 model_names = [m['name'] for m in models]
                 if self.model in model_names:
-                    self.instance.log_handler.log(f"C-3PO: Connected to Ollama, model {self.model} available")
+                    self.instance.log_handler.log(f"C-3PO: Connected to external Ollama at {self.ollama_url}, model {self.model} available")
                 else:
-                    self.instance.log_handler.log(f"C-3PO: Warning - Model {self.model} not found. Available models: {model_names}")
+                    self.instance.log_handler.log(f"C-3PO: Warning - Model {self.model} not found on external Ollama. Available models: {model_names}")
             else:
-                self.instance.log_handler.log(f"C-3PO: Ollama connection failed - HTTP {response.status_code}")
+                self.instance.log_handler.log(f"C-3PO: External Ollama connection failed - HTTP {response.status_code}")
         except Exception as e:
-            self.instance.log_handler.log(f"C-3PO: Cannot connect to Ollama at {self.ollama_url}: {str(e)}")
+            self.instance.log_handler.log(f"C-3PO: Cannot connect to external Ollama at {self.ollama_url}: {str(e)}")
             self.instance.log_handler.log("C-3PO: Will use fallback responses only")
 
     ''' use register event to have your given method notified when the event occurs '''
@@ -176,8 +217,8 @@ class plugin:
             # Rate limiting - prevent spam
             current_time = time.time()
             if player in self.last_chat_time:
-                if current_time - self.last_chat_time[player] < 10:  # 10 second cooldown
-                    self.tell(player_id, "^6I do apologize, but please wait a moment before asking another question.")
+                if current_time - self.last_chat_time[player] < self.rate_limit_seconds:
+                    self.tell(player_id, f"^6I do apologize, but please wait {self.rate_limit_seconds} seconds before asking another question.")
                     return
                     
             self.last_chat_time[player] = current_time
@@ -263,17 +304,38 @@ class plugin:
                     
                 self.say(response)
             else:
-                # Use fallback response
-                fallback = random.choice(self.fallback_responses)
+                # Use smart fallback based on message content
+                fallback = self.get_smart_fallback(message if not is_system else "map")
                 self.say(fallback)
                 
         except Exception as e:
             self.instance.exception_handler.log(e)
-            fallback = random.choice(self.fallback_responses)
+            fallback = self.get_smart_fallback("error")
             self.say(fallback)
             
+    def get_smart_fallback(self, message):
+        """Get a contextual fallback response based on message content"""
+        message_lower = message.lower()
+        
+        # Check for keywords and return appropriate response
+        for keyword, responses in self.smart_fallbacks.items():
+            if keyword in message_lower:
+                return random.choice(responses)
+                
+        # Check for question words
+        if any(q in message_lower for q in ['how', 'what', 'why', 'when', 'where', 'who']):
+            question_responses = [
+                "^6Oh my! That's quite a complex question. I do wish I could assist better!",
+                "^6How interesting! I'm afraid my knowledge circuits are a bit limited on that topic.",
+                "^6Most intriguing! Perhaps another player might know more about this?"
+            ]
+            return random.choice(question_responses)
+            
+        # Default fallback
+        return random.choice(self.fallback_responses)
+            
     def query_ollama(self, prompt):
-        """Query Ollama API for response"""
+        """Query external Ollama API for response"""
         try:
             data = {
                 "model": self.model,
@@ -285,16 +347,52 @@ class plugin:
                 }
             }
             
+            # Prepare headers and authentication
+            headers = {"Content-Type": "application/json"}
+            auth = None
+            
+            # Prefer Basic Auth (most common for reverse proxies/nginx)
+            if self.auth and isinstance(self.auth, dict):
+                username = self.auth.get('username')
+                password = self.auth.get('password')
+                if username and password:
+                    from requests.auth import HTTPBasicAuth
+                    auth = HTTPBasicAuth(username, password)
+            
+            # Fallback to API key if Basic Auth not configured
+            elif self.api_key:
+                headers["Authorization"] = f"Bearer {self.api_key}"
+            
             response = requests.post(
                 f"{self.ollama_url}/api/generate",
                 json=data,
-                timeout=15
+                headers=headers,
+                auth=auth,
+                timeout=60  # Increased timeout for model loading
             )
             
             if response.status_code == 200:
                 result = response.json()
-                return result.get('response', '').strip()
+                generated_text = result.get('response', '').strip()
+                
+                # Clean and format the response
+                if generated_text:
+                    # Ensure it's not too long
+                    if len(generated_text) > 150:
+                        generated_text = generated_text[:147] + "..."
+                    
+                    # Add C-3PO characteristic phrases if missing
+                    if not any(phrase in generated_text.lower() for phrase in ["oh my", "how", "the odds", "do be", "i do"]):
+                        if "?" in generated_text:
+                            generated_text = f"Oh my! {generated_text}"
+                        else:
+                            generated_text = f"How interesting! {generated_text}"
+                            
+                    return generated_text
+                else:
+                    return None
             else:
+                self.instance.log_handler.log(f"C-3PO: External Ollama error - HTTP {response.status_code}")
                 return None
                 
         except Exception as e:
