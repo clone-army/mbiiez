@@ -1,386 +1,193 @@
-import time
-import random
-import re
+''' 
+RTVRTM Plugin for MBIIEZ
+Rock the Vote/Rock the Mode plugin that integrates the original RTVRTM script
+with the MBIIEZ plugin system while preserving exact functionality.
+
+The plugin automatically gets these values from MBIIEZ instance:
+- MBII folder path (from server.home_path)
+- Server port (from server.port) 
+- RCON password (from security.rcon_password)
+- Server address (automatically set to 127.0.0.1:port)
+- Bind address (automatically set to 127.0.0.1)
+- Log file (automatically set to {instance_name}-games.log)
+
+Configuration in instance JSON:
+
+    "rtvrtm": {
+        "general": {
+            "flood_protection": 0.5,
+            "use_say_only": 0,
+            "name_protection": 1,
+            "default_game": "",
+            "clean_log": "0"
+        },
+        "admin_voting": {
+            "admin_voting": "1 30",
+            "admin_minimum_votes": 51.0,
+            "admin_skip_voting": 1
+        },
+        "map_limit": {
+            "roundlimit": 1,
+            "timelimit": 0,
+            "limit_voting": "1 10",
+            "limit_minimum_votes": 51.0,
+            "limit_extend": "1 3",
+            "limit_successful_wait_time": 300,
+            "limit_failed_wait_time": 60,
+            "limit_skip_voting": 1,
+            "limit_second_turn": 1,
+            "limit_change_immediately": 0
+        },
+        "rtv": {
+            "rtv": 1,
+            "rtv_rate": 60.0,
+            "rtv_voting": "1 10",
+            "rtv_minimum_votes": 51.0,
+            "rtv_extend": "1 3",
+            "rtv_successful_wait_time": 300,
+            "rtv_failed_wait_time": 60,
+            "rtv_skip_voting": 1,
+            "rtv_second_turn": 1,
+            "rtv_change_immediately": 0
+        },
+        "maps": {
+            "automatic_maps": 0,
+            "pick_secondary_maps": 5,
+            "map_priority": "2 1 0",
+            "nomination_type": 1,
+            "enable_recently_played_maps": 3600
+        },
+        "rtm": {
+            "rtm": 7,
+            "mode_priority": "2 1 0 2 1 0",
+            "rtm_rate": 60.0,
+            "rtm_voting": "1 10",
+            "rtm_minimum_votes": 51.0,
+            "rtm_extend": "1 3",
+            "rtm_successful_wait_time": 300,
+            "rtm_failed_wait_time": 60,
+            "rtm_skip_voting": 1,
+            "rtm_second_turn": 1,
+            "rtm_change_immediately": 0
+        },
+        "primary_maps": [
+            "mb2_alderaan",
+            "mb2_boc",
+            "mb2_citadel",
+            "mb2_cloudcity",
+            "mb2_commtower",
+            "mb2_corellia",
+            "mb2_deathstar",
+            "mb2_dotf",
+            "mb2_jeditemple",
+            "mb2_kamino"
+        ],
+        "secondary_maps": [
+            "mb2_cmp_arctic",
+            "mb2_cmp_arena",
+            "mb2_cmp_duel_vjun",
+            "mb2_cmp_endor"
+        ]
+    }
+
+'''
+
+import os
+import json
 import threading
-import math
+import subprocess
+import sys
+import time
+import importlib.util
+from pathlib import Path
 
-class plugin:
-    """
-    RTV & RTM Plugin for MBIIEZ - Port of original RTVRTM script
+def load_rtvrtm_plugin():
+    """Load the RTVRTMPlugin class"""
+    plugin_dir = os.path.dirname(__file__)
+    plugin_file = os.path.join(plugin_dir, 'rtvrtm_plugin.py')
     
-    Maintains compatibility with original RTVRTM behavior and commands
-    """
-    plugin_name = "RTVRTM"
-    plugin_author = "MBIIEZ Team"
-    plugin_url = ""
+    spec = importlib.util.spec_from_file_location("rtvrtm_plugin", plugin_file)
+    rtvrtm_plugin_module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(rtvrtm_plugin_module)
+    
+    return rtvrtm_plugin_module.RTVRTMPlugin
 
-    COLOR_RED = '^1'
-    COLOR_WHITE = '^7'
-    COLOR_GREEN = '^2'
+def player_chat_command(instance, data, config):
+    """Handle player chat commands for RTVRTM"""
+    # RTVRTM handles its own commands through log monitoring
+    # This is just a placeholder for future enhancements
+    pass
 
-    def __init__(self, instance):
-        self.instance = instance
-        cfg = instance.config.get('plugins', {}).get('rtvrtm', {})
-        
-        # Core settings - match original defaults
-        self.enable_rtv = cfg.get('enable_rtv', True)
-        self.enable_rtm = cfg.get('enable_rtm', True)
-        self.rtv_vote_time = cfg.get('rtv_vote_time', 30)
-        self.rtv_cool_down = cfg.get('rtv_cool_down', 300)  # 5 minutes like original
-        self.rtv_percentage = cfg.get('rtv_percentage', 50)
-        self.rtv_win_percentage = cfg.get('rtv_win_percentage', 50)
-        self.rtm_vote_time = cfg.get('rtm_vote_time', 30)
-        self.rtm_cool_down = cfg.get('rtm_cool_down', 300)  # 5 minutes like original
-        self.rtm_percentage = cfg.get('rtm_percentage', 50)
-        self.rtm_win_percentage = cfg.get('rtm_win_percentage', 50)
-        
-        # Map configuration
-        self.primary_maps = cfg.get('primary_maps', [])
-        self.secondary_maps = cfg.get('secondary_maps', [])
-        self.rtm_modes = cfg.get('rtm_modes', ['Open', 'Semi-Authentic', 'Full-Authentic', 'Duel', 'Legends'])
-        
-        # State variables
-        self.last_cmd_time = {}
-        self.nominations = {}
-        self.rtv_votes = set()
-        self.rtv_active = False
-        self.rtv_timer = None
-        self.next_map = None
-        self.map_vote_opts = []
-        self.map_votes = {}
-        self.rtm_votes = set()
-        self.rtm_active = False
-        self.rtm_timer = None
-        self.next_mode = None
-        self.mode_vote_opts = []
-        self.mode_votes = {}
-        self.vote_locked = False
-        self._lock_start = 0
-
-      
-    def register(self):
-        eh = self.instance.event_handler
-        eh.register_event('player_chat', self.on_chat)
-        eh.register_event('player_disconnects', self.on_disconnect)
-        eh.register_event('new_round', self.on_new_round)
-
-       
-    def _can_run(self, pid, cooldown):
-        now = time.time()
-        last = self.last_cmd_time.get(pid, 0)
-        if now - last < cooldown:
-            return False, int(cooldown - (now - last))
-        self.last_cmd_time[pid] = now
-        return True, 0
-
-    def _get_player_count(self):
-        """Get current player count - simplified like original"""
-        try:
-            return len(self.instance.players())
-        except:
-            return 1
-
-    def on_chat(self, args):
-        pid = args.get('player_id')
-        player = args.get('player')
-        raw_msg = args.get('message', '').strip()
-        
-        # Only handle commands that start with !
-        if not raw_msg.startswith('!'):
-            return
+def before_dedicated_server_launch(instance, data, config):
+    """Initialize RTVRTM plugin before server starts"""
+    try:
+        if not hasattr(instance, 'rtvrtm_plugin'):
+            # Create a temporary config file for the plugin
+            plugin_dir = os.path.dirname(__file__)
+            config_path = os.path.join(plugin_dir, 'config.json')
             
-        msg = raw_msg[1:].lower()
-        
-        # Block commands during cooldown
-        if self.vote_locked and msg in ('rtv', 'rtm'):
-            rem = max(0, int(300 - (time.time() - self._lock_start)))  # 5 minute cooldown
-            self.instance.tell(pid, f'Wait {rem}s to vote again')
-            return
+            # Write the config from instance settings to the config file
+            plugin_config = config if config else {}
+            with open(config_path, 'w') as f:
+                json.dump(plugin_config, f, indent=4)
             
-        # !maplist pagination
-        if msg.startswith('maplist'):
-            parts = msg.split()
-            if len(parts) == 2 and parts[1] in ('1', '2'):
-                maps = self.primary_maps if parts[1] == '1' else self.secondary_maps
-                if maps:
-                    for i in range(0, len(maps), 5):
-                        self.instance.tell(pid, ', '.join(maps[i:i+5]))
-                else:
-                    self.instance.tell(pid, 'No maps configured')
-            else:
-                self.instance.tell(pid, 'Usage: !maplist <1|2>')
-            return
-
-        # !nominate for RTV
-        if msg.startswith('nominate '):
-            map_name = msg.split(' ', 1)[1]
-            if map_name in self.primary_maps or map_name in self.secondary_maps:
-                self.nominations.setdefault(map_name, set()).add(pid)
-                self.instance.tell(pid, f'Nominated {map_name}')
-            else:
-                self.instance.tell(pid, f'Unknown map: {map_name}')
-            return
-
-        # !rtv
-        if msg == 'rtv' and self.enable_rtv:
-            ok, rem = self._can_run(pid, self.rtv_cool_down)
-            if not ok:
-                self.instance.tell(pid, f'Wait {rem}s to RTV again')
-                return
-                
-            total = self._get_player_count()
-            req = max(1, math.ceil(total * self.rtv_percentage / 100))
-            
-            if pid in self.rtv_votes:
-                self.instance.tell(pid, 'Already voted')
-            else:
-                self.rtv_votes.add(pid)
-                self.instance.say(f'{player} wants to rock the vote ({len(self.rtv_votes)}/{req})')
-                
-                if not self.rtv_active and len(self.rtv_votes) >= req:
-                    self.rtv_active = True
-                    self._start_rtv_vote()
-            return
-
-        # !unrtv
-        if msg == 'unrtv' and self.enable_rtv:
-            if pid in self.rtv_votes:
-                self.rtv_votes.remove(pid)
-                total = self._get_player_count()
-                req = max(1, math.ceil(total * self.rtv_percentage / 100))
-                self.instance.say(f'{player} removed RTV vote ({len(self.rtv_votes)}/{req})')
-            else:
-                self.instance.tell(pid, 'You have not voted')
-            return
-
-        # !modelist
-        if msg == 'modelist' and self.enable_rtm:
-            if self.rtm_modes:
-                for i in range(0, len(self.rtm_modes), 5):
-                    self.instance.tell(pid, ', '.join(self.rtm_modes[i:i+5]))
-            else:
-                self.instance.tell(pid, 'No modes configured')
-            return
-
-        # !rtm
-        if msg == 'rtm' and self.enable_rtm:
-            if len(self.rtm_modes) <= 1:
-                self.instance.tell(pid, 'RTM disabled: only one mode available')
-                return
-                
-            ok, rem = self._can_run(pid, self.rtm_cool_down)
-            if not ok:
-                self.instance.tell(pid, f'Wait {rem}s to RTM again')
-                return
-                
-            total = self._get_player_count()
-            req = max(1, math.ceil(total * self.rtm_percentage / 100))
-            
-            if pid in self.rtm_votes:
-                self.instance.tell(pid, 'Already voted')
-            else:
-                self.rtm_votes.add(pid)
-                self.instance.say(f'{player} wants to rock the mode ({len(self.rtm_votes)}/{req})')
-                
-                if not self.rtm_active and len(self.rtm_votes) >= req:
-                    self.rtm_active = True
-                    self._start_rtm_vote()
-            return
-
-        # !unrtm
-        if msg == 'unrtm' and self.enable_rtm:
-            if pid in self.rtm_votes:
-                self.rtm_votes.remove(pid)
-                total = self._get_player_count()
-                req = max(1, math.ceil(total * self.rtm_percentage / 100))
-                self.instance.say(f'{player} removed RTM vote ({len(self.rtm_votes)}/{req})')
-            else:
-                self.instance.tell(pid, 'You have not voted')
-            return
-
-        # Numeric choice
-        if msg.isdigit():
-            idx = int(msg) - 1
-            if self.rtm_active:
-                self._handle_rtm_vote(pid, player, idx)
-            elif self.rtv_active:
-                self._handle_rtv_vote(pid, player, idx)
-            return
-
-    def _start_rtv_vote(self):
-        # Build vote options from nominations + random maps
-        nominated_maps = list(self.nominations.keys())
-        remaining_maps = [m for m in self.primary_maps if m not in nominated_maps]
+            # Load and initialize the RTVRTM plugin
+            RTVRTMPlugin = load_rtvrtm_plugin()
+            instance.rtvrtm_plugin = RTVRTMPlugin(instance, config_path)
+            instance.log(f"RTVRTM: Plugin initialized with status: {instance.rtvrtm_plugin.status()}")
         
-        # Take up to 4 nominated maps, fill remainder from primary maps
-        vote_options = nominated_maps[:4]
-        if len(vote_options) < 4 and remaining_maps:
-            needed = 4 - len(vote_options)
-            vote_options.extend(random.sample(remaining_maps, min(needed, len(remaining_maps))))
-        
-        self.map_vote_opts = vote_options
-        self.map_votes = {m: set() for m in self.map_vote_opts}
-        
-        # Show vote options
-        options_text = ', '.join(f'{i+1}:{m}' for i, m in enumerate(self.map_vote_opts))
-        self.instance.say(f'Map vote: {options_text}')
-        self.instance.say(f'Vote with !<number>. {self.rtv_vote_time}s remaining.')
-        
-        # Start vote timer
-        self.rtv_timer = threading.Timer(self.rtv_vote_time, self._end_rtv)
-        self.rtv_timer.daemon = True
-        self.rtv_timer.start()
+    except Exception as e:
+        instance.log(f"RTVRTM: Error during initialization: {e}")
+        import traceback
+        instance.log(f"RTVRTM: Traceback: {traceback.format_exc()}")
 
-    def _handle_rtv_vote(self, pid, player, idx):
-        if not (0 <= idx < len(self.map_vote_opts)):
-            self.instance.tell(pid, f'Invalid choice. Use 1-{len(self.map_vote_opts)}')
-            return
-            
-        selected_map = self.map_vote_opts[idx]
-        
-        # Remove from any existing votes
-        for votes in self.map_votes.values():
-            votes.discard(pid)
-            
-        # Add to selected map
-        self.map_votes[selected_map].add(pid)
-        vote_count = len(self.map_votes[selected_map])
-        
-        self.instance.say(f'{player} voted for {selected_map} ({vote_count})')
+def after_dedicated_server_launch(instance, data, config):
+    """RTVRTM is already running - log status"""
+    try:
+        if hasattr(instance, 'rtvrtm_plugin'):
+            status = instance.rtvrtm_plugin.status()
+            instance.log(f"RTVRTM: Status after server launch: {status}")
+    except Exception as e:
+        instance.log(f"RTVRTM: Error checking status: {e}")
 
-    def _end_rtv(self):
-        self.instance.say('RTV vote ended')
-        
-        total = self._get_player_count()
-        req = max(1, math.ceil(total * self.rtv_win_percentage / 100))
-        
-        # Find winning map
-        if not self.map_votes:
-            self.instance.say('No votes received')
-            self.next_map = None
-        else:
-            vote_counts = {m: len(votes) for m, votes in self.map_votes.items()}
-            max_votes = max(vote_counts.values())
-            
-            if max_votes < req:
-                self.instance.say('Not enough votes to change map')
-                self.next_map = None
-            else:
-                winners = [m for m, count in vote_counts.items() if count == max_votes]
-                winner = random.choice(winners)
-                self.instance.say(f'Map will change to {winner} next round')
-                self.next_map = winner
-        
-        self._reset_rtv()
+def new_log_line(instance, data, config):
+    """Log line handler - RTVRTM monitors logs directly"""
+    # RTVRTM monitors the log file directly, so we don't need to process here
+    # This could be used for additional monitoring if needed
+    pass
 
-    def _reset_rtv(self):
-        self.rtv_votes.clear()
-        self.rtv_active = False
-        if self.rtv_timer:
-            self.rtv_timer.cancel()
-            self.rtv_timer = None
-        self.map_vote_opts = []
-        self.map_votes = {}
-        self.nominations.clear()
+def map_change(instance, data, config):
+    """Handle map changes"""
+    try:
+        if hasattr(instance, 'rtvrtm_plugin'):
+            map_name = data.get('map_name', 'unknown')
+            instance.log(f"RTVRTM: Map changed to {map_name}")
+    except Exception as e:
+        instance.log(f"RTVRTM: Error handling map change: {e}")
 
-    def _start_rtm_vote(self):
-        self.mode_vote_opts = self.rtm_modes[:]
-        self.mode_votes = {m: set() for m in self.mode_vote_opts}
-        
-        # Show vote options
-        options_text = ', '.join(f'{i+1}:{m}' for i, m in enumerate(self.mode_vote_opts))
-        self.instance.say(f'Mode vote: {options_text}')
-        self.instance.say(f'Vote with !<number>. {self.rtm_vote_time}s remaining.')
-        
-        # Start vote timer
-        self.rtm_timer = threading.Timer(self.rtm_vote_time, self._end_rtm)
-        self.rtm_timer.daemon = True
-        self.rtm_timer.start()
+def player_connects(instance, data, config):
+    """Handle player connections"""
+    # RTVRTM handles player tracking through log monitoring
+    pass
 
-    def _handle_rtm_vote(self, pid, player, idx):
-        if not (0 <= idx < len(self.mode_vote_opts)):
-            self.instance.tell(pid, f'Invalid choice. Use 1-{len(self.mode_vote_opts)}')
-            return
-            
-        selected_mode = self.mode_vote_opts[idx]
-        
-        # Remove from any existing votes
-        for votes in self.mode_votes.values():
-            votes.discard(pid)
-            
-        # Add to selected mode
-        self.mode_votes[selected_mode].add(pid)
-        vote_count = len(self.mode_votes[selected_mode])
-        
-        self.instance.say(f'{player} voted for {selected_mode} ({vote_count})')
+def player_disconnects(instance, data, config):
+    """Handle player disconnections"""
+    # RTVRTM handles player tracking through log monitoring
+    pass
 
-    def _end_rtm(self):
-        self.instance.say('RTM vote ended')
-        
-        total = self._get_player_count()
-        req = max(1, math.ceil(total * self.rtm_win_percentage / 100))
-        
-        # Find winning mode
-        if not self.mode_votes:
-            self.instance.say('No votes received')
-            self.next_mode = None
-        else:
-            vote_counts = {m: len(votes) for m, votes in self.mode_votes.items()}
-            max_votes = max(vote_counts.values())
-            
-            if max_votes < req:
-                self.instance.say('Not enough votes to change mode')
-                self.next_mode = None
-            else:
-                winners = [m for m, count in vote_counts.items() if count == max_votes]
-                winner = random.choice(winners)
-                self.instance.say(f'Mode will change to {winner} next round')
-                self.next_mode = winner
-        
-        self._reset_rtm()
+# Plugin cleanup function (called when plugin is stopped)
+def stop_plugin(instance):
+    """Stop the RTVRTM plugin"""
+    try:
+        if hasattr(instance, 'rtvrtm_plugin'):
+            instance.rtvrtm_plugin.stop()
+            delattr(instance, 'rtvrtm_plugin')
+            instance.log("RTVRTM: Plugin stopped and cleaned up")
+    except Exception as e:
+        instance.log(f"RTVRTM: Error during cleanup: {e}")
 
-    def _reset_rtm(self):
-        self.rtm_votes.clear()
-        self.rtm_active = False
-        if self.rtm_timer:
-            self.rtm_timer.cancel()
-            self.rtm_timer = None
-        self.mode_vote_opts = []
-        self.mode_votes = {}
-
-    def on_new_round(self, args):
-        """Handle new round - apply map/mode changes and set cooldown"""
-        
-        # Apply map change
-        if self.next_map:
-            current_map = self.instance.map()
-            if current_map != self.next_map:
-                self.instance.say(f'Changing map to {self.next_map}')
-                self.instance.map(self.next_map)
-            self.next_map = None
-            
-            # Set cooldown after map change
-            self.vote_locked = True
-            self._lock_start = time.time()
-            threading.Timer(self.rtv_cool_down, lambda: setattr(self, 'vote_locked', False)).start()
-
-        # Apply mode change  
-        if self.next_mode:
-            self.instance.say(f'Changing mode to {self.next_mode}')
-            self.instance.rcon_exec(f'g_gametype {self.next_mode}')
-            self.next_mode = None
-            
-            # Set cooldown after mode change
-            self.vote_locked = True
-            self._lock_start = time.time()
-            threading.Timer(self.rtm_cool_down, lambda: setattr(self, 'vote_locked', False)).start()
-
-    def on_disconnect(self, args):
-        """Remove disconnected player from all votes"""
-        pid = args.get('player_id')
-        self.rtv_votes.discard(pid)
-        self.rtm_votes.discard(pid)
-        for votes in self.map_votes.values():
-            votes.discard(pid)
-        for votes in self.mode_votes.values():
-            votes.discard(pid)
+# Plugin metadata
+__plugin_name__ = "RTVRTM"
+__plugin_version__ = "3.6c"
+__plugin_description__ = "Rock the Vote/Rock the Mode plugin for MBII servers"
+__plugin_author__ = "klax / Cthulhu (Python3 port + MBIIEZ integration)"
