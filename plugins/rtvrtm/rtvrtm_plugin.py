@@ -40,13 +40,18 @@ class RTVRTMPlugin:
         # Start RTVRTM in a separate thread
         self.start_rtvrtm()
     
+    def log(self, message):
+        """Helper method for proper logging to MBIIEZ"""
+        if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
+            self.instance.log_handler.log(message)
+    
     def load_config(self):
         """Load the JSON configuration file"""
         try:
             with open(self.config_path, 'r') as f:
                 return json.load(f)
         except Exception as e:
-            self.instance.log(f"RTVRTM: Error loading config: {e}")
+            self.log(f"RTVRTM: Error loading config: {e}")
             return {}
     
     def setup_rtvrtm_files(self):
@@ -72,13 +77,13 @@ class RTVRTMPlugin:
             # Generate maps files
             self.generate_maps_files()
             
-            self.instance.log(f"RTVRTM: Generated config files in {mbii_folder}")
-            self.instance.log(f"RTVRTM: Config file: {cfg_filename}")
-            self.instance.log(f"RTVRTM: Maps file: {maps_filename}")
-            self.instance.log(f"RTVRTM: Secondary maps file: {secondary_maps_filename}")
+            self.log(f"RTVRTM: Generated config files in {mbii_folder}")
+            self.log(f"RTVRTM: Config file: {cfg_filename}")
+            self.log(f"RTVRTM: Maps file: {maps_filename}")
+            self.log(f"RTVRTM: Secondary maps file: {secondary_maps_filename}")
             
         except Exception as e:
-            self.instance.log(f"RTVRTM: Error setting up files: {e}")
+            self.log(f"RTVRTM: Error setting up files: {e}")
     
     def generate_cfg_file(self):
         """Generate the RTVRTM .cfg file from JSON configuration"""
@@ -367,7 +372,7 @@ RTM change immediately: {rtm_change_immediately}
                 plugin_dir = os.path.dirname(__file__)
                 rtvrtm_script = os.path.join(plugin_dir, 'rtvrtm_original.py')
                 
-                self.instance.log(f"RTVRTM: Starting RTVRTM script with config: {self.cfg_path}")
+                self.log(f"RTVRTM: Starting RTVRTM script with config: {self.cfg_path}")
                 
                 # Run the original RTVRTM script with the generated config file
                 self.rtvrtm_process = subprocess.Popen([
@@ -378,14 +383,14 @@ RTM change immediately: {rtm_change_immediately}
                 stdout, stderr = self.rtvrtm_process.communicate()
                 
                 if self.rtvrtm_process.returncode != 0:
-                    self.instance.log(f"RTVRTM: Process exited with code {self.rtvrtm_process.returncode}")
+                    self.log(f"RTVRTM: Process exited with code {self.rtvrtm_process.returncode}")
                     if stderr:
-                        self.instance.log(f"RTVRTM: Error: {stderr}")
+                        self.log(f"RTVRTM: Error: {stderr}")
                 
                 self.running = False
                 
             except Exception as e:
-                self.instance.log(f"RTVRTM: Error running script: {e}")
+                self.log(f"RTVRTM: Error running script: {e}")
                 self.running = False
         
         # Start RTVRTM in a separate thread
@@ -395,7 +400,7 @@ RTM change immediately: {rtm_change_immediately}
     def stop(self):
         """Stop the RTVRTM plugin"""
         if self.rtvrtm_process and self.rtvrtm_process.poll() is None:
-            self.instance.log("RTVRTM: Stopping RTVRTM process...")
+            self.log("RTVRTM: Stopping RTVRTM process...")
             self.rtvrtm_process.terminate()
             
             # Wait for process to terminate
@@ -406,11 +411,11 @@ RTM change immediately: {rtm_change_immediately}
                 self.rtvrtm_process.wait()
         
         self.running = False
-        self.instance.log("RTVRTM: Plugin stopped")
+        self.log("RTVRTM: Plugin stopped")
     
     def reload_config(self):
         """Reload the configuration and restart RTVRTM"""
-        self.instance.log("RTVRTM: Reloading configuration...")
+        self.log("RTVRTM: Reloading configuration...")
         self.stop()
         time.sleep(1)
         self.config = self.load_config()
