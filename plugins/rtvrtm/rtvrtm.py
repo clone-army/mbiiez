@@ -4,7 +4,7 @@ Rock the Vote/Rock the Mode plugin that integrates the original RTVRTM script
 with the MBIIEZ plugin system while preserving exact functionality.
 
 The plugin automatically gets these values from MBIIEZ instance:
-- MBII folder path (from server.home_path)
+- MBII folder path (from conf.mbii_path)
 - Server port (from server.port) 
 - RCON password (from security.rcon_password)
 - Server address (automatically set to 127.0.0.1:port)
@@ -52,7 +52,7 @@ Configuration in instance JSON:
         },
         "maps": {
             "automatic_maps": 0,
-            "pick_secondary_maps": 5,
+            "pick_secondary_maps": 2,
             "map_priority": "2 1 0",
             "nomination_type": 1,
             "enable_recently_played_maps": 3600
@@ -139,7 +139,22 @@ class plugin:
             
             # Load and initialize the RTVRTM plugin
             RTVRTMPlugin = load_rtvrtm_plugin()
+            
+            if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
+                self.instance.log_handler.log("RTVRTM: Initializing RTVRTM plugin...")
+            
             self.rtvrtm_plugin_instance = RTVRTMPlugin(self.instance, config_path)
+            
+            # Register RTVRTM as a service with MBIIEZ process handler
+            if hasattr(self.instance, 'process_handler'):
+                self.instance.process_handler.register_service("RTVRTM Service", self.start_rtvrtm_service)
+                if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
+                    self.instance.log_handler.log("RTVRTM: Registered as service with MBIIEZ process handler")
+            else:
+                if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
+                    self.instance.log_handler.log("RTVRTM: WARNING - No process_handler found, falling back to manual start")
+                # Fallback to the previous method if process_handler is not available
+                self.start_rtvrtm_service()
             
             if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
                 self.instance.log_handler.log(f"RTVRTM: Plugin registered with status: {self.rtvrtm_plugin_instance.status()}")
@@ -147,8 +162,30 @@ class plugin:
         except Exception as e:
             if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
                 self.instance.log_handler.log(f"RTVRTM: Error during registration: {e}")
+                # Add full traceback for debugging
+                import traceback
+                self.instance.log_handler.log(f"RTVRTM: Full traceback: {traceback.format_exc()}")
             if hasattr(self.instance, 'exception_handler') and self.instance.exception_handler:
                 self.instance.exception_handler.log(e)
+    
+    def start_rtvrtm_service(self):
+        """Start the RTVRTM service - called by MBIIEZ service manager"""
+        try:
+            if self.rtvrtm_plugin_instance:
+                if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
+                    self.instance.log_handler.log("RTVRTM: Starting RTVRTM service...")
+                
+                # This will be managed by MBIIEZ service system
+                self.rtvrtm_plugin_instance.start_rtvrtm_service()
+                
+                if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
+                    self.instance.log_handler.log("RTVRTM: Service started successfully")
+                    
+        except Exception as e:
+            if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
+                self.instance.log_handler.log(f"RTVRTM: Error starting service: {e}")
+                import traceback
+                self.instance.log_handler.log(f"RTVRTM: Service traceback: {traceback.format_exc()}")
 
     def player_chat_command(self, data):
         """Handle player chat commands for RTVRTM"""
@@ -173,9 +210,25 @@ class plugin:
                 status = self.rtvrtm_plugin_instance.status()
                 if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
                     self.instance.log_handler.log(f"RTVRTM: Status after server launch: {status}")
+                    
+                # Check if the process is actually running (service might be managed differently)
+                if hasattr(self.rtvrtm_plugin_instance, 'rtvrtm_process') and self.rtvrtm_plugin_instance.rtvrtm_process:
+                    pid = self.rtvrtm_plugin_instance.rtvrtm_process.pid
+                    poll_result = self.rtvrtm_plugin_instance.rtvrtm_process.poll()
+                    self.instance.log_handler.log(f"RTVRTM: Process PID: {pid}, Poll result: {poll_result}")
+                    
+                    if poll_result is not None:
+                        self.instance.log_handler.log(f"RTVRTM: WARNING - Process has exited with code: {poll_result}")
+                elif hasattr(self.rtvrtm_plugin_instance, 'running') and self.rtvrtm_plugin_instance.running:
+                    self.instance.log_handler.log("RTVRTM: Service is running (managed by MBIIEZ service system)")
+                else:
+                    self.instance.log_handler.log("RTVRTM: Service not yet started or no process found")
+                    
         except Exception as e:
             if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
                 self.instance.log_handler.log(f"RTVRTM: Error checking status: {e}")
+                import traceback
+                self.instance.log_handler.log(f"RTVRTM: Traceback: {traceback.format_exc()}")
 
     def new_log_line(self, data):
         """Log line handler - RTVRTM monitors logs directly"""

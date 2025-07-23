@@ -11,6 +11,7 @@ import threading
 import subprocess
 import sys
 import time
+import traceback
 from pathlib import Path
 
 def Plugin(instance, config_path):
@@ -37,8 +38,8 @@ class RTVRTMPlugin:
         # Generate config and map files
         self.setup_rtvrtm_files()
         
-        # Start RTVRTM in a separate thread
-        self.start_rtvrtm()
+        # Don't start automatically - wait for service system to call start_rtvrtm_service
+        self.log("RTVRTM: Plugin initialized, waiting for service start...")
     
     def log(self, message):
         """Helper method for proper logging to MBIIEZ"""
@@ -328,7 +329,7 @@ RTM change immediately: {rtm_change_immediately}
             automatic_maps=self.config.get('maps', {}).get('automatic_maps', 0),
             maps_file=self.maps_path,
             secondary_maps_file=self.secondary_maps_path,
-            pick_secondary_maps=self.config.get('maps', {}).get('pick_secondary_maps', 5),
+            pick_secondary_maps=self.config.get('maps', {}).get('pick_secondary_maps', 2),
             map_priority=self.config.get('maps', {}).get('map_priority', '2 1 0'),
             nomination_type=self.config.get('maps', {}).get('nomination_type', 1),
             enable_recently_played_maps=self.config.get('maps', {}).get('enable_recently_played_maps', 3600),
@@ -373,29 +374,112 @@ RTM change immediately: {rtm_change_immediately}
                 rtvrtm_script = os.path.join(plugin_dir, 'rtvrtm_original.py')
                 
                 self.log(f"RTVRTM: Starting RTVRTM script with config: {self.cfg_path}")
+                self.log(f"RTVRTM: Command: {sys.executable} {rtvrtm_script} -c {self.cfg_path}")
                 
                 # Run the original RTVRTM script with the generated config file
                 self.rtvrtm_process = subprocess.Popen([
                     sys.executable, rtvrtm_script, '-c', self.cfg_path
-                ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+                ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, bufsize=1, universal_newlines=True)
                 
-                # Monitor the process
-                stdout, stderr = self.rtvrtm_process.communicate()
+                self.log(f"RTVRTM: Process started with PID: {self.rtvrtm_process.pid}")
                 
-                if self.rtvrtm_process.returncode != 0:
+                # Monitor the process output in real-time
+                while self.running and self.rtvrtm_process.poll() is None:
+                    # Check for stdout output
+                    if self.rtvrtm_process.stdout:
+                        line = self.rtvrtm_process.stdout.readline()
+                        if line:
+                            self.log(f"RTVRTM: {line.strip()}")
+                    
+                    # Check for stderr output
+                    if self.rtvrtm_process.stderr:
+                        error_line = self.rtvrtm_process.stderr.readline()
+                        if error_line:
+                            self.log(f"RTVRTM ERROR: {error_line.strip()}")
+                    
+                    time.sleep(0.1)  # Small delay to prevent high CPU usage
+                
+                # Process has ended, check exit code
+                if self.rtvrtm_process.returncode is not None and self.rtvrtm_process.returncode != 0:
                     self.log(f"RTVRTM: Process exited with code {self.rtvrtm_process.returncode}")
-                    if stderr:
-                        self.log(f"RTVRTM: Error: {stderr}")
+                    
+                    # Get any remaining output
+                    try:
+                        remaining_stdout, remaining_stderr = self.rtvrtm_process.communicate(timeout=1)
+                        if remaining_stdout:
+                            self.log(f"RTVRTM: Final output: {remaining_stdout}")
+                        if remaining_stderr:
+                            self.log(f"RTVRTM: Final error: {remaining_stderr}")
+                    except subprocess.TimeoutExpired:
+                        pass
                 
                 self.running = False
                 
             except Exception as e:
                 self.log(f"RTVRTM: Error running script: {e}")
+                import traceback
+                self.log(f"RTVRTM: Traceback: {traceback.format_exc()}")
                 self.running = False
         
         # Start RTVRTM in a separate thread
         self.rtvrtm_thread = threading.Thread(target=run_rtvrtm, daemon=True)
         self.rtvrtm_thread.start()
+    
+    def start_rtvrtm_service(self):
+        """Start RTVRTM as a service - this method blocks and is managed by MBIIEZ service system"""
+        try:
+            self.running = True
+            plugin_dir = os.path.dirname(__file__)
+            rtvrtm_script = os.path.join(plugin_dir, 'rtvrtm_original.py')
+            
+            self.log(f"RTVRTM: Starting RTVRTM service with config: {self.cfg_path}")
+            self.log(f"RTVRTM: Command: {sys.executable} {rtvrtm_script} -c {self.cfg_path}")
+            
+            # Run the original RTVRTM script with the generated config file
+            # This blocks as expected for a service
+            self.rtvrtm_process = subprocess.Popen([
+                sys.executable, rtvrtm_script, '-c', self.cfg_path
+            ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, bufsize=1, universal_newlines=True)
+            
+            self.log(f"RTVRTM: Service process started with PID: {self.rtvrtm_process.pid}")
+            
+            # This blocks and monitors the process - exactly what a service should do
+            while self.running and self.rtvrtm_process.poll() is None:
+                # Check for stdout output
+                if self.rtvrtm_process.stdout:
+                    line = self.rtvrtm_process.stdout.readline()
+                    if line:
+                        self.log(f"RTVRTM: {line.strip()}")
+                
+                # Check for stderr output
+                if self.rtvrtm_process.stderr:
+                    error_line = self.rtvrtm_process.stderr.readline()
+                    if error_line:
+                        self.log(f"RTVRTM ERROR: {error_line.strip()}")
+                
+                time.sleep(0.1)  # Small delay to prevent high CPU usage
+            
+            # Process has ended, check exit code
+            if self.rtvrtm_process.returncode is not None and self.rtvrtm_process.returncode != 0:
+                self.log(f"RTVRTM: Service process exited with code {self.rtvrtm_process.returncode}")
+                
+                # Get any remaining output
+                try:
+                    remaining_stdout, remaining_stderr = self.rtvrtm_process.communicate(timeout=1)
+                    if remaining_stdout:
+                        self.log(f"RTVRTM: Final output: {remaining_stdout}")
+                    if remaining_stderr:
+                        self.log(f"RTVRTM: Final error: {remaining_stderr}")
+                except subprocess.TimeoutExpired:
+                    pass
+            
+            self.running = False
+            self.log("RTVRTM: Service has stopped")
+            
+        except Exception as e:
+            self.log(f"RTVRTM: Error in service: {e}")
+            self.log(f"RTVRTM: Service traceback: {traceback.format_exc()}")
+            self.running = False
     
     def stop(self):
         """Stop the RTVRTM plugin"""

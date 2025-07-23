@@ -93,6 +93,30 @@ class DummyTime(object):
   def __iadd__(self, *args): # Operator overload will return the object itself without any changes
                              # on assignment addition operations.
     return self
+  
+  def __le__(self, other):
+    """Less than or equal comparison - always returns False for round-based voting"""
+    return False
+  
+  def __lt__(self, other):
+    """Less than comparison - always returns False for round-based voting"""
+    return False
+  
+  def __ge__(self, other):
+    """Greater than or equal comparison - always returns True for round-based voting"""
+    return True
+  
+  def __gt__(self, other):
+    """Greater than comparison - always returns True for round-based voting"""
+    return True
+  
+  def __eq__(self, other):
+    """Equal comparison - only True if other is also DummyTime"""
+    return isinstance(other, DummyTime)
+  
+  def __ne__(self, other):
+    """Not equal comparison - True unless other is also DummyTime"""
+    return not isinstance(other, DummyTime)
 
 def report_unhandled_exception(bugreport):
   return # disable
