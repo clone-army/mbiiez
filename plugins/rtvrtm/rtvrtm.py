@@ -112,82 +112,96 @@ def load_rtvrtm_plugin():
     
     return rtvrtm_plugin_module.RTVRTMPlugin
 
-def player_chat_command(instance, data, config):
-    """Handle player chat commands for RTVRTM"""
-    # RTVRTM handles its own commands through log monitoring
-    # This is just a placeholder for future enhancements
-    pass
-
-def before_dedicated_server_launch(instance, data, config):
-    """Initialize RTVRTM plugin before server starts"""
-    try:
-        if not hasattr(instance, 'rtvrtm_plugin'):
+class plugin:
+    
+    plugin_name = "RTVRTM"
+    plugin_author = "klax / Cthulhu (Python3 port + MBIIEZ integration)"
+    plugin_version = "3.6c"
+    plugin_url = ""
+    
+    def __init__(self, instance):
+        self.instance = instance
+        self.rtvrtm_plugin_instance = None
+    
+    def register(self):
+        """Register the plugin with MBIIEZ"""
+        try:
+            # Get the plugin configuration
+            config = self.instance.config.get('plugins', {}).get('rtvrtm', {})
+            
             # Create a temporary config file for the plugin
             plugin_dir = os.path.dirname(__file__)
             config_path = os.path.join(plugin_dir, 'config.json')
             
             # Write the config from instance settings to the config file
-            plugin_config = config if config else {}
             with open(config_path, 'w') as f:
-                json.dump(plugin_config, f, indent=4)
+                json.dump(config, f, indent=4)
             
             # Load and initialize the RTVRTM plugin
             RTVRTMPlugin = load_rtvrtm_plugin()
-            instance.rtvrtm_plugin = RTVRTMPlugin(instance, config_path)
-            instance.log(f"RTVRTM: Plugin initialized with status: {instance.rtvrtm_plugin.status()}")
-        
-    except Exception as e:
-        instance.log(f"RTVRTM: Error during initialization: {e}")
-        import traceback
-        instance.log(f"RTVRTM: Traceback: {traceback.format_exc()}")
+            self.rtvrtm_plugin_instance = RTVRTMPlugin(self.instance, config_path)
+            
+            self.instance.log(f"RTVRTM: Plugin registered with status: {self.rtvrtm_plugin_instance.status()}")
+            
+        except Exception as e:
+            self.instance.log(f"RTVRTM: Error during registration: {e}")
+            import traceback
+            self.instance.log(f"RTVRTM: Traceback: {traceback.format_exc()}")
 
-def after_dedicated_server_launch(instance, data, config):
-    """RTVRTM is already running - log status"""
-    try:
-        if hasattr(instance, 'rtvrtm_plugin'):
-            status = instance.rtvrtm_plugin.status()
-            instance.log(f"RTVRTM: Status after server launch: {status}")
-    except Exception as e:
-        instance.log(f"RTVRTM: Error checking status: {e}")
+    def player_chat_command(self, data):
+        """Handle player chat commands for RTVRTM"""
+        # RTVRTM handles its own commands through log monitoring
+        # This is just a placeholder for future enhancements
+        pass
 
-def new_log_line(instance, data, config):
-    """Log line handler - RTVRTM monitors logs directly"""
-    # RTVRTM monitors the log file directly, so we don't need to process here
-    # This could be used for additional monitoring if needed
-    pass
+    def before_dedicated_server_launch(self, data):
+        """Called before server starts"""
+        try:
+            if self.rtvrtm_plugin_instance:
+                self.instance.log("RTVRTM: Server starting - RTVRTM ready")
+        except Exception as e:
+            self.instance.log(f"RTVRTM: Error in before_dedicated_server_launch: {e}")
 
-def map_change(instance, data, config):
-    """Handle map changes"""
-    try:
-        if hasattr(instance, 'rtvrtm_plugin'):
-            map_name = data.get('map_name', 'unknown')
-            instance.log(f"RTVRTM: Map changed to {map_name}")
-    except Exception as e:
-        instance.log(f"RTVRTM: Error handling map change: {e}")
+    def after_dedicated_server_launch(self, data):
+        """Called after server starts"""
+        try:
+            if self.rtvrtm_plugin_instance:
+                status = self.rtvrtm_plugin_instance.status()
+                self.instance.log(f"RTVRTM: Status after server launch: {status}")
+        except Exception as e:
+            self.instance.log(f"RTVRTM: Error checking status: {e}")
 
-def player_connects(instance, data, config):
-    """Handle player connections"""
-    # RTVRTM handles player tracking through log monitoring
-    pass
+    def new_log_line(self, data):
+        """Log line handler - RTVRTM monitors logs directly"""
+        # RTVRTM monitors the log file directly, so we don't need to process here
+        # This could be used for additional monitoring if needed
+        pass
 
-def player_disconnects(instance, data, config):
-    """Handle player disconnections"""
-    # RTVRTM handles player tracking through log monitoring
-    pass
+    def map_change(self, data):
+        """Handle map changes"""
+        try:
+            if self.rtvrtm_plugin_instance:
+                map_name = data.get('map_name', 'unknown')
+                self.instance.log(f"RTVRTM: Map changed to {map_name}")
+        except Exception as e:
+            self.instance.log(f"RTVRTM: Error handling map change: {e}")
 
-# Plugin cleanup function (called when plugin is stopped)
-def stop_plugin(instance):
-    """Stop the RTVRTM plugin"""
-    try:
-        if hasattr(instance, 'rtvrtm_plugin'):
-            instance.rtvrtm_plugin.stop()
-            delattr(instance, 'rtvrtm_plugin')
-            instance.log("RTVRTM: Plugin stopped and cleaned up")
-    except Exception as e:
-        instance.log(f"RTVRTM: Error during cleanup: {e}")
+    def player_connects(self, data):
+        """Handle player connections"""
+        # RTVRTM handles player tracking through log monitoring
+        pass
 
-# Plugin metadata
-__plugin_name__ = "RTVRTM"
-__plugin_version__ = "3.6c"
-__plugin_description__ = "Rock the Vote/Rock the Mode plugin for MBII servers"
-__plugin_author__ = "klax / Cthulhu (Python3 port + MBIIEZ integration)"
+    def player_disconnects(self, data):
+        """Handle player disconnections"""
+        # RTVRTM handles player tracking through log monitoring
+        pass
+    
+    def stop(self):
+        """Stop the RTVRTM plugin"""
+        try:
+            if self.rtvrtm_plugin_instance:
+                self.rtvrtm_plugin_instance.stop()
+                self.rtvrtm_plugin_instance = None
+                self.instance.log("RTVRTM: Plugin stopped and cleaned up")
+        except Exception as e:
+            self.instance.log(f"RTVRTM: Error during cleanup: {e}")
