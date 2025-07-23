@@ -141,12 +141,14 @@ class plugin:
             RTVRTMPlugin = load_rtvrtm_plugin()
             self.rtvrtm_plugin_instance = RTVRTMPlugin(self.instance, config_path)
             
-            self.instance.log(f"RTVRTM: Plugin registered with status: {self.rtvrtm_plugin_instance.status()}")
+            if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
+                self.instance.log_handler.log(f"RTVRTM: Plugin registered with status: {self.rtvrtm_plugin_instance.status()}")
             
         except Exception as e:
-            self.instance.log(f"RTVRTM: Error during registration: {e}")
-            import traceback
-            self.instance.log(f"RTVRTM: Traceback: {traceback.format_exc()}")
+            if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
+                self.instance.log_handler.log(f"RTVRTM: Error during registration: {e}")
+            if hasattr(self.instance, 'exception_handler') and self.instance.exception_handler:
+                self.instance.exception_handler.log(e)
 
     def player_chat_command(self, data):
         """Handle player chat commands for RTVRTM"""
@@ -158,18 +160,22 @@ class plugin:
         """Called before server starts"""
         try:
             if self.rtvrtm_plugin_instance:
-                self.instance.log("RTVRTM: Server starting - RTVRTM ready")
+                if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
+                    self.instance.log_handler.log("RTVRTM: Server starting - RTVRTM ready")
         except Exception as e:
-            self.instance.log(f"RTVRTM: Error in before_dedicated_server_launch: {e}")
+            if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
+                self.instance.log_handler.log(f"RTVRTM: Error in before_dedicated_server_launch: {e}")
 
     def after_dedicated_server_launch(self, data):
         """Called after server starts"""
         try:
             if self.rtvrtm_plugin_instance:
                 status = self.rtvrtm_plugin_instance.status()
-                self.instance.log(f"RTVRTM: Status after server launch: {status}")
+                if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
+                    self.instance.log_handler.log(f"RTVRTM: Status after server launch: {status}")
         except Exception as e:
-            self.instance.log(f"RTVRTM: Error checking status: {e}")
+            if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
+                self.instance.log_handler.log(f"RTVRTM: Error checking status: {e}")
 
     def new_log_line(self, data):
         """Log line handler - RTVRTM monitors logs directly"""
@@ -182,9 +188,11 @@ class plugin:
         try:
             if self.rtvrtm_plugin_instance:
                 map_name = data.get('map_name', 'unknown')
-                self.instance.log(f"RTVRTM: Map changed to {map_name}")
+                if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
+                    self.instance.log_handler.log(f"RTVRTM: Map changed to {map_name}")
         except Exception as e:
-            self.instance.log(f"RTVRTM: Error handling map change: {e}")
+            if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
+                self.instance.log_handler.log(f"RTVRTM: Error handling map change: {e}")
 
     def player_connects(self, data):
         """Handle player connections"""
@@ -202,6 +210,8 @@ class plugin:
             if self.rtvrtm_plugin_instance:
                 self.rtvrtm_plugin_instance.stop()
                 self.rtvrtm_plugin_instance = None
-                self.instance.log("RTVRTM: Plugin stopped and cleaned up")
+                if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
+                    self.instance.log_handler.log("RTVRTM: Plugin stopped and cleaned up")
         except Exception as e:
-            self.instance.log(f"RTVRTM: Error during cleanup: {e}")
+            if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
+                self.instance.log_handler.log(f"RTVRTM: Error during cleanup: {e}")
