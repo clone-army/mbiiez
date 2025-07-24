@@ -5,21 +5,6 @@ The wrapper acts as both a CLI (Command Line Interface) as well as a Web GUI for
 
 In a sense, you should not need to edit server configs, RTV/RTM configs, understand installing any of the components needed to run an MBII server. Using the WebGUI to manage everything instead and basic JSON config files. 
 
-## V1.7.2+ of MBII
-
-Doing some testing after this new update. 
-IF you get an "invalid entitystate" error after re-running "install.sh" to update and then trying to connect. 
-It seems the official updater is not updating correctly. 
-
-I was able to fix this by 
-- Manually copying all MBII files from my local computer using WinSCP 
-- renaming `jampgamei386.nopp.so` to `jampgamei386.so` (and original to `jampgamei386.old`) 
-
-You could also completely delete your MBII folder `/opt/openjk/MBII` and let install.sh completely reinstall MBII
-
-Reported the bug with their updater to the MBII Devs
-Install.sh has been changed to always re-download the latest updater binaries. 
-
 ## Features
 - Simple to use Web GUI 
 - Simple CLI for running automated commands
@@ -31,7 +16,7 @@ Install.sh has been changed to always re-download the latest updater binaries.
 
 ## Installing
 
-- Clone this repo into your home directory using `git clone` 
+- Clone this repo into your home directory using `git clone https://github.com/clone-army/mbiiez` 
 - Run `chmod +x install.sh` on the installation bash script
 - Run `./install.sh` which will install all required depedencies
 - Amend the mbiiez.conf file to ensure paths are correctly set to your MBIIEZ path
@@ -39,17 +24,14 @@ Install.sh has been changed to always re-download the latest updater binaries.
 - Movie Battles II is downloaded automatically, as well as the most recent build of OpenJK For Linux
 
 ## Updating
-- Re-Run install.sh to automatically grab any updates to depedencies, MBII etc
-- You can get the latest version of this repo by re-cloning it
+- Run the included update.sh to update MBII
+- Recommend putting this into a crontab every 10 minutes
+- It will automatically restart instances once update is done, unless there are players, then it will wait until empty 
+- git pull to grab updates from this repo for MBIIEZ
 
 ## Adding Base files
 
-The only manual work you will need to do is copy the base files into the directory `/opt/openjk/base` 
-These files include
-- asset0.pk3
-- asset1.pk3
-- asset2.pk3
-- asset3.pk3
+Base files are downloaded automatically
 
 
 ## Instances
@@ -153,29 +135,22 @@ There is a chance you could have 3 updaters all checking files at the same time.
 ## Get Involved
 This is still a little rough round the edges, i am NOT a full python dev, if anyone is interested in doing further development on this or pushing pull requests into this thats all fine with me. 
 
+## WebUI
+
+- The webui can be installed using `bash install_web.sh` it will try to install as a service called `mbii-web`
+- Run manually with `bash mbii-web.py`
+- defaults to port 8080
+
 ### Still to do
 
-Many things
-
-- [ ] Re-Write the install file to be better and handle quicker updates without re-checking depedencies + get updates from github
+- [x] Write an Update.sh file for updating MBII
 - [x] Make process handler auto restart a failed service unless instance is being stopped
 - [x] Make process handler auto restart instances at a given time rather than using crontab
-- [ ] Create service checking for MBII updates, and doing update when all servers are empty. 
 - [x] Create the Web GUI
-- [ ] Web to create, and edit server.json files
+- [X] Web to edit server.json files
 - [x] Web to show database logs
-- [ ] Web to handle bans
-- [ ] Web to handle plugins
-- [ ] Web to start / stop / restart instances
-
-## Changelog 
-
-1. default.json.example and discord.json.example are there for examples
-2. Launching with mbii command with discord.json not filled out will load RTVRTM service twice
-3. The OpenJK binaries and engine will no longer be downloaded, mbiided.i386 is now the current default engine
-4. RTVRTM have been been fixed and now working due to secondary maps in default.json.example not found on server
-5. Added a Pre-CTF installer before 1.9 for those who don't want the CTF
-6. Dotnet 6 SDK updated from 3.11
-7. Created a plugin which handles MB2 updates without using the official updater, so seemless
+- [X] Web to handle bans
+- [X] Web to handle plugins
+- [X] Web to start / stop / restart instances
 
 
