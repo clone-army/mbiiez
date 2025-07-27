@@ -238,7 +238,7 @@ class plugin:
                 self.instance.log_handler.log(f"AI Assistant: Received chat command: {data}")
             
             message = data.get('message', '').strip()
-            player_name = data.get('player_name', 'Unknown')
+            player_name = data.get('player', 'Unknown')  # Use 'player' not 'player_name'
             player_id = data.get('player_id', 0)
             
             if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
