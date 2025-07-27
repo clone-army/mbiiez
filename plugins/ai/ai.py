@@ -84,12 +84,19 @@ class plugin:
         if personality:
             base_instruction += f" Personality: {personality}"
         
-        # Add game context
+        # Add game context and JSON format explanation
         game_context = (
             "\n\nContext: You are responding to players on a Movie Battles II server. "
             "Movie Battles II is a Star Wars-themed multiplayer game modification. "
             "Keep responses concise (1-2 sentences max) as this is a fast-paced gaming environment. "
             "You can reference Star Wars lore when appropriate."
+            "\n\nIMPORTANT: You will receive game data as a JSON object containing:"
+            "\n- 'player_message': The actual text/question from the player you should respond to"
+            "\n- 'requesting_player': Name of the player asking the question"
+            "\n- 'current_map': Name of the current map being played"
+            "\n- 'players': Array of current players with their scores, kills, deaths, and other stats"
+            "\n- 'server_info': Additional server information"
+            "\nYou can reference this game data in your responses when relevant (e.g., congratulate top scorers, comment on the map, etc.) but always primarily respond to the 'player_message'."
         )
         
         return base_instruction + game_context
@@ -138,6 +145,85 @@ class plugin:
             cleaned_text = ''.join(char for char in cleaned_text if ord(char) < 128)
         
         return cleaned_text
+    
+    def get_current_game_state(self):
+        """Gather current game state information"""
+        try:
+            game_state = {
+                "current_map": "unknown",
+                "players": [],
+                "server_info": {
+                    "server_name": getattr(self.instance, 'name', 'Unknown Server'),
+                    "timestamp": time.time()
+                }
+            }
+            
+            # Get current map using MBIIEZ method
+            try:
+                current_map = self.instance.map()
+                if current_map and current_map != "Error while fetching":
+                    game_state["current_map"] = current_map
+            except Exception as e:
+                if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
+                    self.instance.log_handler.log(f"AI Assistant: Error getting map: {e}")
+            
+            # Get player information using MBIIEZ method
+            try:
+                players_data = self.instance.players()
+                for player_data in players_data:
+                    player_info = {
+                        "id": player_data.get('id', 'Unknown'),
+                        "name": player_data.get('name', 'Unknown'),
+                        "name_raw": player_data.get('name_raw', ''),
+                        "score": player_data.get('score', '0'),
+                        "ping": player_data.get('ping', '0'),
+                        "ip": player_data.get('ip', 'Unknown'),
+                        "rate": player_data.get('rate', '0'),
+                        "kills": 0,
+                        "deaths": 0,
+                        "suicides": 0
+                    }
+                    
+                    # Convert score to int for sorting
+                    try:
+                        player_info["score_int"] = int(player_info["score"])
+                    except:
+                        player_info["score_int"] = 0
+                    
+                    # Try to get kill/death statistics from database
+                    try:
+                        from mbiiez.models import frag
+                        frag_model = frag()
+                        kd_stats = frag_model.get_kd(player_info["name"])
+                        if kd_stats:
+                            player_info["kills"] = kd_stats.get("kills", 0)
+                            player_info["deaths"] = kd_stats.get("deaths", 0)
+                            player_info["suicides"] = kd_stats.get("suicides", 0)
+                    except Exception as stats_error:
+                        # Don't log this error as it's not critical and might spam logs
+                        pass
+                    
+                    game_state["players"].append(player_info)
+                
+                # Sort players by score (descending)
+                game_state["players"].sort(key=lambda x: x.get('score_int', 0), reverse=True)
+                
+            except Exception as e:
+                if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
+                    self.instance.log_handler.log(f"AI Assistant: Error getting players: {e}")
+            
+            return game_state
+            
+        except Exception as e:
+            if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
+                self.instance.log_handler.log(f"AI Assistant: Error getting game state: {e}")
+            
+            # Return minimal game state on error
+            return {
+                "current_map": "unknown",
+                "players": [],
+                "server_info": {"timestamp": time.time()}
+            }
     
     def player_chat_command(self, data):
         """Handle player chat commands"""
@@ -227,10 +313,28 @@ class plugin:
                 "X-Title": "MBIIEZ AI Assistant"
             }
             
+            # Get current game state
+            game_state = self.get_current_game_state()
+            
+            # Create comprehensive game data JSON
+            game_data = {
+                "player_message": prompt,
+                "requesting_player": player_name,
+                "current_map": game_state["current_map"],
+                "players": game_state["players"],
+                "server_info": game_state["server_info"]
+            }
+            
+            # Convert to JSON string for the AI
+            game_data_json = json.dumps(game_data, indent=2)
+            
+            if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
+                self.instance.log_handler.log(f"AI Assistant: Game data JSON: {game_data_json}")
+            
             # Build conversation context
             conversation = [
                 {"role": "system", "content": f"{self.system_prompt}\n\nYou are currently talking to a player named '{player_name}'."},
-                {"role": "user", "content": f"{prompt}"}
+                {"role": "user", "content": game_data_json}
             ]
             
             # Add conversation history if enabled
@@ -279,7 +383,7 @@ class plugin:
                         self.conversation_history[player_name] = []
                     
                     self.conversation_history[player_name].extend([
-                        {"role": "user", "content": prompt},
+                        {"role": "user", "content": f"Player asked: {prompt}"},  # Simplified for history
                         {"role": "assistant", "content": ai_response}
                     ])
                     
