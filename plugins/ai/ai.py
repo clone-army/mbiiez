@@ -94,6 +94,51 @@ class plugin:
         
         return base_instruction + game_context
     
+    def clean_text_encoding(self, text):
+        """Clean up text encoding issues and replace problematic characters"""
+        # Dictionary of common Unicode characters that cause issues
+        replacements = {
+            # Smart quotes
+            '"': '"',
+            '"': '"',
+            ''': "'",
+            ''': "'",
+            # Em/en dashes
+            '—': '-',
+            '–': '-',
+            # Other common problematic characters
+            '…': '...',
+            '€': 'EUR',
+            '£': 'GBP',
+            '©': '(c)',
+            '®': '(r)',
+            '™': '(tm)',
+            # Accented characters - replace with basic equivalents
+            'á': 'a', 'à': 'a', 'ä': 'a', 'â': 'a', 'ã': 'a',
+            'é': 'e', 'è': 'e', 'ë': 'e', 'ê': 'e',
+            'í': 'i', 'ì': 'i', 'ï': 'i', 'î': 'i',
+            'ó': 'o', 'ò': 'o', 'ö': 'o', 'ô': 'o', 'õ': 'o',
+            'ú': 'u', 'ù': 'u', 'ü': 'u', 'û': 'u',
+            'ý': 'y', 'ÿ': 'y',
+            'ñ': 'n',
+            'ç': 'c'
+        }
+        
+        # Apply replacements
+        cleaned_text = text
+        for old_char, new_char in replacements.items():
+            cleaned_text = cleaned_text.replace(old_char, new_char)
+        
+        # Ensure ASCII-safe encoding
+        try:
+            # Try to encode as ASCII, replacing problematic characters
+            cleaned_text = cleaned_text.encode('ascii', 'replace').decode('ascii')
+        except Exception:
+            # If that fails, remove non-ASCII characters
+            cleaned_text = ''.join(char for char in cleaned_text if ord(char) < 128)
+        
+        return cleaned_text
+    
     def player_chat_command(self, data):
         """Handle player chat commands"""
         try:
@@ -184,8 +229,8 @@ class plugin:
             
             # Build conversation context
             conversation = [
-                {"role": "system", "content": self.system_prompt},
-                {"role": "user", "content": f"Player {player_name} asks: {prompt}"}
+                {"role": "system", "content": f"{self.system_prompt}\n\nYou are currently talking to a player named '{player_name}'."},
+                {"role": "user", "content": f"{prompt}"}
             ]
             
             # Add conversation history if enabled
@@ -221,6 +266,9 @@ class plugin:
             if response.status_code == 200:
                 result = response.json()
                 ai_response = result['choices'][0]['message']['content'].strip()
+                
+                # Clean up common encoding issues and special characters
+                ai_response = self.clean_text_encoding(ai_response)
                 
                 if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
                     self.instance.log_handler.log(f"AI Assistant: Generated response: '{ai_response}'")
@@ -344,7 +392,10 @@ class plugin:
             
             if response.status_code == 200:
                 result = response.json()
-                return result['choices'][0]['message']['content'].strip()
+                commentary = result['choices'][0]['message']['content'].strip()
+                # Clean up encoding issues
+                commentary = self.clean_text_encoding(commentary)
+                return commentary
             
         except Exception as e:
             if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
