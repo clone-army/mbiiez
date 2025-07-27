@@ -26,8 +26,15 @@ class plugin:
     def register(self):
         """Register the AI Assistant plugin"""
         try:
-            # Get plugin configuration
-            self.config = self.instance.config.get('plugins', {}).get('ai_assistant', {})
+            # Get plugin configuration - use 'ai' since that's the folder name
+            self.config = self.instance.config.get('plugins', {}).get('ai', {})
+            
+            # Debug logging
+            if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
+                self.instance.log_handler.log("AI Assistant: Starting registration...")
+                self.instance.log_handler.log(f"AI Assistant: Full plugins config: {self.instance.config.get('plugins', {})}")
+                self.instance.log_handler.log(f"AI Assistant: AI config found: {self.config}")
+                self.instance.log_handler.log(f"AI Assistant: Enabled value: {self.config.get('enabled', 'NOT_FOUND')}")
             
             if not self.config.get('enabled', False):
                 if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
@@ -55,6 +62,7 @@ class plugin:
             if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
                 self.instance.log_handler.log(f"AI Assistant: Plugin registered as '{self.ai_name}' with command '{self.command}'")
                 self.instance.log_handler.log(f"AI Assistant: Using model: {self.model}")
+                self.instance.log_handler.log("AI Assistant: Registration completed successfully!")
             
         except Exception as e:
             if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
@@ -86,13 +94,25 @@ class plugin:
     def player_chat_command(self, data):
         """Handle player chat commands"""
         try:
+            # Debug logging
+            if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
+                self.instance.log_handler.log(f"AI Assistant: Received chat command: {data}")
+            
             message = data.get('message', '').strip()
             player_name = data.get('player_name', 'Unknown')
             player_id = data.get('player_id', 0)
             
+            if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
+                self.instance.log_handler.log(f"AI Assistant: Message: '{message}', Command: '{self.command}'")
+            
             # Check if message starts with our command
             if not message.lower().startswith(self.command.lower()):
+                if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
+                    self.instance.log_handler.log(f"AI Assistant: Message doesn't start with command '{self.command}', ignoring")
                 return
+            
+            if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
+                self.instance.log_handler.log(f"AI Assistant: Command matched! Processing request from {player_name}")
             
             # Extract the question/prompt
             prompt = message[len(self.command):].strip()
@@ -112,12 +132,18 @@ class plugin:
             # Update cooldown
             self.last_response_time[player_id] = current_time
             
+            if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
+                self.instance.log_handler.log(f"AI Assistant: Generating response for: '{prompt}'")
+            
             # Generate AI response
             response = self.generate_response(player_name, prompt)
             
             if response:
                 # Format and send response
                 formatted_response = f"^6{self.ai_name}: ^7{response}"
+                
+                if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
+                    self.instance.log_handler.log(f"AI Assistant: Sending response: {formatted_response}")
                 
                 # Chunk response if too long
                 max_length = 100  # Adjust based on your server settings
@@ -129,15 +155,23 @@ class plugin:
                 else:
                     self.instance.say(formatted_response)
             else:
-                self.instance.say(f"^6{self.ai_name}: ^7I'm having trouble thinking right now. Please try again later!")
+                error_msg = f"^6{self.ai_name}: ^7I'm having trouble thinking right now. Please try again later!"
+                self.instance.say(error_msg)
+                if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
+                    self.instance.log_handler.log("AI Assistant: No response generated, sent error message")
             
         except Exception as e:
             if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
                 self.instance.log_handler.log(f"AI Assistant: Error in chat command: {e}")
+                import traceback
+                self.instance.log_handler.log(f"AI Assistant: Chat command traceback: {traceback.format_exc()}")
     
     def generate_response(self, player_name, prompt):
         """Generate AI response using OpenRouter API"""
         try:
+            if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
+                self.instance.log_handler.log(f"AI Assistant: Starting API call for prompt: '{prompt}'")
+            
             headers = {
                 "Authorization": f"Bearer {self.api_key}",
                 "Content-Type": "application/json",
@@ -168,6 +202,9 @@ class plugin:
                 "presence_penalty": 0.1
             }
             
+            if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
+                self.instance.log_handler.log(f"AI Assistant: Making API request to OpenRouter with model: {self.model}")
+            
             response = requests.post(
                 self.base_url,
                 headers=headers,
@@ -175,9 +212,15 @@ class plugin:
                 timeout=10
             )
             
+            if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
+                self.instance.log_handler.log(f"AI Assistant: API response status: {response.status_code}")
+            
             if response.status_code == 200:
                 result = response.json()
                 ai_response = result['choices'][0]['message']['content'].strip()
+                
+                if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
+                    self.instance.log_handler.log(f"AI Assistant: Generated response: '{ai_response}'")
                 
                 # Store in conversation history
                 if self.config.get('remember_conversation', False):
@@ -206,6 +249,8 @@ class plugin:
         except Exception as e:
             if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
                 self.instance.log_handler.log(f"AI Assistant: Error generating response: {e}")
+                import traceback
+                self.instance.log_handler.log(f"AI Assistant: API traceback: {traceback.format_exc()}")
             return None
     
     def chunk_message(self, message, max_length):

@@ -88,11 +88,11 @@ class plugin_handler:
                     discovered_plugins[legacy_name] = plugin_module
                     if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
                         self.instance.log_handler.log(f"Loaded plugin using legacy method: {legacy_name}")
-                except ImportError:
+                except ImportError as e:
                     if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
                         self.instance.log_handler.log(f"Plugin not found: {plugin_name}")
-                    if hasattr(self.instance, 'exception_handler') and self.instance.exception_handler:
-                        self.instance.exception_handler.log(f"Plugin not found: {plugin_name}")
+                    # Don't call exception_handler.log with a string - it expects an Exception object
+                    # The log_handler.log above already handles the string message
         
         # Register all discovered plugins
         for plugin_name in discovered_plugins:
