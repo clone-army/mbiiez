@@ -92,11 +92,16 @@ class plugin:
             "You can reference Star Wars lore when appropriate."
             "\n\nIMPORTANT: You will receive game data as a JSON object containing:"
             "\n- 'player_message': The actual text/question from the player you should respond to"
-            "\n- 'requesting_player': Name of the player asking the question"
-            "\n- 'current_map': Name of the current map being played"
+            "\n- 'requesting_player': Name of the player asking the question - USE THIS NAME when addressing them"
+            "\n- 'current_map': Name of the current map being played - mention this when relevant"
             "\n- 'players': Array of current players with their scores, kills, deaths, and other stats"
             "\n- 'server_info': Additional server information"
-            "\nYou can reference this game data in your responses when relevant (e.g., congratulate top scorers, comment on the map, etc.) but always primarily respond to the 'player_message'."
+            "\n\nAlways use the 'requesting_player' name when addressing the person who asked the question. "
+            "You can reference the current map, player scores, and other game data in your responses when relevant "
+            "(e.g., 'Nice work on {current_map}, {requesting_player}!' or congratulate top scorers). "
+            "Always primarily respond to the 'player_message' content."
+            "\n\nExample: If JSON contains 'requesting_player': 'JediMaster' and 'player_message': 'hello', "
+            "respond like: 'Hello JediMaster! Welcome to the server!' (not 'Hello player unknown')"
         )
         
         return base_instruction + game_context
@@ -333,7 +338,7 @@ class plugin:
             
             # Build conversation context
             conversation = [
-                {"role": "system", "content": f"{self.system_prompt}\n\nYou are currently talking to a player named '{player_name}'."},
+                {"role": "system", "content": f"{self.system_prompt}\n\nREMINDER: The user message contains JSON data. Parse it and use 'requesting_player' for the player's name and 'player_message' for what to respond to. Reference 'current_map' and 'players' data when appropriate."},
                 {"role": "user", "content": game_data_json}
             ]
             
