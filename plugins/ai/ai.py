@@ -5,9 +5,10 @@ A customizable AI assistant that uses OpenRouter.ai to generate responses.
 
 import os
 import json
-import requests
 import time
 import re
+import requests
+
 
 class plugin:
     plugin_name = "AI Assistant"
@@ -63,7 +64,9 @@ class plugin:
                 self.instance.log_handler.log(f"AI Assistant: Plugin registered as '{self.ai_name}' with command '{self.command}'")
                 self.instance.log_handler.log(f"AI Assistant: Using model: {self.model}")
                 self.instance.log_handler.log("AI Assistant: Registration completed successfully!")
-            
+
+            self.instance.event_handler.register_event("player_chat_command", self.player_chat_command)
+
         except Exception as e:
             if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
                 self.instance.log_handler.log(f"AI Assistant: Error during registration: {e}")
