@@ -401,16 +401,16 @@ class plugin:
             
             # Create prompt based on death type
             death_prompts = {
-                "rocket_suicide": f"Make a brief, humorous comment about {victim_name} blowing themselves up with their own rocket/explosive. Keep it light and funny, max 1 sentence.",
-                "suicide": f"Make a brief, humorous comment about {victim_name} taking their own life in the game. Keep it light and funny, max 1 sentence.",
-                "self_kill": f"Make a brief, humorous comment about {victim_name} somehow killing themselves. Keep it light and funny, max 1 sentence.",
-                "falling": f"Make a brief, humorous comment about {victim_name} dying from falling damage. Keep it light and funny, max 1 sentence.",
-                "youngling": f"Make a brief, humorous comment about {victim_name} being killed by a youngling (NPC with lightsaber). Reference Star Wars youngling memes. Keep it light and funny, max 1 sentence.",
-                "crushed": f"Make a brief, humorous comment about {victim_name} being crushed to death. Keep it light and funny, max 1 sentence.",
-                "environmental": f"Make a brief, humorous comment about {victim_name} dying to the environment/world. Keep it light and funny, max 1 sentence."
+                "rocket_suicide": f"A player named {victim_name} just blew themselves up with their own rocket/explosive. Make a brief, humorous comment about this. Keep it light and funny, max 1 sentence.",
+                "suicide": f"A player named {victim_name} just took their own life in the game. Make a brief, humorous comment about this. Keep it light and funny, max 1 sentence.",
+                "self_kill": f"A player named {victim_name} somehow just killed themselves. Make a brief, humorous comment about this. Keep it light and funny, max 1 sentence.",
+                "falling": f"A player named {victim_name} just died from falling damage. Make a brief, humorous comment about this. Keep it light and funny, max 1 sentence.",
+                "youngling": f"A player named {victim_name} just got killed by a youngling (NPC with lightsaber). Make a brief, humorous comment about this. Reference Star Wars youngling memes if appropriate. Keep it light and funny, max 1 sentence.",
+                "crushed": f"A player named {victim_name} just got crushed to death. Make a brief, humorous comment about this. Keep it light and funny, max 1 sentence.",
+                "environmental": f"A player named {victim_name} just died to the environment/world. Make a brief, humorous comment about this. Keep it light and funny, max 1 sentence."
             }
             
-            prompt = death_prompts.get(death_type, f"Make a brief, humorous comment about {victim_name}'s unfortunate death. Keep it light and funny, max 1 sentence.")
+            prompt = death_prompts.get(death_type, f"A player named {victim_name} just died in an unfortunate way. Make a brief, humorous comment about this. Keep it light and funny, max 1 sentence.")
             
             # Clean up player name for more natural reference
             clean_victim_name = self.clean_player_name_for_ai(victim_name)
@@ -426,11 +426,31 @@ class plugin:
                 "X-Title": f"MBIIEZ AI Assistant - {getattr(self.instance, 'name', 'Unknown Server')} - Death Commentary"
             }
             
+            # Get current game state for context
+            game_state = self.get_current_game_state()
+            
+            # Create game data JSON similar to regular chat
+            game_data = {
+                "death_commentary_request": prompt,
+                "victim_player": clean_victim_name,
+                "death_type": death_type,
+                "current_map": game_state["current_map"],
+                "players": game_state["players"],
+                "server_info": game_state["server_info"],
+                "instance_id": self.instance_id
+            }
+            
+            # Convert to JSON string for the AI
+            game_data_json = json.dumps(game_data, indent=2)
+            
+            # Use the same system prompt as regular chat but with death commentary context
+            death_system_prompt = f"{self.system_prompt}\n\nDEATH COMMENTARY MODE: You are now making a brief, humorous comment about a player death. The JSON contains 'death_commentary_request' with the specific request. Use the player name, map, and server context to make your comment more engaging. Keep it light-hearted and never mean-spirited. Max 1 sentence."
+            
             payload = {
                 "model": self.model,
                 "messages": [
-                    {"role": "system", "content": f"You are {self.ai_name}, a witty AI assistant for a Movie Battles II server. Make brief, light-hearted comments about player deaths. Keep it friendly and humorous, never mean-spirited. Reference Star Wars when appropriate."},
-                    {"role": "user", "content": prompt}
+                    {"role": "system", "content": death_system_prompt},
+                    {"role": "user", "content": game_data_json}
                 ],
                 "max_tokens": 50,
                 "temperature": 0.8
