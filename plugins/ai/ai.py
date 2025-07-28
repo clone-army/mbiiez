@@ -59,12 +59,17 @@ class plugin:
             self.public_replies = self.config.get('public_replies', True)
             self.death_commentary = self.config.get('death_commentary', True)
             
+            # Create unique instance identifier to prevent cross-server issues
+            self.instance_id = f"{getattr(self.instance, 'name', 'unknown')}_{id(self.instance)}"
+            
             # Build system prompt
             self.system_prompt = self.build_system_prompt()
             
             if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
                 self.instance.log_handler.log(f"AI Assistant: Plugin registered as '{self.ai_name}' with command '{self.command}'")
                 self.instance.log_handler.log(f"AI Assistant: Using model: {self.model}")
+                self.instance.log_handler.log(f"AI Assistant: Instance ID: {self.instance_id}")
+                self.instance.log_handler.log(f"AI Assistant: Server name: {getattr(self.instance, 'name', 'Unknown Server')}")
                 self.instance.log_handler.log("AI Assistant: Registration completed successfully!")
 
             self.instance.event_handler.register_event("player_chat_command", self.player_chat_command)
@@ -332,55 +337,68 @@ class plugin:
             return
             
         try:
-            killer = data.get('killer', 'Unknown')
-            victim = data.get('victim', 'Unknown')
-            method = data.get('method', '')
+            # Extract data using the correct field names from MBIIEZ event_handler
+            fragger = data.get('fragger', 'Unknown')
+            fragged = data.get('fragged', 'Unknown') 
+            weapon = data.get('weapon', '')
             
             if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
-                self.instance.log_handler.log(f"AI Assistant: Death event - Killer: {killer}, Victim: {victim}, Method: {method}")
+                self.instance.log_handler.log(f"AI Assistant [{self.instance_id}]: Death event - Fragger: {fragger}, Fragged: {fragged}, Weapon: {weapon}")
+                self.instance.log_handler.log(f"AI Assistant [{self.instance_id}]: Full death data: {data}")
+            
+            # Skip if we don't have enough data
+            if not fragged or fragged == 'Unknown':
+                if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
+                    self.instance.log_handler.log(f"AI Assistant [{self.instance_id}]: Skipping death commentary - no fragged data")
+                return
             
             commentary = None
             
-            # Self-kills (suicide/teamkill same person)
-            if killer == victim:
-                if 'MOD_ROCKET' in method or 'ROCKET_SPLASH' in method:
-                    commentary = self.generate_death_commentary(victim, "rocket_suicide")
-                elif 'MOD_SUICIDE' in method:
-                    commentary = self.generate_death_commentary(victim, "suicide")
+            # Self-kills - MBIIEZ sets fragger to "SELF" for self-kills and world kills
+            if fragger == "SELF":
+                if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
+                    self.instance.log_handler.log(f"AI Assistant [{self.instance_id}]: Detected self-kill/world kill")
+                
+                if 'MOD_ROCKET' in weapon or 'ROCKET_SPLASH' in weapon or 'rocket' in weapon.lower():
+                    commentary = self.generate_death_commentary(fragged, "rocket_suicide")
+                elif 'MOD_SUICIDE' in weapon or 'suicide' in weapon.lower():
+                    commentary = self.generate_death_commentary(fragged, "suicide")
+                elif 'MOD_FALLING' in weapon or 'falling' in weapon.lower():
+                    commentary = self.generate_death_commentary(fragged, "falling")
+                elif 'MOD_SABER' in weapon or 'saber' in weapon.lower():
+                    commentary = self.generate_death_commentary(fragged, "youngling")
+                elif 'MOD_CRUSH' in weapon or 'crush' in weapon.lower():
+                    commentary = self.generate_death_commentary(fragged, "crushed")
                 else:
-                    commentary = self.generate_death_commentary(victim, "self_kill")
-            
-            # World kills (environmental deaths)
-            elif killer == '<world>' or killer == 'world':
-                if 'MOD_FALLING' in method:
-                    commentary = self.generate_death_commentary(victim, "falling")
-                elif 'MOD_SABER' in method:
-                    commentary = self.generate_death_commentary(victim, "youngling")
-                elif 'MOD_CRUSH' in method:
-                    commentary = self.generate_death_commentary(victim, "crushed")
-                else:
-                    commentary = self.generate_death_commentary(victim, "environmental")
+                    # Generic self-kill or environmental death
+                    commentary = self.generate_death_commentary(fragged, "environmental")
             
             # Send commentary publicly (always public for death commentary)
             if commentary:
                 formatted_commentary = f"^6{self.ai_name}: ^7{commentary}"
                 
                 if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
-                    self.instance.log_handler.log(f"AI Assistant: Sending death commentary: {formatted_commentary}")
+                    self.instance.log_handler.log(f"AI Assistant [{self.instance_id}]: Sending death commentary: {formatted_commentary}")
                 
                 # Small delay to let the death message appear first
                 time.sleep(1)
                 self.instance.say(formatted_commentary)
+            else:
+                if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
+                    self.instance.log_handler.log(f"AI Assistant [{self.instance_id}]: No commentary generated for death")
                 
         except Exception as e:
             if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
-                self.instance.log_handler.log(f"AI Assistant: Error in death commentary: {e}")
+                self.instance.log_handler.log(f"AI Assistant [{self.instance_id}]: Error in death commentary: {e}")
                 import traceback
-                self.instance.log_handler.log(f"AI Assistant: Death commentary traceback: {traceback.format_exc()}")
+                self.instance.log_handler.log(f"AI Assistant [{self.instance_id}]: Death commentary traceback: {traceback.format_exc()}")
     
     def generate_death_commentary(self, victim_name, death_type):
         """Generate commentary about a silly death"""
         try:
+            if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
+                self.instance.log_handler.log(f"AI Assistant [{self.instance_id}]: Generating {death_type} commentary for {victim_name}")
+            
             # Create prompt based on death type
             death_prompts = {
                 "rocket_suicide": f"Make a brief, humorous comment about {victim_name} blowing themselves up with their own rocket/explosive. Keep it light and funny, max 1 sentence.",
@@ -398,11 +416,14 @@ class plugin:
             clean_victim_name = self.clean_player_name_for_ai(victim_name)
             prompt = prompt.replace(victim_name, clean_victim_name)
             
+            if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
+                self.instance.log_handler.log(f"AI Assistant [{self.instance_id}]: Death commentary prompt: {prompt}")
+            
             headers = {
                 "Authorization": f"Bearer {self.api_key}",
                 "Content-Type": "application/json",
                 "HTTP-Referer": "https://github.com/clone-army/mbiiez",
-                "X-Title": "MBIIEZ AI Assistant"
+                "X-Title": f"MBIIEZ AI Assistant - {getattr(self.instance, 'name', 'Unknown Server')} - Death Commentary"
             }
             
             payload = {
@@ -415,6 +436,9 @@ class plugin:
                 "temperature": 0.8
             }
             
+            if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
+                self.instance.log_handler.log(f"AI Assistant [{self.instance_id}]: Making death commentary API request")
+            
             response = requests.post(
                 self.base_url,
                 headers=headers,
@@ -422,16 +446,31 @@ class plugin:
                 timeout=5
             )
             
+            if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
+                self.instance.log_handler.log(f"AI Assistant [{self.instance_id}]: Death commentary API response status: {response.status_code}")
+            
             if response.status_code == 200:
                 result = response.json()
                 commentary = result['choices'][0]['message']['content'].strip()
                 # Clean up encoding issues
                 commentary = self.clean_text_encoding(commentary)
+                
+                if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
+                    self.instance.log_handler.log(f"AI Assistant [{self.instance_id}]: Generated death commentary: {commentary}")
+                
                 return commentary
+            else:
+                if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
+                    self.instance.log_handler.log(f"AI Assistant [{self.instance_id}]: Death commentary API error: {response.status_code} - {response.text}")
             
+        except requests.exceptions.Timeout:
+            if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
+                self.instance.log_handler.log(f"AI Assistant [{self.instance_id}]: Death commentary API timeout")
         except Exception as e:
             if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
-                self.instance.log_handler.log(f"AI Assistant: Error generating death commentary: {e}")
+                self.instance.log_handler.log(f"AI Assistant [{self.instance_id}]: Error generating death commentary: {e}")
+                import traceback
+                self.instance.log_handler.log(f"AI Assistant [{self.instance_id}]: Death commentary generation traceback: {traceback.format_exc()}")
         
         return None
     
@@ -465,13 +504,13 @@ class plugin:
         """Generate AI response using OpenRouter API"""
         try:
             if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
-                self.instance.log_handler.log(f"AI Assistant: Starting API call for prompt: '{prompt}'")
+                self.instance.log_handler.log(f"AI Assistant [{self.instance_id}]: Starting API call for prompt: '{prompt}'")
             
             headers = {
                 "Authorization": f"Bearer {self.api_key}",
                 "Content-Type": "application/json",
                 "HTTP-Referer": "https://github.com/clone-army/mbiiez",
-                "X-Title": "MBIIEZ AI Assistant"
+                "X-Title": f"MBIIEZ AI Assistant - {getattr(self.instance, 'name', 'Unknown Server')}"
             }
             
             # Get current game state
@@ -483,7 +522,8 @@ class plugin:
                 "requesting_player": player_name,
                 "current_map": game_state["current_map"],
                 "players": game_state["players"],
-                "server_info": game_state["server_info"]
+                "server_info": game_state["server_info"],
+                "instance_id": self.instance_id  # Add instance ID for better isolation
             }
             
             # Convert to JSON string for the AI
@@ -494,15 +534,17 @@ class plugin:
             
             # Build conversation context
             conversation = [
-                {"role": "system", "content": f"{self.system_prompt}\n\nREMINDER: The user message contains JSON data. Parse it and use 'requesting_player' for the player's name and 'player_message' for what to respond to. Reference 'current_map' and 'players' data when appropriate."},
+                {"role": "system", "content": f"{self.system_prompt}\n\nSERVER CONTEXT: You are responding on server '{getattr(self.instance, 'name', 'Unknown Server')}' (Instance ID: {self.instance_id}). Only respond to players on THIS specific server instance.\n\nREMINDER: The user message contains JSON data. Parse it and use 'requesting_player' for the player's name and 'player_message' for what to respond to. Reference 'current_map' and 'players' data when appropriate."},
                 {"role": "user", "content": game_data_json}
             ]
             
             # Add conversation history if enabled
             if self.config.get('remember_conversation', False):
-                if player_name in self.conversation_history:
+                # Use instance-specific player name to prevent cross-server memory issues
+                instance_player_key = f"{self.instance_id}_{player_name}"
+                if instance_player_key in self.conversation_history:
                     # Add last few exchanges for context
-                    history = self.conversation_history[player_name][-4:]  # Last 2 exchanges
+                    history = self.conversation_history[instance_player_key][-4:]  # Last 2 exchanges
                     conversation = [conversation[0]] + history + [conversation[1]]
             
             payload = {
@@ -540,17 +582,19 @@ class plugin:
                 
                 # Store in conversation history
                 if self.config.get('remember_conversation', False):
-                    if player_name not in self.conversation_history:
-                        self.conversation_history[player_name] = []
+                    # Use instance-specific player name to prevent cross-server memory issues
+                    instance_player_key = f"{self.instance_id}_{player_name}"
+                    if instance_player_key not in self.conversation_history:
+                        self.conversation_history[instance_player_key] = []
                     
-                    self.conversation_history[player_name].extend([
+                    self.conversation_history[instance_player_key].extend([
                         {"role": "user", "content": f"Player asked: {prompt}"},  # Simplified for history
                         {"role": "assistant", "content": ai_response}
                     ])
                     
                     # Keep only recent history
-                    if len(self.conversation_history[player_name]) > 10:
-                        self.conversation_history[player_name] = self.conversation_history[player_name][-10:]
+                    if len(self.conversation_history[instance_player_key]) > 10:
+                        self.conversation_history[instance_player_key] = self.conversation_history[instance_player_key][-10:]
                 
                 return ai_response
             else:
@@ -635,7 +679,7 @@ class plugin:
                 "Authorization": f"Bearer {self.api_key}",
                 "Content-Type": "application/json",
                 "HTTP-Referer": "https://github.com/clone-army/mbiiez",
-                "X-Title": "MBIIEZ AI Assistant"
+                "X-Title": f"MBIIEZ AI Assistant - {getattr(self.instance, 'name', 'Unknown Server')} - Map Commentary"
             }
             
             payload = {
