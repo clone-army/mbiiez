@@ -15,7 +15,7 @@ class controller:
             params = []
 
             if instance is not None and instance.lower() != "all":
-                where_clauses.append('instance = ?')
+                where_clauses.append('LOWER(instance) = LOWER(?)')
                 params.append(instance)
             if search:
                 where_clauses.append('log_line LIKE ?')

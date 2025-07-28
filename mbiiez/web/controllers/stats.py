@@ -15,18 +15,16 @@ class controller:
             if(instance == None):
                 q = ''' SELECT count(*) as connections, instance, strftime('%d', added) as date FROM connections WHERE type = "CONNECT" GROUP BY strftime('%Y %m %d', added), instance ORDER BY added DESC LIMIT 30; '''
             else:
-                q = ''' SELECT count(*) as connections, instance, strftime('%d', added) as date FROM connections WHERE type = "CONNECT" and instance = "''' + instance + '''" GROUP BY strftime('%Y %m %d', added) ORDER BY added DESC LIMIT 30; '''
-            
-            cur.execute(q)
+                q = ''' SELECT count(*) as connections, instance, strftime('%d', added) as date FROM connections WHERE type = "CONNECT" and LOWER(instance) = LOWER(?) GROUP BY strftime('%Y %m %d', added) ORDER BY added DESC LIMIT 30; '''
+                cur.execute(q, (instance,))
             
             self.controller_bag['connections'] = cur.fetchall()
             
             if(instance == None):
                 q = ''' SELECT count(*) as connections, player as player FROM connections WHERE player <> "Padawan" and player <> "" and added >= date('now','-30 days') GROUP BY player order by connections DESC LIMIT 10; '''
             else:
-                q = ''' SELECT count(*) as connections, player as player FROM connections WHERE instance = "''' + instance + '''" AND player <> "Padawan" and player <> "" and added >= date('now','-30 days') GROUP BY player order by connections DESC LIMIT 10; '''
-            
-            cur.execute(q)
+                q = ''' SELECT count(*) as connections, player as player FROM connections WHERE LOWER(instance) = LOWER(?) AND player <> "Padawan" and player <> "" and added >= date('now','-30 days') GROUP BY player order by connections DESC LIMIT 10; '''
+                cur.execute(q, (instance,))
             
             self.controller_bag['players'] = cur.fetchall()
                         

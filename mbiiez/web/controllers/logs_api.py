@@ -17,7 +17,7 @@ def logs_data():
     q = "SELECT log, added FROM logs WHERE 1=1"
     params = []
     if instance:
-        q += " AND instance = ?"
+        q += " AND LOWER(instance) = LOWER(?)"
         params.append(instance)
     if tag == 'SMOD':
         q += " AND (log LIKE '%SMOD command%' OR log LIKE '%SMOD say:%')"

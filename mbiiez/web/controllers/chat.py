@@ -11,7 +11,7 @@ class controller:
         conn = db().connect()
         cur = conn.cursor()
         if instance:
-            q = "SELECT * FROM chatter WHERE instance = ? ORDER BY added DESC LIMIT 100"
+            q = "SELECT * FROM chatter WHERE LOWER(instance) = LOWER(?) ORDER BY added DESC LIMIT 100"
             cur.execute(q, (instance,))
         else:
             q = "SELECT * FROM chatter ORDER BY added DESC LIMIT 100"
