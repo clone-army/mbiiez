@@ -95,29 +95,61 @@ class plugin:
         if personality:
             base_instruction += f" Personality: {personality}"
         
-        # Add game context and JSON format explanation
-        game_context = (
-            "\n\nContext: You are responding to players on a Movie Battles II server. "
+        # Load game context from external file
+        game_context = self.load_game_context()
+        
+        return base_instruction + "\n\n" + game_context
+    
+    def load_game_context(self):
+        """Load game context from external file"""
+        try:
+            # Get the directory where this plugin file is located
+            plugin_dir = os.path.dirname(os.path.abspath(__file__))
+            context_file = os.path.join(plugin_dir, 'game_context.txt')
+            
+            if os.path.exists(context_file):
+                with open(context_file, 'r', encoding='utf-8') as f:
+                    game_context = f.read().strip()
+                    
+                if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
+                    self.instance.log_handler.log(f"AI Assistant: Loaded game context from {context_file}")
+                    
+                return game_context
+            else:
+                if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
+                    self.instance.log_handler.log(f"AI Assistant: Game context file not found at {context_file}, using default")
+                
+                # Fallback to default context if file doesn't exist
+                return self.get_default_game_context()
+                
+        except Exception as e:
+            if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
+                self.instance.log_handler.log(f"AI Assistant: Error loading game context: {e}")
+            
+            # Fallback to default context on error
+            return self.get_default_game_context()
+    
+    def get_default_game_context(self):
+        """Get default game context as fallback"""
+        return (
+            "Context: You are responding to players on a Movie Battles II server. "
             "Movie Battles II is a Star Wars-themed multiplayer game modification. "
             "Keep responses concise (1-2 sentences max) as this is a fast-paced gaming environment. "
-            "You can reference Star Wars lore when appropriate."
-            "\n\nIMPORTANT: You will receive game data as a JSON object containing:"
-            "\n- 'player_message': The actual text/question from the player you should respond to"
-            "\n- 'requesting_player': Name of the player asking the question - USE THIS NAME when addressing them"
-            "\n- 'current_map': Name of the current map being played - mention this when relevant"
-            "\n- 'players': Array of current players with their scores, kills, deaths, and other stats"
-            "\n- 'server_info': Additional server information"
-            "\n\nAlways use the 'requesting_player' name when addressing the person who asked the question. "
-            "You can reference the current map, player scores, and other game data in your responses when relevant "
-            "(e.g., 'Nice work on {current_map}, {requesting_player}!' or congratulate top scorers). "
-            "Always primarily respond to the 'player_message' content."
-            "\n\nWhen referencing map names, convert technical names to natural readable names (e.g., 'mb2_dotf' becomes 'Duel of the Fates', 'mb2_deathstar' becomes 'Death Star'). "
-            "When referencing player names, use their display name but remove clan tags/brackets to make it natural (e.g., 'CA[401]-Ricks' becomes 'Ricks', '[TIN]JediMaster' becomes 'JediMaster')."
-            "\n\nExample: If JSON contains 'requesting_player': 'JediMaster' and 'player_message': 'hello', "
+            "You can reference Star Wars lore when appropriate.\n\n"
+            "IMPORTANT: You will receive game data as a JSON object containing:\n"
+            "- 'player_message': The actual text/question from the player you should respond to\n"
+            "- 'requesting_player': Name of the player asking the question - USE THIS NAME when addressing them\n"
+            "- 'current_map': Name of the current map being played - mention this when relevant\n"
+            "- 'players': Array of current players with their scores, kills, deaths, and other stats\n"
+            "- 'server_info': Additional server information\n\n"
+            "Always use the 'requesting_player' name when addressing the person who asked the question. "
+            "You can reference the current map, player scores, and other game data in your responses when relevant. "
+            "Always primarily respond to the 'player_message' content.\n\n"
+            "When referencing map names, convert technical names to natural readable names (e.g., 'mb2_dotf' becomes 'Duel of the Fates', 'mb2_deathstar' becomes 'Death Star'). "
+            "When referencing player names, use their display name but remove clan tags/brackets to make it natural (e.g., 'CA[401]-Ricks' becomes 'Ricks', '[TIN]JediMaster' becomes 'JediMaster').\n\n"
+            "Example: If JSON contains 'requesting_player': 'JediMaster' and 'player_message': 'hello', "
             "respond like: 'Hello JediMaster! Welcome to the server!' (not 'Hello player unknown')"
         )
-        
-        return base_instruction + game_context
     
     def clean_text_encoding(self, text):
         """Clean up text encoding issues and replace problematic characters"""
@@ -259,22 +291,41 @@ class plugin:
                 self.instance.log_handler.log(f"AI Assistant: Received data: {data}")
                 self.instance.log_handler.log(f"AI Assistant: Message: '{message}', Player: '{player_name}', PlayerID: '{player_id}'")
             
-            # If player_id is None or 0, try to get it from current players
-            if not player_id or player_id == 0:
-                try:
-                    current_players = self.instance.players()
-                    for player_info in current_players:
-                        if player_info.get('name_raw', '').strip() == player_name or player_info.get('name', '').strip() == player_name:
-                            player_id = player_info.get('id', player_id)
-                            if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
-                                self.instance.log_handler.log(f"AI Assistant: Found player_id {player_id} for player {player_name}")
-                            break
-                except Exception as e:
+            # Always get the server-side player ID from current players (ignore database player_id)
+            server_player_id = None
+            try:
+                current_players = self.instance.players()
+                if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
+                    self.instance.log_handler.log(f"AI Assistant: Current players list: {current_players}")
+                
+                for player_info in current_players:
+                    player_name_raw = player_info.get('name_raw', '').strip()
+                    player_name_clean = player_info.get('name', '').strip()
+                    
                     if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
-                        self.instance.log_handler.log(f"AI Assistant: Error looking up player_id: {e}")
+                        self.instance.log_handler.log(f"AI Assistant: Checking player - Raw: '{player_name_raw}', Clean: '{player_name_clean}', Looking for: '{player_name}'")
+                    
+                    # Try multiple matching approaches
+                    if (player_name_raw == player_name or 
+                        player_name_clean == player_name or
+                        player_name_raw.strip() == player_name.strip() or
+                        player_name_clean.strip() == player_name.strip()):
+                        
+                        server_player_id = player_info.get('id')
+                        if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
+                            self.instance.log_handler.log(f"AI Assistant: MATCH! Found server_player_id {server_player_id} for player {player_name}")
+                        break
+                        
+                if server_player_id is None:
+                    if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
+                        self.instance.log_handler.log(f"AI Assistant: No player ID match found for '{player_name}', will use fallback to say()")
+                        
+            except Exception as e:
+                if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
+                    self.instance.log_handler.log(f"AI Assistant: Error looking up server player_id: {e}")
             
             if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
-                self.instance.log_handler.log(f"AI Assistant: Final player_id: {player_id}")
+                self.instance.log_handler.log(f"AI Assistant: Final server_player_id: {server_player_id}")
             
             # Check if message starts with our command
             if not message.lower().startswith(self.command.lower()):
@@ -292,34 +343,47 @@ class plugin:
                 if self.public_replies:
                     self.instance.say(help_msg)
                 else:
-                    try:
-                        self.instance.tell(player_id, help_msg)
+                    if server_player_id is not None:
+                        try:
+                            self.instance.tell(server_player_id, help_msg)
+                            if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
+                                self.instance.log_handler.log(f"AI Assistant: Sent help message via tell to server_player_id {server_player_id}")
+                        except Exception as e:
+                            if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
+                                self.instance.log_handler.log(f"AI Assistant: Tell failed, falling back to say: {e}")
+                            self.instance.say(help_msg)
+                    else:
                         if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
-                            self.instance.log_handler.log(f"AI Assistant: Sent help message via tell to player_id {player_id}")
-                    except Exception as e:
-                        if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
-                            self.instance.log_handler.log(f"AI Assistant: Tell failed, falling back to say: {e}")
+                            self.instance.log_handler.log(f"AI Assistant: No server_player_id available, using say for help message")
                         self.instance.say(help_msg)
                 return
             
             # Check cooldown
             current_time = time.time()
-            if player_id in self.last_response_time:
-                time_since_last = current_time - self.last_response_time[player_id]
+            # Use server_player_id for cooldown tracking, fallback to player_name if no ID
+            cooldown_key = server_player_id if server_player_id is not None else player_name
+            
+            if cooldown_key in self.last_response_time:
+                time_since_last = current_time - self.last_response_time[cooldown_key]
                 if time_since_last < self.cooldown:
                     remaining = int(self.cooldown - time_since_last)
-                    try:
-                        self.instance.tell(player_id, f"^6{self.ai_name}: ^7Please wait {remaining} more seconds before asking another question.")
-                        if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
-                            self.instance.log_handler.log(f"AI Assistant: Sent cooldown message via tell to player_id {player_id}")
-                    except Exception as e:
-                        if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
-                            self.instance.log_handler.log(f"AI Assistant: Tell failed for cooldown message, falling back to say: {e}")
+                    cooldown_msg = f"^6{self.ai_name}: ^7Please wait {remaining} more seconds before asking another question."
+                    
+                    if server_player_id is not None:
+                        try:
+                            self.instance.tell(server_player_id, cooldown_msg)
+                            if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
+                                self.instance.log_handler.log(f"AI Assistant: Sent cooldown message via tell to server_player_id {server_player_id}")
+                        except Exception as e:
+                            if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
+                                self.instance.log_handler.log(f"AI Assistant: Tell failed for cooldown message, falling back to say: {e}")
+                            self.instance.say(f"^6{self.ai_name}: ^7{player_name}, please wait {remaining} more seconds before asking another question.")
+                    else:
                         self.instance.say(f"^6{self.ai_name}: ^7{player_name}, please wait {remaining} more seconds before asking another question.")
                     return
             
             # Update cooldown
-            self.last_response_time[player_id] = current_time
+            self.last_response_time[cooldown_key] = current_time
             
             if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
                 self.instance.log_handler.log(f"AI Assistant: Generating response for: '{prompt}'")
@@ -342,37 +406,54 @@ class plugin:
                         if self.public_replies:
                             self.instance.say(chunk)
                         else:
-                            try:
-                                self.instance.tell(player_id, chunk)
-                            except Exception as e:
+                            if server_player_id is not None:
+                                try:
+                                    self.instance.tell(server_player_id, chunk)
+                                    if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
+                                        self.instance.log_handler.log(f"AI Assistant: Sent chunk via tell to server_player_id {server_player_id}")
+                                except Exception as e:
+                                    if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
+                                        self.instance.log_handler.log(f"AI Assistant: Tell failed for chunk, falling back to say: {e}")
+                                    self.instance.say(chunk)
+                            else:
                                 if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
-                                    self.instance.log_handler.log(f"AI Assistant: Tell failed for chunk, falling back to say: {e}")
+                                    self.instance.log_handler.log(f"AI Assistant: No server_player_id for chunk, using say")
                                 self.instance.say(chunk)
                         time.sleep(0.5)  # Small delay between chunks
                 else:
                     if self.public_replies:
                         self.instance.say(formatted_response)
                     else:
-                        try:
-                            self.instance.tell(player_id, formatted_response)
+                        if server_player_id is not None:
+                            try:
+                                self.instance.tell(server_player_id, formatted_response)
+                                if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
+                                    self.instance.log_handler.log(f"AI Assistant: Sent response via tell to server_player_id {server_player_id}")
+                            except Exception as e:
+                                if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
+                                    self.instance.log_handler.log(f"AI Assistant: Tell failed for response, falling back to say: {e}")
+                                self.instance.say(formatted_response)
+                        else:
                             if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
-                                self.instance.log_handler.log(f"AI Assistant: Sent response via tell to player_id {player_id}")
-                        except Exception as e:
-                            if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
-                                self.instance.log_handler.log(f"AI Assistant: Tell failed for response, falling back to say: {e}")
+                                self.instance.log_handler.log(f"AI Assistant: No server_player_id for response, using say")
                             self.instance.say(formatted_response)
             else:
                 error_msg = f"^6{self.ai_name}: ^7I'm having trouble thinking right now. Please try again later!"
                 if self.public_replies:
                     self.instance.say(error_msg)
                 else:
-                    try:
-                        self.instance.tell(player_id, error_msg)
+                    if server_player_id is not None:
+                        try:
+                            self.instance.tell(server_player_id, error_msg)
+                            if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
+                                self.instance.log_handler.log(f"AI Assistant: Sent error message via tell to server_player_id {server_player_id}")
+                        except Exception as e:
+                            if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
+                                self.instance.log_handler.log(f"AI Assistant: Tell failed for error message, falling back to say: {e}")
+                            self.instance.say(error_msg)
+                    else:
                         if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
-                            self.instance.log_handler.log(f"AI Assistant: Sent error message via tell to player_id {player_id}")
-                    except Exception as e:
-                        if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
-                            self.instance.log_handler.log(f"AI Assistant: Tell failed for error message, falling back to say: {e}")
+                            self.instance.log_handler.log(f"AI Assistant: No server_player_id for error message, using say")
                         self.instance.say(error_msg)
                 if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
                     self.instance.log_handler.log("AI Assistant: No response generated, sent error message")
