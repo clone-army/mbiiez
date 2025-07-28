@@ -254,8 +254,27 @@ class plugin:
             player_name = data.get('player', 'Unknown')  # Use 'player' not 'player_name'
             player_id = data.get('player_id', 0)
             
+            # Debug logging - check what we received
             if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
-                self.instance.log_handler.log(f"AI Assistant: Message: '{message}', Command: '{self.command}'")
+                self.instance.log_handler.log(f"AI Assistant: Received data: {data}")
+                self.instance.log_handler.log(f"AI Assistant: Message: '{message}', Player: '{player_name}', PlayerID: '{player_id}'")
+            
+            # If player_id is None or 0, try to get it from current players
+            if not player_id or player_id == 0:
+                try:
+                    current_players = self.instance.players()
+                    for player_info in current_players:
+                        if player_info.get('name_raw', '').strip() == player_name or player_info.get('name', '').strip() == player_name:
+                            player_id = player_info.get('id', player_id)
+                            if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
+                                self.instance.log_handler.log(f"AI Assistant: Found player_id {player_id} for player {player_name}")
+                            break
+                except Exception as e:
+                    if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
+                        self.instance.log_handler.log(f"AI Assistant: Error looking up player_id: {e}")
+            
+            if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
+                self.instance.log_handler.log(f"AI Assistant: Final player_id: {player_id}")
             
             # Check if message starts with our command
             if not message.lower().startswith(self.command.lower()):
@@ -273,7 +292,14 @@ class plugin:
                 if self.public_replies:
                     self.instance.say(help_msg)
                 else:
-                    self.instance.tell(player_id, help_msg)
+                    try:
+                        self.instance.tell(player_id, help_msg)
+                        if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
+                            self.instance.log_handler.log(f"AI Assistant: Sent help message via tell to player_id {player_id}")
+                    except Exception as e:
+                        if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
+                            self.instance.log_handler.log(f"AI Assistant: Tell failed, falling back to say: {e}")
+                        self.instance.say(help_msg)
                 return
             
             # Check cooldown
@@ -282,7 +308,14 @@ class plugin:
                 time_since_last = current_time - self.last_response_time[player_id]
                 if time_since_last < self.cooldown:
                     remaining = int(self.cooldown - time_since_last)
-                    self.instance.tell(player_id, f"^6{self.ai_name}: ^7Please wait {remaining} more seconds before asking another question.")
+                    try:
+                        self.instance.tell(player_id, f"^6{self.ai_name}: ^7Please wait {remaining} more seconds before asking another question.")
+                        if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
+                            self.instance.log_handler.log(f"AI Assistant: Sent cooldown message via tell to player_id {player_id}")
+                    except Exception as e:
+                        if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
+                            self.instance.log_handler.log(f"AI Assistant: Tell failed for cooldown message, falling back to say: {e}")
+                        self.instance.say(f"^6{self.ai_name}: ^7{player_name}, please wait {remaining} more seconds before asking another question.")
                     return
             
             # Update cooldown
@@ -309,19 +342,38 @@ class plugin:
                         if self.public_replies:
                             self.instance.say(chunk)
                         else:
-                            self.instance.tell(player_id, chunk)
+                            try:
+                                self.instance.tell(player_id, chunk)
+                            except Exception as e:
+                                if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
+                                    self.instance.log_handler.log(f"AI Assistant: Tell failed for chunk, falling back to say: {e}")
+                                self.instance.say(chunk)
                         time.sleep(0.5)  # Small delay between chunks
                 else:
                     if self.public_replies:
                         self.instance.say(formatted_response)
                     else:
-                        self.instance.tell(player_id, formatted_response)
+                        try:
+                            self.instance.tell(player_id, formatted_response)
+                            if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
+                                self.instance.log_handler.log(f"AI Assistant: Sent response via tell to player_id {player_id}")
+                        except Exception as e:
+                            if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
+                                self.instance.log_handler.log(f"AI Assistant: Tell failed for response, falling back to say: {e}")
+                            self.instance.say(formatted_response)
             else:
                 error_msg = f"^6{self.ai_name}: ^7I'm having trouble thinking right now. Please try again later!"
                 if self.public_replies:
                     self.instance.say(error_msg)
                 else:
-                    self.instance.tell(player_id, error_msg)
+                    try:
+                        self.instance.tell(player_id, error_msg)
+                        if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
+                            self.instance.log_handler.log(f"AI Assistant: Sent error message via tell to player_id {player_id}")
+                    except Exception as e:
+                        if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
+                            self.instance.log_handler.log(f"AI Assistant: Tell failed for error message, falling back to say: {e}")
+                        self.instance.say(error_msg)
                 if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
                     self.instance.log_handler.log("AI Assistant: No response generated, sent error message")
             

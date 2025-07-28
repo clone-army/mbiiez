@@ -409,8 +409,8 @@ class log_handler:
                 
             frag_info = line_parts[3]
             
-            # Check if the format contains " by " and " killed "
-            if " by " not in frag_info or " killed " not in frag_info:
+            # Check if the format contains " by " and either " killed " or " teamkilled "
+            if " by " not in frag_info or (" killed " not in frag_info and " teamkilled " not in frag_info):
                 self.instance.log_handler.log("Invalid kill message format - Line: {}".format(last_line[:100]))
                 return
             
@@ -421,7 +421,11 @@ class log_handler:
             weapon = by_parts[1].strip()
             players_part = by_parts[0].strip()
             
-            killed_parts = self._safe_split(players_part, " killed ", expected_parts=2, description="kill players")
+            # Handle both "killed" and "teamkilled" formats
+            if " teamkilled " in players_part:
+                killed_parts = self._safe_split(players_part, " teamkilled ", expected_parts=2, description="teamkill players")
+            else:
+                killed_parts = self._safe_split(players_part, " killed ", expected_parts=2, description="kill players")
             if killed_parts is None:
                 return
                 
