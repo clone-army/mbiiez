@@ -56,6 +56,8 @@ class plugin:
             self.cooldown = self.config.get('cooldown_seconds', 5)
             self.max_tokens = self.config.get('max_tokens', 150)
             self.temperature = self.config.get('temperature', 0.7)
+            self.public_replies = self.config.get('public_replies', True)
+            self.death_commentary = self.config.get('death_commentary', True)
             
             # Build system prompt
             self.system_prompt = self.build_system_prompt()
@@ -66,6 +68,10 @@ class plugin:
                 self.instance.log_handler.log("AI Assistant: Registration completed successfully!")
 
             self.instance.event_handler.register_event("player_chat_command", self.player_chat_command)
+            
+            # Register death commentary event if enabled
+            if self.death_commentary:
+                self.instance.event_handler.register_event("player_killed", self.player_killed)
 
         except Exception as e:
             if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
@@ -258,7 +264,11 @@ class plugin:
             # Extract the question/prompt
             prompt = message[len(self.command):].strip()
             if not prompt:
-                self.instance.say(f"^6{self.ai_name}: ^7Please ask me something! Example: {self.command} What is the best lightsaber form?")
+                help_msg = f"^6{self.ai_name}: ^7Please ask me something! Example: {self.command} What is the best lightsaber form?"
+                if self.public_replies:
+                    self.instance.say(help_msg)
+                else:
+                    self.instance.tell(player_id, help_msg)
                 return
             
             # Check cooldown
@@ -291,13 +301,22 @@ class plugin:
                 if len(formatted_response) > max_length:
                     chunks = self.chunk_message(formatted_response, max_length)
                     for chunk in chunks:
-                        self.instance.say(chunk)
+                        if self.public_replies:
+                            self.instance.say(chunk)
+                        else:
+                            self.instance.tell(player_id, chunk)
                         time.sleep(0.5)  # Small delay between chunks
                 else:
-                    self.instance.say(formatted_response)
+                    if self.public_replies:
+                        self.instance.say(formatted_response)
+                    else:
+                        self.instance.tell(player_id, formatted_response)
             else:
                 error_msg = f"^6{self.ai_name}: ^7I'm having trouble thinking right now. Please try again later!"
-                self.instance.say(error_msg)
+                if self.public_replies:
+                    self.instance.say(error_msg)
+                else:
+                    self.instance.tell(player_id, error_msg)
                 if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
                     self.instance.log_handler.log("AI Assistant: No response generated, sent error message")
             
@@ -306,6 +325,141 @@ class plugin:
                 self.instance.log_handler.log(f"AI Assistant: Error in chat command: {e}")
                 import traceback
                 self.instance.log_handler.log(f"AI Assistant: Chat command traceback: {traceback.format_exc()}")
+    
+    def player_killed(self, data):
+        """Handle player deaths and comment on silly deaths"""
+        if not self.death_commentary:
+            return
+            
+        try:
+            killer = data.get('killer', 'Unknown')
+            victim = data.get('victim', 'Unknown')
+            method = data.get('method', '')
+            
+            if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
+                self.instance.log_handler.log(f"AI Assistant: Death event - Killer: {killer}, Victim: {victim}, Method: {method}")
+            
+            commentary = None
+            
+            # Self-kills (suicide/teamkill same person)
+            if killer == victim:
+                if 'MOD_ROCKET' in method or 'ROCKET_SPLASH' in method:
+                    commentary = self.generate_death_commentary(victim, "rocket_suicide")
+                elif 'MOD_SUICIDE' in method:
+                    commentary = self.generate_death_commentary(victim, "suicide")
+                else:
+                    commentary = self.generate_death_commentary(victim, "self_kill")
+            
+            # World kills (environmental deaths)
+            elif killer == '<world>' or killer == 'world':
+                if 'MOD_FALLING' in method:
+                    commentary = self.generate_death_commentary(victim, "falling")
+                elif 'MOD_SABER' in method:
+                    commentary = self.generate_death_commentary(victim, "youngling")
+                elif 'MOD_CRUSH' in method:
+                    commentary = self.generate_death_commentary(victim, "crushed")
+                else:
+                    commentary = self.generate_death_commentary(victim, "environmental")
+            
+            # Send commentary publicly (always public for death commentary)
+            if commentary:
+                formatted_commentary = f"^6{self.ai_name}: ^7{commentary}"
+                
+                if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
+                    self.instance.log_handler.log(f"AI Assistant: Sending death commentary: {formatted_commentary}")
+                
+                # Small delay to let the death message appear first
+                time.sleep(1)
+                self.instance.say(formatted_commentary)
+                
+        except Exception as e:
+            if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
+                self.instance.log_handler.log(f"AI Assistant: Error in death commentary: {e}")
+                import traceback
+                self.instance.log_handler.log(f"AI Assistant: Death commentary traceback: {traceback.format_exc()}")
+    
+    def generate_death_commentary(self, victim_name, death_type):
+        """Generate commentary about a silly death"""
+        try:
+            # Create prompt based on death type
+            death_prompts = {
+                "rocket_suicide": f"Make a brief, humorous comment about {victim_name} blowing themselves up with their own rocket/explosive. Keep it light and funny, max 1 sentence.",
+                "suicide": f"Make a brief, humorous comment about {victim_name} taking their own life in the game. Keep it light and funny, max 1 sentence.",
+                "self_kill": f"Make a brief, humorous comment about {victim_name} somehow killing themselves. Keep it light and funny, max 1 sentence.",
+                "falling": f"Make a brief, humorous comment about {victim_name} dying from falling damage. Keep it light and funny, max 1 sentence.",
+                "youngling": f"Make a brief, humorous comment about {victim_name} being killed by a youngling (NPC with lightsaber). Reference Star Wars youngling memes. Keep it light and funny, max 1 sentence.",
+                "crushed": f"Make a brief, humorous comment about {victim_name} being crushed to death. Keep it light and funny, max 1 sentence.",
+                "environmental": f"Make a brief, humorous comment about {victim_name} dying to the environment/world. Keep it light and funny, max 1 sentence."
+            }
+            
+            prompt = death_prompts.get(death_type, f"Make a brief, humorous comment about {victim_name}'s unfortunate death. Keep it light and funny, max 1 sentence.")
+            
+            # Clean up player name for more natural reference
+            clean_victim_name = self.clean_player_name_for_ai(victim_name)
+            prompt = prompt.replace(victim_name, clean_victim_name)
+            
+            headers = {
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json",
+                "HTTP-Referer": "https://github.com/clone-army/mbiiez",
+                "X-Title": "MBIIEZ AI Assistant"
+            }
+            
+            payload = {
+                "model": self.model,
+                "messages": [
+                    {"role": "system", "content": f"You are {self.ai_name}, a witty AI assistant for a Movie Battles II server. Make brief, light-hearted comments about player deaths. Keep it friendly and humorous, never mean-spirited. Reference Star Wars when appropriate."},
+                    {"role": "user", "content": prompt}
+                ],
+                "max_tokens": 50,
+                "temperature": 0.8
+            }
+            
+            response = requests.post(
+                self.base_url,
+                headers=headers,
+                json=payload,
+                timeout=5
+            )
+            
+            if response.status_code == 200:
+                result = response.json()
+                commentary = result['choices'][0]['message']['content'].strip()
+                # Clean up encoding issues
+                commentary = self.clean_text_encoding(commentary)
+                return commentary
+            
+        except Exception as e:
+            if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
+                self.instance.log_handler.log(f"AI Assistant: Error generating death commentary: {e}")
+        
+        return None
+    
+    def clean_player_name_for_ai(self, player_name):
+        """Clean player name for AI commentary by removing clan tags"""
+        # Remove common clan tag patterns
+        import re
+        
+        # Remove brackets and their contents: [TAG], (TAG), {TAG}
+        cleaned = re.sub(r'[\[\(\{][^\]\)\}]*[\]\)\}]', '', player_name)
+        
+        # Remove common separators and prefixes
+        cleaned = re.sub(r'^[-_=\|]*', '', cleaned)
+        cleaned = re.sub(r'[-_=\|]*$', '', cleaned)
+        
+        # Remove color codes (^1, ^2, etc.)
+        cleaned = re.sub(r'\^[0-9]', '', cleaned)
+        
+        # Clean up extra spaces and dashes
+        cleaned = re.sub(r'\s+', ' ', cleaned)
+        cleaned = re.sub(r'-+', '-', cleaned)
+        cleaned = cleaned.strip(' -_')
+        
+        # If name becomes empty or too short, use original
+        if len(cleaned) < 2:
+            return player_name
+            
+        return cleaned
     
     def generate_response(self, player_name, prompt):
         """Generate AI response using OpenRouter API"""
