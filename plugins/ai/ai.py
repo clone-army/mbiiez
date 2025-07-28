@@ -100,6 +100,8 @@ class plugin:
             "You can reference the current map, player scores, and other game data in your responses when relevant "
             "(e.g., 'Nice work on {current_map}, {requesting_player}!' or congratulate top scorers). "
             "Always primarily respond to the 'player_message' content."
+            "\n\nWhen referencing map names, convert technical names to natural readable names (e.g., 'mb2_dotf' becomes 'Duel of the Fates', 'mb2_deathstar' becomes 'Death Star'). "
+            "When referencing player names, use their display name but remove clan tags/brackets to make it natural (e.g., 'CA[401]-Ricks' becomes 'Ricks', '[TIN]JediMaster' becomes 'JediMaster')."
             "\n\nExample: If JSON contains 'requesting_player': 'JediMaster' and 'player_message': 'hello', "
             "respond like: 'Hello JediMaster! Welcome to the server!' (not 'Hello player unknown')"
         )
