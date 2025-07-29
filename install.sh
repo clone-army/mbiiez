@@ -211,7 +211,6 @@ chmod +x /usr/local/bin/mbii"
 
 # ─── Rename MBII engine library ─────────────────────────────────────────
 run_step "Renaming JAMP Library" \
-
   "if [ -f \"$MBII_DIR/jampgamei386.nopp.so\" ]; then \
      mv -f \"$MBII_DIR/jampgamei386.nopp.so\" \"$MBII_DIR/jampgamei386.so\"; \
    else \
