@@ -23,7 +23,7 @@ echo "$update_output" | tee -a "$LOG_FILE"
 # Extract update count from output
 update_count=$(echo "$update_output" | grep -Eo '^[0-9]+' || echo 0)
 
-if (( update_count > 0 )); then
+if (( update_count > 1 )); then
     echo "Update available: $update_count files to update. Applying update..." | tee -a "$LOG_FILE"
     dotnet "$updater_dll" -path "$gamedir" >> "$LOG_FILE" 2>&1
 
