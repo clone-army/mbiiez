@@ -217,6 +217,15 @@ run_step "Renaming JAMP Library" \
      echo \"${YELLOW}Warning:${NC} jampgamei386.nopp.so not found, skipping rename\"; \
    fi"
 
+# ─── 8) Setup configuration ──────────────────────────────────────────────
+run_step "Setting up configuration files" \
+  "if [ ! -f \"${SCRIPT_DIR}/mbiiez.conf\" ]; then \
+     cp \"${SCRIPT_DIR}/mbiiez.conf.example\" \"${SCRIPT_DIR}/mbiiez.conf\"; \
+     echo \"Created mbiiez.conf from example\"; \
+   else \
+     echo \"mbiiez.conf already exists, skipping\"; \
+   fi"
+
 # ─── 9) Write systemd service ─────────────────────────────────────────────
 printf "${BLUE}→ Writing systemd service...${NC} "
 cat >"/etc/systemd/system/${SERVICE_NAME}.service" <<EOF
@@ -243,3 +252,9 @@ printf "\n${GREEN}✅ Installation complete!${NC}\n"
 printf " • Engines in %s:\n     - MBII installed via updater DLL into %s\n     - OpenJK under %s\n" \
   "$BASE" "$MBII_DIR" "$BASE"
 printf " • Web UI: http://0.0.0.0:8080  (default Admin/Admin)\n"
+
+printf "\n${YELLOW}⚠️  IMPORTANT CONFIGURATION STEPS:${NC}\n"
+printf " • Edit ${SCRIPT_DIR}/mbiiez.conf to configure your server settings\n"
+printf " • Create server instance configs in ${SCRIPT_DIR}/configs/ folder\n"
+printf " • Example configs are provided in the configs/ directory\n"
+printf " • Restart the service after configuration: sudo systemctl restart ${SERVICE_NAME}\n"
