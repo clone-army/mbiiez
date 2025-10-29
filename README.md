@@ -25,8 +25,8 @@ In a sense, you should not need to edit server configs, RTV/RTM configs, underst
 
 ## Updating
 - Run the included update.sh to update MBII
+- run it with arguments `-i open,duel` etc to auto restart these instances on update
 - Recommend putting this into a crontab every 10 minutes
-- It will automatically restart instances once update is done, unless there are players, then it will wait until empty 
 - git pull to grab updates from this repo for MBIIEZ
 
 ## Adding Base files
