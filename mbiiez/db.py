@@ -1,5 +1,7 @@
 import sqlite3
 import datetime
+import threading
+import time
 
 from sqlite3 import Error
 
@@ -8,11 +10,15 @@ from mbiiez.helpers import helpers
 
 class db:
 
+    _cleanup_interval_seconds = 6 * 60 * 60  # every 6 hours
+    _last_cleanup = 0.0
+    _cleanup_lock = threading.Lock()
+
     def __init__(self):
         """ generates schema if not already created """
         self.generate_schema()
         self.enable_wal()
-        #self.clean_up()
+        self._maybe_cleanup()
 
 
 
@@ -173,13 +179,56 @@ class db:
         
     def clean_up(self):
         conn = self.connect()
-        sql = ''' delete FROM logs where added < datetime('now', '-7 day') '''
-        cur = conn.cursor()
-        cur.execute(sql)
-        conn.commit()
-        cur.execute("vacuum");
-        if conn:
-            conn.close()        
+        if not conn:
+            return
+
+        try:
+            cur = conn.cursor()
+            retention_days = {
+                "logs": 7,
+                "chatter": 7,
+                "connections": 14,
+                "player_info": 14,
+                "frags": 30,
+                "processes": 3,
+            }
+
+            for table, days in retention_days.items():
+                try:
+                    cur.execute(
+                        f"DELETE FROM {table} WHERE added < datetime('now', '-{days} day')"
+                    )
+                except Exception as table_err:
+                    print(f"Cleanup warning on table {table}: {table_err}")
+
+            conn.commit()
+
+            try:
+                cur.execute("VACUUM")
+            except Exception as vacuum_err:
+                print(f"Cleanup vacuum warning: {vacuum_err}")
+
+        except Error as e:
+            print(f"Cleanup error: {e}")
+        finally:
+            if conn:
+                conn.close()
+
+    def _maybe_cleanup(self):
+        now = time.time()
+        if now - db._last_cleanup < db._cleanup_interval_seconds:
+            return
+
+        with db._cleanup_lock:
+            # Re-check inside lock to avoid duplicate work
+            now = time.time()
+            if now - db._last_cleanup < db._cleanup_interval_seconds:
+                return
+
+            try:
+                self.clean_up()
+            finally:
+                db._last_cleanup = time.time()
         
     def temp_get_player_id(self, player):
         conn = self.connect()

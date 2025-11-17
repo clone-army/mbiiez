@@ -3,11 +3,13 @@ import sys, getopt
 import argparse
 import os
 import time
+import psutil
 
 from mbiiez.bcolors import bcolors
 from mbiiez.instance import instance
 from mbiiez import settings
 from mbiiez.client import client
+from mbiiez.db import db
 
 # Main Class
 class main:
@@ -19,6 +21,7 @@ class main:
         print("")
         print("Option                                    Name            Meaning")
         print("-i <instance> [command] [optional args]   Instance        Use to run commands against a named instance")  
+        print("                                             (run without args to list running instances)")
         print("-l                                        List            List all Instances available")        
         print("-u                                        Update          Check for MBII Updates, Update when ALL instances are empty")
         print("-v                                        Verbose         Enable verbose mode")     
@@ -50,7 +53,7 @@ class main:
  
         parser = argparse.ArgumentParser(add_help=False)
         group = parser.add_mutually_exclusive_group()
-        group.add_argument("-i", type=str, help="Action on Instance", nargs="+", metavar="INSTANCE", dest="instance")
+        group.add_argument("-i", type=str, help="Action on Instance", nargs="*", metavar="INSTANCE", dest="instance", default=None)
 
         group.add_argument("-l", action="store_true",              help="List Instances",      dest="list")
         group.add_argument("-u", action="store_true",              help="Update MBII",         dest="update")
@@ -79,39 +82,39 @@ class main:
             self.client(args.client[0])
             exit()
         
-        if(args.instance):
-            # If the command is 'status', print the result of status_print()
-            if len(args.instance) >= 2 and args.instance[1] == 'status':
-                inst = self.get_instance(args.instance[0])
+        if(args.instance is not None):
+            if len(args.instance) == 0:
+                self.list_running_instances()
+                exit()
+
+            instance_name = args.instance[0]
+            if len(args.instance) == 1:
+                print(f"Please provide a command for instance '{instance_name}'.")
+                exit(1)
+
+            command = args.instance[1]
+            params = args.instance[2:]
+            inst = self.get_instance(instance_name)
+
+            if command == 'status' and not params:
                 print(inst.status_print())
-            elif(len(args.instance) == 3):
-                # Check if it's a stop or restart command and we have the force flag
-                if args.instance[1] in ['stop', 'restart'] and args.force:
-                    if args.instance[1] == 'stop':
-                        getattr(self.get_instance(args.instance[0]), args.instance[1])(force=True)
-                    else:
-                        # For restart, we need to modify the instance to accept force
-                        inst = self.get_instance(args.instance[0])
-                        inst.stop(force=True)
-                        time.sleep(2)
-                        inst.start()
+                exit()
+
+            if command in ['stop', 'restart'] and args.force:
+                if command == 'stop':
+                    getattr(inst, command)(force=True)
                 else:
-                    getattr(self.get_instance(args.instance[0]), args.instance[1])(args.instance[2])
-            elif(len(args.instance) == 4):
-                 getattr(self.get_instance(args.instance[0]), args.instance[1])(args.instance[2], args.instance[3])           
+                    inst.stop(force=True)
+                    time.sleep(2)
+                    inst.start()
+                exit()
+
+            target_method = getattr(inst, command)
+            if params:
+                target_method(*params)
             else:
-                # Check if it's a stop or restart command and we have the force flag
-                if args.instance[1] in ['stop', 'restart'] and args.force:
-                    if args.instance[1] == 'stop':
-                        getattr(self.get_instance(args.instance[0]), args.instance[1])(force=True)
-                    else:
-                        # For restart, we need to modify the instance to accept force
-                        inst = self.get_instance(args.instance[0])
-                        inst.stop(force=True)
-                        time.sleep(2)
-                        inst.start()
-                else:
-                    getattr(self.get_instance(args.instance[0]), args.instance[1])()
+                target_method()
+            exit()
 
         if(args.instances):
             action = args.instances[0]
@@ -143,6 +146,35 @@ class main:
         for filename in os.listdir(config_file_path):
             if(filename.endswith(".json")):
                 print(filename.replace(".json",""))
+
+    def list_running_instances(self):
+        try:
+            processes = db().select("processes", {"name": "OpenJK"})
+        except Exception as e:
+            print(f"Unable to determine running instances: {e}")
+            return
+
+        running = set()
+        for proc in processes:
+            instance_name = proc.get("instance")
+            pid = proc.get("pid")
+            if not instance_name or pid is None:
+                continue
+            if self._pid_running(pid):
+                running.add(instance_name)
+
+        if running:
+            print("Currently running instances:")
+            for name in sorted(running):
+                print(f"- {name}")
+        else:
+            print("No instances are currently running.")
+
+    def _pid_running(self, pid):
+        try:
+            return psutil.pid_exists(int(pid))
+        except Exception:
+            return False
                 
         
                 
