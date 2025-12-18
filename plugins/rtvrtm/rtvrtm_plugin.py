@@ -13,6 +13,7 @@ import sys
 import time
 import traceback
 from pathlib import Path
+from datetime import date
 
 def Plugin(instance, config_path):
     """
@@ -354,7 +355,15 @@ RTM change immediately: {rtm_change_immediately}
     def generate_maps_files(self):
         """Generate the maps.txt and secondary_maps.txt files from JSON configuration"""
         # Primary maps
-        primary_maps = self.config.get('primary_maps', [])
+        primary_maps = list(self.config.get('primary_maps', []))
+        
+        # Add active holiday maps
+        holiday_maps = self.get_active_holiday_maps()
+        if holiday_maps:
+            for map_name in holiday_maps:
+                if map_name not in primary_maps:
+                    primary_maps.append(map_name)
+        
         with open(self.maps_path, 'w') as f:
             for map_name in primary_maps:
                 f.write(f"{map_name}\n")
@@ -364,6 +373,54 @@ RTM change immediately: {rtm_change_immediately}
         with open(self.secondary_maps_path, 'w') as f:
             for map_name in secondary_maps:
                 f.write(f"{map_name}\n")
+    
+    def get_active_holiday_maps(self):
+        """Get maps for any currently active holidays from config"""
+        active_maps = []
+        holiday_config = self.config.get('holiday_maps', {})
+        
+        if not holiday_config:
+            return active_maps
+        
+        today = date.today()
+        
+        for holiday_name, holiday_data in holiday_config.items():
+            if self._is_holiday_active(today, holiday_data):
+                maps = holiday_data.get('maps', [])
+                active_maps.extend(maps)
+                self.log(f"RTVRTM: Added {len(maps)} holiday maps for {holiday_name}")
+        
+        return active_maps
+    
+    def _is_holiday_active(self, today, holiday_data):
+        """Check if a holiday is currently active based on date range"""
+        try:
+            start_month = holiday_data.get('start_month')
+            start_day = holiday_data.get('start_day')
+            end_month = holiday_data.get('end_month')
+            end_day = holiday_data.get('end_day')
+            
+            if not all([start_month, start_day, end_month, end_day]):
+                return False
+            
+            current_year = today.year
+            start_date = date(current_year, start_month, start_day)
+            end_date = date(current_year, end_month, end_day)
+            
+            # Handle year wraparound (e.g., Dec 1 - Jan 5)
+            if end_date < start_date:
+                # Holiday spans new year
+                if today >= start_date or today <= end_date:
+                    return True
+            else:
+                # Normal date range within same year
+                if start_date <= today <= end_date:
+                    return True
+            
+            return False
+        except Exception as e:
+            self.log(f"RTVRTM: Error checking holiday dates: {e}")
+            return False
     
     def start_rtvrtm(self):
         """Start the RTVRTM script in a separate thread"""
