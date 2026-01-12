@@ -4374,6 +4374,9 @@ def main(argv):
 
                   if start_voting: # Cancel a running voting or map/mode change
                                    # when player count drops to 0.
+                    svsay("^2[RTV] ^7Voting cancelled - no tracked players remaining.")
+                    print("CONSOLE: (%s) [RTV] Voting cancelled - no tracked players (player tracking may be out of sync)."
+                          % (strftime(timenow(), "%d/%m/%Y %H:%M:%S")))
                     status.rtv = status.rtm = voting_instructions = start_voting = start_second_turn = False
                     change_instructions = None
 

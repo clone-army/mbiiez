@@ -390,6 +390,107 @@ class instance:
         else:
             print(bcolors.FAIL + "[Error] " + bcolors.ENDC + "Unable to Load a SERVER config at " + self.config['server']['server_config_path'])
             print(bcolors.FAIL + "Unable to proceed without a valid Server Config File" + bcolors.ENDC)
+
+    # Start this instance in DEBUG mode - runs engine in foreground with visible output
+    def startd(self):
+        """
+        Debug start - runs the engine directly in the foreground so you can see all output.
+        Use this to diagnose why the engine won't start.
+        Press Ctrl+C to stop.
+        """
+        import subprocess
+        import shlex
+        
+        if(self.server_running()):
+             print(bcolors.OK + "Instance is already running" + bcolors.ENDC)
+             print("Stop it first with: mbii -i {} stop".format(self.name))
+             return
+   
+        # Generate our configs
+        self.conf.generate_server_config()
+        
+        # Can Instance Can Start?
+        if not os.path.exists(self.config['server']['server_config_path']):
+            print(bcolors.FAIL + "[Error] " + bcolors.ENDC + "Unable to Load a SERVER config at " + self.config['server']['server_config_path'])
+            print(bcolors.FAIL + "Unable to proceed without a valid Server Config File" + bcolors.ENDC)
+            return
+
+        engine_path = "{}/{}".format("/usr/bin", self.config['server']['engine'])
+        
+        # Reason to Bail  
+        if not os.path.isfile(engine_path):        
+            print(bcolors.FAIL + "[Error] " + bcolors.ENDC + "Failed to start. No engine found at {}".format(engine_path))
+            return
+            
+        # Make sure can be executed    
+        os.system("chmod +x {}".format(engine_path))  
+          
+        # Sym Links
+        if(os.path.exists("/root/.local/share/openjk")):
+            if(not os.path.islink("/root/.local/share/openjk")):
+                shutil.rmtree("/root/.local/share/openjk")       
+                os.symlink(settings.locations.game_path, "/root/.local/share/openjk")
+        
+        if(os.path.exists("/root/.ja")):
+            if(not os.path.islink("/root/.ja")):
+                shutil.rmtree("/root/.ja")       
+                os.symlink(settings.locations.game_path, "/root/.ja")  
+
+        # Build the command (without --quiet so we see output)
+        cmd = "{} +set dedicated 2 +set net_port {} +set fs_game {} +set fs_homepath {} +exec {}".format(
+            engine_path,
+            self.config['server']['port'],
+            self.get_game(),
+            self.config['server']['home_path'],
+            self.config['server']['server_config_file']
+        )
+        
+        print(bcolors.CYAN + "=" * 60 + bcolors.ENDC)
+        print(bcolors.CYAN + "DEBUG MODE - Engine output will be shown below" + bcolors.ENDC)
+        print(bcolors.CYAN + "Press Ctrl+C to stop the server" + bcolors.ENDC)
+        print(bcolors.CYAN + "=" * 60 + bcolors.ENDC)
+        print()
+        print(bcolors.YELLOW + "Command:" + bcolors.ENDC)
+        print(cmd)
+        print()
+        print(bcolors.YELLOW + "Working Directory:" + bcolors.ENDC)
+        print(self.config['server']['home_path'])
+        print()
+        print(bcolors.YELLOW + "Server Config:" + bcolors.ENDC)
+        print(self.config['server']['server_config_path'])
+        print()
+        print(bcolors.CYAN + "=" * 60 + bcolors.ENDC)
+        print(bcolors.GREEN + "ENGINE OUTPUT:" + bcolors.ENDC)
+        print(bcolors.CYAN + "=" * 60 + bcolors.ENDC)
+        print()
+        
+        try:
+            # Run the engine directly in the foreground - all output visible
+            process = subprocess.Popen(
+                shlex.split(cmd),
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                universal_newlines=True,
+                bufsize=1
+            )
+            
+            # Stream output line by line
+            for line in iter(process.stdout.readline, ''):
+                print(line, end='')
+            
+            process.wait()
+            
+            print()
+            print(bcolors.CYAN + "=" * 60 + bcolors.ENDC)
+            print(bcolors.YELLOW + "Engine exited with code: {}".format(process.returncode) + bcolors.ENDC)
+            
+        except KeyboardInterrupt:
+            print()
+            print(bcolors.YELLOW + "Server stopped by user (Ctrl+C)" + bcolors.ENDC)
+            if process:
+                process.terminate()
+        except Exception as e:
+            print(bcolors.FAIL + "Error running engine: {}".format(e) + bcolors.ENDC)
             
     def server_running(self):
     
