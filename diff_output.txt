@@ -1,0 +1,1450 @@
+Comparing files C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py and C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+    1:  #!/usr/bin/python -uSOO
+    2:  # Copyright (c) 2012-2013, klax / Cthulhu@GBITnet.com.br
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+    1:  #!/usr/bin/env python3
+    2:  # Copyright (c) 2012-2013, klax / Cthulhu@GBITnet.com.br
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+   34:  
+   35:  from __future__ import with_statement
+   36:  from sys import platform, setcheckinterval, argv, exit
+   37:  from optparse import OptionParser, OptionGroup
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+   34:  
+   35:  from sys import platform, argv, exit
+   36:  from optparse import OptionParser, OptionGroup
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+   64:  
+   65:      raw_input("\nPress ENTER to continue...")
+   66:  
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+   63:  
+   64:      input("\nPress ENTER to continue...")
+   65:  
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+   79:  
+   80:    print
+   81:  
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+   78:  
+   79:    print()
+   80:  
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+   87:      
+   88:      return iter(sorted(self.iteritems()))
+   89:  
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+   86:      
+   87:      return iter(sorted(self.items()))
+   88:  
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+   96:      return self
+   97:  
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+   95:      return self
+   96:    
+   97:    def __le__(self, other):
+   98:      """Less than or equal comparison - always returns False for round-based voting"""
+   99:      return False
+  100:    
+  101:    def __lt__(self, other):
+  102:      """Less than comparison - always returns False for round-based voting"""
+  103:      return False
+  104:    
+  105:    def __ge__(self, other):
+  106:      """Greater than or equal comparison - always returns True for round-based voting"""
+  107:      return True
+  108:    
+  109:    def __gt__(self, other):
+  110:      """Greater than comparison - always returns True for round-based voting"""
+  111:      return True
+  112:    
+  113:    def __eq__(self, other):
+  114:      """Equal comparison - only True if other is also DummyTime"""
+  115:      return isinstance(other, DummyTime)
+  116:    
+  117:    def __ne__(self, other):
+  118:      """Not equal comparison - True unless other is also DummyTime"""
+  119:      return not isinstance(other, DummyTime)
+  120:  
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+  105:  
+  106:    for i in xrange(3): # Attempt to send the bug report for a maximum of 3 times.
+  107:    
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+  128:  
+  129:    for i in range(3): # Attempt to send the bug report for a maximum of 3 times.
+  130:    
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+  113:        sock.connect(("rtvrtm.gatetogames.net", 22998))
+  114:        sock.send(bugreport)
+  115:        status = "Sent!"
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+  136:        sock.connect(("rtvrtm.gatetogames.net", 22998))
+  137:        sock.send(bugreport.encode('utf-8', errors='ignore'))
+  138:        status = "Sent!"
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+  163:      recv = sock.recv
+  164:      send(hex(filecode))
+  165:      new_version = recv(32)
+  166:  
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+  186:      recv = sock.recv
+  187:      send(hex(filecode).encode('utf-8', errors='ignore'))
+  188:      new_version = recv(32).decode('utf-8', errors='ignore')
+  189:  
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+  180:        
+  181:          update = lower(strip(raw_input("-> Update %s to %s? [Y]es/[N]o: " % (VERSION,
+  182:                                                                               new_version))))
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+  203:        
+  204:          update = lower(strip(input("-> Update %s to %s? [Y]es/[N]o: " % (VERSION,
+  205:                                                                               new_version))))
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+  192:        print("[*] Getting file information..."),
+  193:        send("CFG") # Check whether a new configuration file is necessary.
+  194:        update_cfg = recv(32)
+  195:  
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+  215:        print("[*] Getting file information..."),
+  216:        send("CFG".encode('utf-8', errors='ignore')) # Check whether a new configuration file is necessary.
+  217:        update_cfg = recv(32).decode('utf-8', errors='ignore')
+  218:  
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+  199:        
+  200:        send("SIZE") # Get total size of the file we want to download. In bytes.
+  201:        total_data = int(recv(128))
+  202:  
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+  222:        
+  223:        send("SIZE".encode('utf-8', errors='ignore')) # Get total size of the file we want to download. In bytes.
+  224:        total_data = int(recv(128).decode('utf-8', errors='ignore'))
+  225:  
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+  223:        moving_dots = 1
+  224:        send("GET")
+  225:        update_time = download_time = time()
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+  246:        moving_dots = 1
+  247:        send("GET".encode('utf-8', errors='ignore'))
+  248:        update_time = download_time = time()
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+  315:  
+  316:        except IOError, err:
+  317:  
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+  338:  
+  339:        except IOError as err:
+  340:  
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+  332:        print("-> Update completed in %s.\n" % (calculate_time(update_time, time())))
+  333:        raw_input("Press ENTER to continue...")
+  334:        exit(0)
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+  355:        print("-> Update completed in %s.\n" % (calculate_time(update_time, time())))
+  356:        input("Press ENTER to continue...")
+  357:        exit(0)
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+  441:          
+  442:        create = lower(strip(raw_input("-> Enter interactive map list creation? [Y]es/[N]o: ")))
+  443:  
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+  464:          
+  465:        create = lower(strip(input("-> Enter interactive map list creation? [Y]es/[N]o: ")))
+  466:  
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+  452:  
+  453:          except IOError, err:
+  454:  
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+  475:  
+  476:          except IOError as err:
+  477:  
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+  472:  
+  473:          except IOError, err:
+  474:  
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+  495:  
+  496:          except IOError as err:
+  497:  
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+  511:  
+  512:              add_map = lower(strip(raw_input("-> %s? [P]rimary/[S]econdary/[I]gnore: " % (mapname))))
+  513:  
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+  534:  
+  535:              add_map = lower(strip(input("-> %s? [P]rimary/[S]econdary/[I]gnore: " % (mapname))))
+  536:  
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+  590:  
+  591:      except IOError, err:
+  592:  
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+  613:  
+  614:      except IOError as err:
+  615:  
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+  633:  
+  634:          with open(self.logfile, "rt+") as log:
+  635:  
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+  656:  
+  657:          with open(self.logfile, "rt+", encoding='utf-8', errors='ignore') as log:
+  658:  
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+  645:  
+  646:        except IOError, err:
+  647:  
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+  668:  
+  669:        except IOError as err:
+  670:  
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+  685:  
+  686:            except IOError, err:
+  687:  
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+  708:  
+  709:            except IOError as err:
+  710:  
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+  709:  
+  710:        except (WindowsError if platform == "win32" else OSError), err:
+  711:  
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+  732:  
+  733:        except (WindowsError if platform == "win32" else OSError) as err:
+  734:  
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 1549:  
+ 1550:                  except IOError, err:
+ 1551:  
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 1572:  
+ 1573:                  except IOError as err:
+ 1574:  
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 1574:  
+ 1575:              except IOError, err:
+ 1576:  
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 1597:  
+ 1598:              except IOError as err:
+ 1599:  
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 1988:  
+ 1989:          for i in xrange(1, (tries+1)):
+ 1990:  
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 2011:  
+ 2012:          for i in range(1, (tries+1)):
+ 2013:  
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 2005:              connect(sock, self.address)
+ 2006:              sock.send("\xff\xff\xff\xffrcon %s sets RTVRTM %i/%s" % (self.rcon_pwd, self.cvar, VERSION))
+ 2007:              reply = lower(strip(sock.recv(1024)))
+ 2008:  
+ 2009:              if startswith(reply, "\xff\xff\xff\xffprint\nbad rconpassword"):
+ 2010:  
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 2028:              connect(sock, self.address)
+ 2029:              # Use binary encoding for the special prefix bytes, then encode the rcon command
+ 2030:              prefix = b'\xff\xff\xff\xff'
+ 2031:              command = ("rcon %s sets RTVRTM %i/%s" % (self.rcon_pwd, self.cvar, VERSION)).encode('utf-8')
+ 2032:              sock.send(prefix + command)
+ 2033:              reply_bytes = sock.recv(1024)
+ 2034:              reply = reply_bytes.decode('utf-8', errors='ignore').lower().strip()
+ 2035:  
+ 2036:              print("DEBUG: Server reply received:")
+ 2037:              print("DEBUG: Reply length:", len(reply))
+ 2038:              print("DEBUG: Reply (raw):", repr(reply))
+ 2039:              print("DEBUG: Reply bytes (hex):", reply_bytes.hex() if reply_bytes else "empty")
+ 2040:  
+ 2041:              # Check if response starts with the binary prefix + "print"
+ 2042:              expected_response = b'\xff\xff\xff\xffprint'
+ 2043:              bad_password_response = b'\xff\xff\xff\xffprint\nbad rconpassword'
+ 2044:  
+ 2045:              if reply_bytes.lower().startswith(bad_password_response):
+ 2046:  
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 2012:  
+ 2013:              elif reply != "\xff\xff\xff\xffprint":
+ 2014:  
+ 2015:                error("Unexpected error while contacting server for the first time.")
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 2048:  
+ 2049:              elif not reply_bytes.startswith(expected_response):
+ 2050:  
+ 2051:                print("DEBUG: Expected bytes: %r" % expected_response)
+ 2052:                print("DEBUG: Received bytes: %r" % reply_bytes)
+ 2053:                error("Unexpected error while contacting server for the first time.")
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 2016:  
+ 2017:              break
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 2054:  
+ 2055:              print("DEBUG: Connection successful!")
+ 2056:              break
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 2060:              connect(sock, self.address)
+ 2061:              sock.send("\xff\xff\xff\xffrcon %s sets RTVRTM %i/%s" % (self.rcon_pwd, self.cvar, VERSION))
+ 2062:              reply = lower(strip(sock.recv(1024)))
+ 2063:  
+ 2064:              if startswith(reply, "\xff\xff\xff\xffprint\nbad rconpassword"):
+ 2065:  
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 2099:              connect(sock, self.address)
+ 2100:              # Use binary encoding for the special prefix bytes, then encode the rcon command
+ 2101:              prefix = b'\xff\xff\xff\xff'
+ 2102:              command = ("rcon %s sets RTVRTM %i/%s" % (self.rcon_pwd, self.cvar, VERSION)).encode('utf-8')
+ 2103:              sock.send(prefix + command)
+ 2104:              reply_bytes = sock.recv(1024)
+ 2105:              reply = reply_bytes.decode('utf-8', errors='ignore').lower().strip()
+ 2106:  
+ 2107:              print("DEBUG: Server reply received (loop):")
+ 2108:              print("DEBUG: Reply length:", len(reply))
+ 2109:              print("DEBUG: Reply (raw):", repr(reply))
+ 2110:              print("DEBUG: Reply bytes (hex):", reply_bytes.hex() if reply_bytes else "empty")
+ 2111:  
+ 2112:              # Check if response starts with the binary prefix + "print"
+ 2113:              expected_response = b'\xff\xff\xff\xffprint'
+ 2114:              bad_password_response = b'\xff\xff\xff\xffprint\nbad rconpassword'
+ 2115:  
+ 2116:              if reply_bytes.lower().startswith(bad_password_response):
+ 2117:  
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 2067:  
+ 2068:              elif reply != "\xff\xff\xff\xffprint":
+ 2069:  
+ 2070:                error("Unexpected error while contacting server for the first time.")
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 2119:  
+ 2120:              elif not reply_bytes.startswith(expected_response):
+ 2121:  
+ 2122:                print("DEBUG: Expected bytes: %r" % expected_response)
+ 2123:                print("DEBUG: Received bytes: %r" % reply_bytes)
+ 2124:                error("Unexpected error while contacting server for the first time.")
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 2071:  
+ 2072:              break
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 2125:  
+ 2126:              print("DEBUG: Connection successful (loop)!")
+ 2127:              break
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 2135:  
+ 2136:      except IOError, err:
+ 2137:  
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 2190:  
+ 2191:      except IOError as err:
+ 2192:  
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 2186:  
+ 2187:            except IOError, err:
+ 2188:  
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 2241:  
+ 2242:            except IOError as err:
+ 2243:  
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 2212:  
+ 2213:        except (WindowsError if platform == "win32" else OSError), err:
+ 2214:  
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 2267:  
+ 2268:        except (WindowsError if platform == "win32" else OSError) as err:
+ 2269:  
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 3071:  
+ 3072:              except IOError, err:
+ 3073:  
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 3126:  
+ 3127:              except IOError as err:
+ 3128:  
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 3163:  
+ 3164:              except IOError, err:
+ 3165:  
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 3218:  
+ 3219:              except IOError as err:
+ 3220:  
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 3617:  
+ 3618:        for i in xrange(5):
+ 3619:  
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 3672:  
+ 3673:        for i in range(5):
+ 3674:  
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 3635:            connect(sock, self._address)
+ 3636:            sock.send("\xff\xff\xff\xffrcon %s sets RTVRTM %i/%s" % (self._rcon_pwd, cvar, VERSION))
+ 3637:            reply = lower(strip(sock.recv(1024)))
+ 3638:  
+ 3639:            if startswith(reply, "\xff\xff\xff\xffprint\nbad rconpassword"):
+ 3640:  
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 3690:            connect(sock, self._address)
+ 3691:            # Use binary encoding for the special prefix bytes, then encode the rcon command
+ 3692:            prefix = b'\xff\xff\xff\xff'
+ 3693:            command = ("rcon %s sets RTVRTM %i/%s" % (self._rcon_pwd, cvar, VERSION)).encode('utf-8')
+ 3694:            sock.send(prefix + command)
+ 3695:            reply_bytes = sock.recv(1024)
+ 3696:            reply = reply_bytes.decode('utf-8', errors='ignore').lower().strip()
+ 3697:  
+ 3698:            # Check if response starts with the binary prefix + "print"
+ 3699:            expected_response = b'\xff\xff\xff\xffprint'
+ 3700:            bad_password_response = b'\xff\xff\xff\xffprint\nbad rconpassword'
+ 3701:  
+ 3702:            if reply_bytes.lower().startswith(bad_password_response):
+ 3703:  
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 3643:  
+ 3644:            elif reply != "\xff\xff\xff\xffprint":
+ 3645:  
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 3706:  
+ 3707:            elif not reply_bytes.startswith(expected_response):
+ 3708:  
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 3781:        
+ 3782:      self._send("\xff\xff\xff\xffrcon %s say %s" % (self.rcon_pwd, msg),
+ 3783:                 2048)
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 3844:        
+ 3845:      self._send(b"\xff\xff\xff\xffrcon %s say %s" % (self.rcon_pwd.encode('utf-8'), msg.encode('utf-8')),
+ 3846:                 2048)
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 3792:  
+ 3793:        self._send("\xff\xff\xff\xffrcon %s svsay %s" % (self.rcon_pwd, msg))
+ 3794:  
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 3855:  
+ 3856:        self._send(b"\xff\xff\xff\xffrcon %s svsay %s" % (self.rcon_pwd.encode('utf-8'), msg.encode('utf-8')))
+ 3857:  
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 3796:  
+ 3797:      self._send("\xff\xff\xff\xffrcon %s mbmode %s" % (self.rcon_pwd, cmd))
+ 3798:  
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 3859:  
+ 3860:      self._send(b"\xff\xff\xff\xffrcon %s mbmode %s" % (self.rcon_pwd.encode('utf-8'), cmd.encode('utf-8')))
+ 3861:  
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 3800:  
+ 3801:      self._send("\xff\xff\xff\xffrcon %s clientkick %i" % (self.rcon_pwd, player_id))
+ 3802:  
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 3863:  
+ 3864:      self._send(b"\xff\xff\xff\xffrcon %s clientkick %i" % (self.rcon_pwd.encode('utf-8'), player_id))
+ 3865:  
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 3882:  
+ 3883:      for i in xrange(-1, -7, -1):
+ 3884:  
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 3945:  
+ 3946:      for i in range(-1, -7, -1):
+ 3947:  
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 3899:  
+ 3900:    for i in xrange(10):
+ 3901:  
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 3962:  
+ 3963:    for i in range(10):
+ 3964:  
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 3967:  
+ 3968:    setcheckinterval(2147483647)
+ 3969:    lower = str.lower
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 4030:  
+ 4031:    # setcheckinterval removed in Python 3.9 - no longer needed
+ 4032:    lower = str.lower
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 4079:  
+ 4080:      status.times[0] = object()
+ 4081:  
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 4142:  
+ 4143:      status.times[0] = float('inf')
+ 4144:  
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 4083:  
+ 4084:      status.times[1] = object()
+ 4085:  
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 4146:  
+ 4147:      status.times[1] = float('inf')
+ 4148:  
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 4089:  
+ 4090:    with open(config.logfile, "rt+") as log:
+ 4091:  
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 4152:  
+ 4153:    with open(config.logfile, "rt+", encoding='utf-8', errors='ignore') as log:
+ 4154:  
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 4149:      cvars = split(cvars[11:], "\\")
+ 4150:      cvars = dict((lower(cvars[i]), cvars[i+1]) for i in xrange(0, len(cvars), 2)) # Create cvar dictionary through the dict con
+ 4151:  structor.
+ 4152:  
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 4212:      cvars = split(cvars[11:], "\\")
+ 4213:      cvars = dict((lower(cvars[i]), cvars[i+1]) for i in range(0, len(cvars), 2)) # Create cvar dictionary through the dict cons
+ 4214:  tructor.
+ 4215:  
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 4194:                 }
+ 4195:      players_values = players.itervalues
+ 4196:      players_items = players.iteritems
+ 4197:  
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 4257:                 }
+ 4258:      players_values = players.values()
+ 4259:      players_items = players.items()
+ 4260:  
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 4248:                connect(sock, config.address)
+ 4249:                sock.send("\xff\xff\xff\xffrcon %s sets RTVRTM %i/%s" % (config.rcon_pwd, config.cvar, VERSION))
+ 4250:  
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 4311:                connect(sock, config.address)
+ 4312:                # Use binary encoding for the special prefix bytes, then encode the rcon command
+ 4313:                prefix = b'\xff\xff\xff\xff'
+ 4314:                command = ("rcon %s sets RTVRTM %i/%s" % (config.rcon_pwd, config.cvar, VERSION)).encode('utf-8')
+ 4315:                sock.send(prefix + command)
+ 4316:  
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 4314:                                     # when player count drops to 0.
+ 4315:                      status.rtv = status.rtm = voting_instructions = start_voting = start_second_turn = False
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 4380:                                     # when player count drops to 0.
+ 4381:                      svsay("^2[RTV] ^7Voting cancelled - no tracked players remaining.")
+ 4382:                      print("CONSOLE: (%s) [RTV] Voting cancelled - no tracked players (player tracking may be out of sync)."
+ 4383:                            % (strftime(timenow(), "%d/%m/%Y %H:%M:%S")))
+ 4384:                      status.rtv = status.rtm = voting_instructions = start_voting = start_second_turn = False
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 4336:                cvars = split(lower(line[11:]), "\\")
+ 4337:                cvars = dict(cvars[i:i+2] for i in xrange(0, len(cvars), 2)) # Create cvar dictionary through the dict constructo
+ 4338:  r.
+ 4339:                cvars["g_authenticity"] = int(cvars["g_authenticity"])
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 4405:                cvars = split(lower(line[11:]), "\\")
+ 4406:                cvars = dict(cvars[i:i+2] for i in range(0, len(cvars), 2)) # Create cvar dictionary through the dict constructor
+ 4407:  .
+ 4408:                cvars["g_authenticity"] = int(cvars["g_authenticity"])
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 4344:                                 for (player_id, (timer, rtv_vote, rtm_vote, nomination, vote_option))
+ 4345:                                 in players_items()) # Reset players options with the exception of their timer.
+ 4346:                  players_values = players.itervalues
+ 4347:                  players_items = players.iteritems
+ 4348:                  nomination_order[:] = []
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 4413:                                 for (player_id, (timer, rtv_vote, rtm_vote, nomination, vote_option))
+ 4414:                                 in players.items()) # Reset players options with the exception of their timer.
+ 4415:                  players_values = players.values()
+ 4416:                  players_items = players.items()
+ 4417:                  nomination_order[:] = []
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 4390:                        svsay("^2[Votes] ^71: %s, 2: %s" % (votes[1][3], votes[2][3]))
+ 4391:                        voting_time = object()
+ 4392:  
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 4459:                        svsay("^2[Votes] ^71: %s, 2: %s" % (votes[1][3], votes[2][3]))
+ 4460:                        voting_time = float('inf')
+ 4461:  
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 4402:                                              sum((vote_count for (vote_count, priority, vote_value, vote_display_value) in votes
+ 4403:  _values())),
+ 4404:                                              len(players), votes_items, svsay)
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 4471:                                              sum((vote_count for (vote_count, priority, vote_value, vote_display_value) in votes
+ 4472:  _values)),
+ 4473:                                              len(players), votes_items, svsay)
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 4457:                  if startswith(line, "say: Admin: "):
+ 4458:                          original_admin_cmd = strip(remove_color(line[12:]))
+ 4459:                  elif startswith(line, "say: Server: "):
+ 4460:                          original_admin_cmd = strip(remove_color(line[13:]))
+ 4461:                  admin_cmd = lower(original_admin_cmd)
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 4526:                  if startswith(line, "say: Admin: "):
+ 4527:                    original_admin_cmd = strip(remove_color(line[12:]))
+ 4528:                  elif startswith(line, "say: Server: "):
+ 4529:                    original_admin_cmd = strip(remove_color(line[13:]))
+ 4530:                  admin_cmd = lower(original_admin_cmd)
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 4492:                                   for player_id in iter(players)) # Reset players data.
+ 4493:                    players_values = players.itervalues
+ 4494:                    players_items = players.iteritems
+ 4495:                    nomination_order[:] = []
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 4561:                                   for player_id in iter(players)) # Reset players data.
+ 4562:                    players_values = players.values()
+ 4563:                    players_items = players.items()
+ 4564:                    nomination_order[:] = []
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 4500:                    status.rtv = status.rtm = voting_instructions = start_voting = start_second_turn = False
+ 4501:                    status.times[0] = 0 if config.rtv else object()
+ 4502:                    status.times[1] = 0 if config.rtm else object()
+ 4503:                    rtv_players, rtm_players = [base if base else 1 for base in (((len(players) / 2) + 1) if not rate else
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 4569:                    status.rtv = status.rtm = voting_instructions = start_voting = start_second_turn = False
+ 4570:                    status.times[0] = 0 if config.rtv else float('inf')
+ 4571:                    status.times[1] = 0 if config.rtm else float('inf')
+ 4572:                    rtv_players, rtm_players = [base if base else 1 for base in (((len(players) / 2) + 1) if not rate else
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 4578:                                             in players_items()) # Force RTV for all connected players.
+ 4579:                              players_values = players.itervalues
+ 4580:                              players_items = players.iteritems
+ 4581:                              check_votes = True
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 4647:                                             in players_items()) # Force RTV for all connected players.
+ 4648:                              players_values = players.values()
+ 4649:                              players_items = players.items()
+ 4650:                              check_votes = True
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 4589:                                             in players_items()) # Force RTM for all connected players.
+ 4590:                              players_values = players.itervalues
+ 4591:                              players_items = players.iteritems
+ 4592:                              check_votes = True
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 4658:                                             in players_items()) # Force RTM for all connected players.
+ 4659:                              players_values = players.values()
+ 4660:                              players_items = players.items()
+ 4661:                              check_votes = True
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 4617:                              votes = SortableDict(((i+1), [0, None, None, admin_choices[i]])
+ 4618:                                                   for i in xrange(len(admin_choices)))
+ 4619:                              votes_values = votes.itervalues
+ 4620:                              votes_items = votes.sorteditems
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 4686:                              votes = SortableDict(((i+1), [0, None, None, admin_choices[i]])
+ 4687:                                                   for i in range(len(admin_choices)))
+ 4688:                              votes_values = votes.values()
+ 4689:                              votes_items = votes.sorteditems
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 4639:                            status.rtv = False
+ 4640:                            status.times[0] = (time() + disable_time) if disable_time else object()
+ 4641:                            players = dict((player_id, [timer, False, rtm_vote, nomination, None])
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 4708:                            status.rtv = False
+ 4709:                            status.times[0] = (time() + disable_time) if disable_time else float('inf')
+ 4710:                            players = dict((player_id, [timer, False, rtm_vote, nomination, None])
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 4643:                                           in players_items()) # Reset RTV votes.
+ 4644:                            players_values = players.itervalues
+ 4645:                            players_items = players.iteritems
+ 4646:  
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 4712:                                           in players_items()) # Reset RTV votes.
+ 4713:                            players_values = players.values()
+ 4714:                            players_items = players.items()
+ 4715:  
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 4653:                          status.rtm = False
+ 4654:                          status.times[1] = (time() + disable_time) if disable_time else object()
+ 4655:                          players = dict((player_id, [timer, rtv_vote, False, nomination, None])
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 4722:                          status.rtm = False
+ 4723:                          status.times[1] = (time() + disable_time) if disable_time else float('inf')
+ 4724:                          players = dict((player_id, [timer, rtv_vote, False, nomination, None])
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 4657:                                         in players_items()) # Reset RTM votes.
+ 4658:                          players_values = players.itervalues
+ 4659:                          players_items = players.iteritems
+ 4660:  
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 4726:                                         in players_items()) # Reset RTM votes.
+ 4727:                          players_values = players.values()
+ 4728:                          players_items = players.items()
+ 4729:  
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 4672:                                       in players_items()) # Reset players options with the exception of their timer.
+ 4673:                        players_values = players.itervalues
+ 4674:                        players_items = players.iteritems
+ 4675:                        nomination_order[:] = []
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 4741:                                       in players_items()) # Reset players options with the exception of their timer.
+ 4742:                        players_values = players.values()
+ 4743:                        players_items = players.items()
+ 4744:                        nomination_order[:] = []
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 4716:                                      for (timer, rtv_vote, rtm_vote, nomination, vote_option)
+ 4717:                                      in players_values() if nomination]
+ 4718:  
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 4785:                                      for (timer, rtv_vote, rtm_vote, nomination, vote_option)
+ 4786:                                      in players_values if nomination]
+ 4787:  
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 4746:                              # to define which maps remain.
+ 4747:                          for i in xrange(3):
+ 4748:  
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 4815:                              # to define which maps remain.
+ 4816:                          for i in range(3):
+ 4817:  
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 4808:                                       for (player_id, (timer, rtv_vote, rtm_vote, nomination, vote_option)) in
+ 4809:                                       players_items()) # Reset RTV votes.
+ 4810:                        players_values = players.itervalues
+ 4811:                        players_items = players.iteritems
+ 4812:                        continue
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 4877:                                       for (player_id, (timer, rtv_vote, rtm_vote, nomination, vote_option)) in
+ 4878:                                       players.items()) # Reset RTV votes.
+ 4879:                        players_values = players.values()
+ 4880:                        players_items = players.items()
+ 4881:                        continue
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 4818:  
+ 4819:                        for i in xrange(missing_maps):
+ 4820:  
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 4887:  
+ 4888:                        for i in range(missing_maps):
+ 4889:  
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 4835:                          
+ 4836:                            for i in xrange((5 - len(voting_maps))):
+ 4837:  
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 4904:                          
+ 4905:                            for i in range((5 - len(voting_maps))):
+ 4906:  
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 4850:                    votes = SortableDict(((i+1), [0, voting_maps[i][0], voting_maps[i][1], voting_maps[i][1]])
+ 4851:                                         for i in xrange(len(voting_maps)))
+ 4852:  
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 4919:                    votes = SortableDict(((i+1), [0, voting_maps[i][0], voting_maps[i][1], voting_maps[i][1]])
+ 4920:                                         for i in range(len(voting_maps)))
+ 4921:  
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 4858:                    
+ 4859:                    votes_values = votes.itervalues
+ 4860:                    votes_items = votes.sorteditems
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 4927:                    
+ 4928:                    votes_values = votes.values()
+ 4929:                    votes_items = votes.sorteditems
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 4878:                                      for (timer, rtv_vote, rtm_vote, nomination, vote_option)
+ 4879:                                      in players_values() if nomination]
+ 4880:  
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 4947:                                      for (timer, rtv_vote, rtm_vote, nomination, vote_option)
+ 4948:                                      in players_values if nomination]
+ 4949:  
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 4908:                              # to define which maps remain.
+ 4909:                          for i in xrange(3):
+ 4910:  
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 4977:                              # to define which maps remain.
+ 4978:                          for i in range(3):
+ 4979:  
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 4970:                                       for (player_id, (timer, rtv_vote, rtm_vote, nomination, vote_option)) in
+ 4971:                                       players_items()) # Reset RTV votes.
+ 4972:                        players_values = players.itervalues
+ 4973:                        players_items = players.iteritems
+ 4974:                        continue
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 5039:                                       for (player_id, (timer, rtv_vote, rtm_vote, nomination, vote_option)) in
+ 5040:                                       players.items()) # Reset RTV votes.
+ 5041:                        players_values = players.values()
+ 5042:                        players_items = players.items()
+ 5043:                        continue
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 4980:  
+ 4981:                        for i in xrange(missing_maps):
+ 4982:  
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 5049:  
+ 5050:                        for i in range(missing_maps):
+ 5051:  
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 4997:                          
+ 4998:                            for i in xrange((5 - len(voting_maps))):
+ 4999:  
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 5066:                          
+ 5067:                            for i in range((5 - len(voting_maps))):
+ 5068:  
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 5012:                    votes = SortableDict(((i+1), [0, voting_maps[i][0], voting_maps[i][1], voting_maps[i][1]])
+ 5013:                                         for i in xrange(len(voting_maps)))
+ 5014:  
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 5081:                    votes = SortableDict(((i+1), [0, voting_maps[i][0], voting_maps[i][1], voting_maps[i][1]])
+ 5082:                                         for i in range(len(voting_maps)))
+ 5083:  
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 5020:                    
+ 5021:                    votes_values = votes.itervalues
+ 5022:                    votes_items = votes.sorteditems
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 5089:                    
+ 5090:                    votes_values = votes.values()
+ 5091:                    votes_items = votes.sorteditems
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 5086:                                           in players_items()) # Reset RTV votes.
+ 5087:                            players_values = players.itervalues
+ 5088:                            players_items = players.iteritems
+ 5089:                            
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 5155:                                           in players_items()) # Reset RTV votes.
+ 5156:                            players_values = players.values()
+ 5157:                            players_items = players.items()
+ 5158:                            
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 5094:                                   sum((rtv_vote for (timer, rtv_vote, rtm_vote, nomination, vote_option)
+ 5095:                                        in players_values())),
+ 5096:                                   rtv_players))
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 5163:                                   sum((rtv_vote for (timer, rtv_vote, rtm_vote, nomination, vote_option)
+ 5164:                                        in players_values)),
+ 5165:                                   rtv_players))
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 5103:                                     sum((rtv_vote for (timer, rtv_vote, rtm_vote, nomination, vote_option)
+ 5104:                                          in players_values())),
+ 5105:                                     rtv_players))
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 5172:                                     sum((rtv_vote for (timer, rtv_vote, rtm_vote, nomination, vote_option)
+ 5173:                                          in players_values)),
+ 5174:                                     rtv_players))
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 5145:                                           in players_items()) # Reset RTV votes.
+ 5146:                            players_values = players.itervalues
+ 5147:                            players_items = players.iteritems
+ 5148:                            
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 5214:                                           in players_items()) # Reset RTV votes.
+ 5215:                            players_values = players.values()
+ 5216:                            players_items = players.items()
+ 5217:                            
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 5153:                                   sum((rtv_vote for (timer, rtv_vote, rtm_vote, nomination, vote_option)
+ 5154:                                        in players_values())),
+ 5155:                                   rtv_players))
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 5222:                                   sum((rtv_vote for (timer, rtv_vote, rtm_vote, nomination, vote_option)
+ 5223:                                        in players_values)),
+ 5224:                                   rtv_players))
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 5162:                                     sum((rtv_vote for (timer, rtv_vote, rtm_vote, nomination, vote_option)
+ 5163:                                          in players_values())),
+ 5164:                                     rtv_players))
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 5231:                                     sum((rtv_vote for (timer, rtv_vote, rtm_vote, nomination, vote_option)
+ 5232:                                          in players_values)),
+ 5233:                                     rtv_players))
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 5190:                                         in players_items()) # Reset RTM votes.
+ 5191:                          players_values = players.itervalues
+ 5192:                          players_items = players.iteritems
+ 5193:                          
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 5259:                                         in players_items()) # Reset RTM votes.
+ 5260:                          players_values = players.values()
+ 5261:                          players_items = players.items()
+ 5262:                          
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 5198:                                 sum((rtm_vote for (timer, rtv_vote, rtm_vote, nomination, vote_option)
+ 5199:                                      in players_values())),
+ 5200:                                 rtm_players))
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 5267:                                 sum((rtm_vote for (timer, rtv_vote, rtm_vote, nomination, vote_option)
+ 5268:                                      in players_values)),
+ 5269:                                 rtm_players))
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 5207:                                   sum((rtm_vote for (timer, rtv_vote, rtm_vote, nomination, vote_option)
+ 5208:                                        in players_values())),
+ 5209:                                   rtm_players))
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 5276:                                   sum((rtm_vote for (timer, rtv_vote, rtm_vote, nomination, vote_option)
+ 5277:                                        in players_values)),
+ 5278:                                   rtm_players))
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 5235:                                         in players_items()) # Reset RTM votes.
+ 5236:                          players_values = players.itervalues
+ 5237:                          players_items = players.iteritems
+ 5238:  
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 5304:                                         in players_items()) # Reset RTM votes.
+ 5305:                          players_values = players.values()
+ 5306:                          players_items = players.items()
+ 5307:  
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 5243:                                 sum((rtm_vote for (timer, rtv_vote, rtm_vote, nomination, vote_option)
+ 5244:                                      in players_values())),
+ 5245:                                 rtm_players))
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 5312:                                 sum((rtm_vote for (timer, rtv_vote, rtm_vote, nomination, vote_option)
+ 5313:                                      in players_values)),
+ 5314:                                 rtm_players))
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 5252:                                   sum((rtm_vote for (timer, rtv_vote, rtm_vote, nomination, vote_option)
+ 5253:                                        in players_values())),
+ 5254:                                   rtm_players))
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 5321:                                   sum((rtm_vote for (timer, rtv_vote, rtm_vote, nomination, vote_option)
+ 5322:                                        in players_values)),
+ 5323:                                   rtm_players))
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 5292:                                            for (timer, rtv_vote, rtm_vote, nomination, vote_option)
+ 5293:                                            in players_values() if nomination]
+ 5294:  
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 5361:                                            for (timer, rtv_vote, rtm_vote, nomination, vote_option)
+ 5362:                                            in players_values if nomination]
+ 5363:  
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 5405:                                                  for (timer, rtv_vote, rtm_vote, nomination, vote_option)
+ 5406:                                                  in players_values()], players[player_id][3]) - 1)
+ 5407:                            svsay("^2[Revoke] ^7%s ^7nomination to %s was revoked (%i nomination%s)." %
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 5474:                                                  for (timer, rtv_vote, rtm_vote, nomination, vote_option)
+ 5475:                                                  in players_values], players[player_id][3]) - 1)
+ 5476:                            svsay("^2[Revoke] ^7%s ^7nomination to %s was revoked (%i nomination%s)." %
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 5442:                                              for (timer, rtv_vote, rtm_vote, nomination, vote_option)
+ 5443:                                              in players_values() if nomination]
+ 5444:                            sorted_maps = (mapname for mapname in sorted_maps if mapname not in nominated_maps)
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 5511:                                              for (timer, rtv_vote, rtm_vote, nomination, vote_option)
+ 5512:                                              in players_values if nomination]
+ 5513:                            sorted_maps = (mapname for mapname in sorted_maps if mapname not in nominated_maps)
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 5504:                                              for (timer, rtv_vote, rtm_vote, nomination, vote_option)
+ 5505:                                              in players_values() if nomination]
+ 5506:                            sorted_maps = (mapname for mapname in sorted_maps if mapname not in nominated_maps)
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 5573:                                              for (timer, rtv_vote, rtm_vote, nomination, vote_option)
+ 5574:                                              in players_values if nomination]
+ 5575:                            sorted_maps = (mapname for mapname in sorted_maps if mapname not in nominated_maps)
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 5725:                if (sum((rtv_vote for (timer, rtv_vote, rtm_vote, nomination, vote_option)
+ 5726:                         in players_values())) >= rtv_players): # Start a RTV voting.
+ 5727:  
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 5794:                if (sum((rtv_vote for (timer, rtv_vote, rtm_vote, nomination, vote_option)
+ 5795:                         in players_values)) >= rtv_players): # Start a RTV voting.
+ 5796:  
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 5729:                                    for (timer, rtv_vote, rtm_vote, nomination, vote_option)
+ 5730:                                    in players_values() if nomination]
+ 5731:  
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 5798:                                    for (timer, rtv_vote, rtm_vote, nomination, vote_option)
+ 5799:                                    in players_values if nomination]
+ 5800:  
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 5759:                            # to define which maps remain.
+ 5760:                        for i in xrange(3):
+ 5761:  
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 5828:                            # to define which maps remain.
+ 5829:                        for i in range(3):
+ 5830:  
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 5820:                                     for (player_id, (timer, rtv_vote, rtm_vote, nomination, vote_option)) in
+ 5821:                                     players_items()) # Reset RTV votes.
+ 5822:                      players_values = players.itervalues
+ 5823:                      players_items = players.iteritems
+ 5824:  
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 5889:                                     for (player_id, (timer, rtv_vote, rtm_vote, nomination, vote_option)) in
+ 5890:                                       players.items()) # Reset RTV votes.
+ 5891:                      players_values = players.values()
+ 5892:                      players_items = players.items()
+ 5893:  
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 5825:                      if (sum((rtm_vote for (timer, rtv_vote, rtm_vote, nomination, vote_option)
+ 5826:                               in players_values())) >= rtm_players): # Make sure RTM is checked even
+ 5827:                                                                      # if RTV failed to start.
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 5894:                      if (sum((rtm_vote for (timer, rtv_vote, rtm_vote, nomination, vote_option)
+ 5895:                               in players_values)) >= rtm_players): # Make sure RTM is checked even
+ 5896:                                                                      # if RTV failed to start.
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 5837:                                         in players_items()) # Reset RTM votes.
+ 5838:                          players_values = players.itervalues
+ 5839:                          players_items = players.iteritems
+ 5840:  
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 5906:                                         in players_items()) # Reset RTM votes.
+ 5907:                          players_values = players.values()
+ 5908:                          players_items = players.items()
+ 5909:  
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 5844:  ng_modes[i]]])
+ 5845:                                               for i in xrange(len(voting_modes)))
+ 5846:  
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 5913:  ng_modes[i]]])
+ 5914:                                               for i in range(len(voting_modes)))
+ 5915:  
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 5852:                          
+ 5853:                          votes_values = votes.itervalues
+ 5854:                          votes_items = votes.sorteditems
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 5921:                          
+ 5922:                          votes_values = votes.values()
+ 5923:                          votes_items = votes.sorteditems
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 5873:  
+ 5874:                      for i in xrange(missing_maps):
+ 5875:  
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 5942:  
+ 5943:                      for i in range(missing_maps):
+ 5944:  
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 5890:                        
+ 5891:                          for i in xrange((5 - len(voting_maps))):
+ 5892:  
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 5959:                        
+ 5960:                          for i in range((5 - len(voting_maps))):
+ 5961:  
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 5905:                  votes = SortableDict(((i+1), [0, voting_maps[i][0], voting_maps[i][1], voting_maps[i][1]])
+ 5906:                                       for i in xrange(len(voting_maps)))
+ 5907:  
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 5974:                  votes = SortableDict(((i+1), [0, voting_maps[i][0], voting_maps[i][1], voting_maps[i][1]])
+ 5975:                                       for i in range(len(voting_maps)))
+ 5976:  
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 5912:                          
+ 5913:                  votes_values = votes.itervalues
+ 5914:                  votes_items = votes.sorteditems
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 5981:                          
+ 5982:                  votes_values = votes.values()
+ 5983:                  votes_items = votes.sorteditems
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 5927:                elif (sum((rtm_vote for (timer, rtv_vote, rtm_vote, nomination, vote_option)
+ 5928:                           in players_values())) >= rtm_players): # Start a RTM voting.
+ 5929:                  
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 5996:                elif (sum((rtm_vote for (timer, rtv_vote, rtm_vote, nomination, vote_option)
+ 5997:                           in players_values)) >= rtm_players): # Start a RTM voting.
+ 5998:                  
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 5939:                                   in players_items()) # Reset RTM votes.
+ 5940:                    players_values = players.itervalues
+ 5941:                    players_items = players.iteritems
+ 5942:  
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 6008:                                   in players_items()) # Reset RTM votes.
+ 6009:                    players_values = players.values()
+ 6010:                    players_items = players.items()
+ 6011:  
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 5946:  es[i]]])
+ 5947:                                         for i in xrange(len(voting_modes)))
+ 5948:  
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 6015:  es[i]]])
+ 6016:                                         for i in range(len(voting_modes)))
+ 6017:  
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 5954:                          
+ 5955:                    votes_values = votes.itervalues
+ 5956:                    votes_items = votes.sorteditems
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 6023:                          
+ 6024:                    votes_values = votes.values()
+ 6025:                    votes_items = votes.sorteditems
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 6029:                               for (player_id, (timer, rtv_vote, rtm_vote, nomination, vote_option)) in
+ 6030:                               players_items()) # Reset players options with the exception of their timer.
+ 6031:                players_values = players.itervalues
+ 6032:                players_items = players.iteritems
+ 6033:                nomination_order[:] = []
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 6098:                               for (player_id, (timer, rtv_vote, rtm_vote, nomination, vote_option)) in
+ 6099:                                       players.items()) # Reset players options with the exception of their timer.
+ 6100:                players_values = players.values()
+ 6101:                players_items = players.items()
+ 6102:                nomination_order[:] = []
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 6070:                                                      for (vote_id, (vote_count, priority, vote_value, vote_display_value))
+ 6071:                                                      in votes_items()))))
+ 6072:                voting_time += time()
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 6139:                                                      for (vote_id, (vote_count, priority, vote_value, vote_display_value))
+ 6140:                                                      in votes.items()))))
+ 6141:                voting_time += time()
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 6095:              total_players = len(players)
+ 6096:              total_votes = [vote_count for (vote_count, priority, vote_value, vote_display_value) in votes_values()]
+ 6097:              most_voted = max(total_votes)
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 6164:              total_players = len(players)
+ 6165:              total_votes = [vote_count for (vote_count, priority, vote_value, vote_display_value) in votes_values]
+ 6166:              most_voted = max(total_votes)
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 6129:                                            for (vote_id, (vote_count, priority, vote_value, vote_display_value))
+ 6130:                                            in votes_items()))
+ 6131:  
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 6198:                                            for (vote_id, (vote_count, priority, vote_value, vote_display_value))
+ 6199:                                            in votes.items()))
+ 6200:  
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 6134:                    most_voted_options = [vote_id for (vote_id, (vote_count, priority, vote_value, vote_display_value))
+ 6135:                                          in votes_items() if vote_count == most_voted]
+ 6136:                    vote_percentage = ((100.0 * most_voted) / total_players)
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 6203:                    most_voted_options = [vote_id for (vote_id, (vote_count, priority, vote_value, vote_display_value))
+ 6204:                                          in votes.items() if vote_count == most_voted]
+ 6205:                    vote_percentage = ((100.0 * most_voted) / total_players)
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 6167:                                   for (player_id, (timer, rtv_vote, rtm_vote, nomination, vote_option)) in
+ 6168:                                   players_items()) # Reset players votes.
+ 6169:                    players_values = players.itervalues
+ 6170:                    players_items = players.iteritems
+ 6171:                    second_turn_options = [vote_id for (vote_id, (vote_count, priority, vote_value, vote_display_value))
+ 6172:                                           in votes_items() if vote_count == most_voted]
+ 6173:  
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 6236:                                   for (player_id, (timer, rtv_vote, rtm_vote, nomination, vote_option)) in
+ 6237:                                       players.items()) # Reset players votes.
+ 6238:                    players_values = players.values()
+ 6239:                    players_items = players.items()
+ 6240:                    second_turn_options = [vote_id for (vote_id, (vote_count, priority, vote_value, vote_display_value))
+ 6241:                                           in votes.items() if vote_count == most_voted]
+ 6242:  
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 6175:  
+ 6176:                      for i in xrange(3): # Priority selection.
+ 6177:  
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 6244:  
+ 6245:                      for i in range(3): # Priority selection.
+ 6246:  
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 6199:  e))
+ 6200:                                                       in votes_items() if vote_count == second_most_voted]
+ 6201:  
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 6268:  e))
+ 6269:                                                       in votes.items() if vote_count == second_most_voted]
+ 6270:  
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 6203:  
+ 6204:                        for i in xrange(2, -1, -1): # Priority selection.
+ 6205:  
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 6272:  
+ 6273:                        for i in range(2, -1, -1): # Priority selection.
+ 6274:  
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 6227:                                        ))
+ 6228:                    votes_values = votes.itervalues
+ 6229:                    votes_items = votes.sorteditems
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 6296:                                        ))
+ 6297:                    votes_values = votes.values()
+ 6298:                    votes_items = votes.sorteditems
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 6249:                    most_voted_options = [vote_id for (vote_id, (vote_count, priority, vote_value, vote_display_value))
+ 6250:                                          in votes_items() if vote_count == most_voted]
+ 6251:                    vote_percentage = ((100.0 * most_voted) / total_players)
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 6318:                    most_voted_options = [vote_id for (vote_id, (vote_count, priority, vote_value, vote_display_value))
+ 6319:                                          in votes.items() if vote_count == most_voted]
+ 6320:                    vote_percentage = ((100.0 * most_voted) / total_players)
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 6254:  
+ 6255:                      for i in xrange(2, -1, -1): # Priority selection.
+ 6256:  
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 6323:  
+ 6324:                      for i in range(2, -1, -1): # Priority selection.
+ 6325:  
+*****
+
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\LEGACY\rtvrtm.py
+ 6343:                               for (player_id, (timer, rtv_vote, rtm_vote, nomination, vote_option)) in
+ 6344:                               players_items()) # Reset players options with the exception of their timer.
+ 6345:                players_values = players.itervalues
+ 6346:                players_items = players.iteritems
+ 6347:                nomination_order[:] = []
+***** C:\USERS\LOUIS\DOCUMENTS\GITHUB\MBIIEZ\PLUGINS\RTVRTM\RTVRTM_ORIGINAL.PY
+ 6412:                               for (player_id, (timer, rtv_vote, rtm_vote, nomination, vote_option)) in
+ 6413:                                       players.items()) # Reset players options with the exception of their timer.
+ 6414:                players_values = players.values()
+ 6415:                players_items = players.items()
+ 6416:                nomination_order[:] = []
+*****
+

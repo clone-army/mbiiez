@@ -121,6 +121,17 @@ class conf:
             data = data.replace("[balance_mode]",str(self.config['game']['balance_mode']))
             data = data.replace("[competitive_config]",str(self.config['game']['competitive_config']))
             
+            # Spin settings
+            if("enable_spin" in self.config['game'].keys()):      
+                data = data.replace("[enable_spin]",str(self.config['game']['enable_spin']))    
+            else:
+                data = data.replace("[enable_spin]","0")
+                
+            if("spin_cooldown" in self.config['game'].keys()):      
+                data = data.replace("[spin_cooldown]",str(self.config['game']['spin_cooldown']))    
+            else:
+                data = data.replace("[spin_cooldown]","20")
+            
             # SMOD
             data = data.replace("[admin_1_password]",self.config['smod']['admin_1']['password']) 
             data = data.replace("[admin_1_config]",str(self.config['smod']['admin_1']['config']))

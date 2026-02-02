@@ -98,6 +98,9 @@ seta g_InactivityKick "0"
 seta g_InactivitySpec "180"                     
 seta g_filterban "1"                           
 
+seta g_spin "[enable_spin]"
+seta g_SpinCooldown "[spin_cooldown]"                           
+
 set d1 "map [map_1];set nextmap vstr d2"
 set d2 "map [map_2];set nextmap vstr d3"
 set d3 "map [map_3];set nextmap vstr d4"

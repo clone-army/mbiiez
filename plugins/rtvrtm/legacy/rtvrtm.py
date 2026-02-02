@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/python -uSOO
 # Copyright (c) 2012-2013, klax / Cthulhu@GBITnet.com.br
 # All rights reserved.
 #
@@ -32,7 +32,8 @@
 #      AlliedModders LLC. All rights reserved.  #
 #################################################
 
-from sys import platform, argv, exit
+from __future__ import with_statement
+from sys import platform, setcheckinterval, argv, exit
 from optparse import OptionParser, OptionGroup
 from os import listdir, fsync
 from os.path import getsize, basename, dirname, normpath, realpath, normcase, join as join_path
@@ -61,7 +62,7 @@ def error(msg):
 
   if platform == "win32":
 
-    input("\nPress ENTER to continue...")
+    raw_input("\nPress ENTER to continue...")
 
   exit(1)
 
@@ -76,7 +77,7 @@ def warning(msg, rehash=False):
 
     print("WARNING: Rehash aborted!")
 
-  print()
+  print
 
 class SortableDict(dict):
 
@@ -84,7 +85,7 @@ class SortableDict(dict):
 
   def sorteditems(self):
     
-    return iter(sorted(self.items()))
+    return iter(sorted(self.iteritems()))
 
 class DummyTime(object):
 
@@ -93,30 +94,6 @@ class DummyTime(object):
   def __iadd__(self, *args): # Operator overload will return the object itself without any changes
                              # on assignment addition operations.
     return self
-  
-  def __le__(self, other):
-    """Less than or equal comparison - always returns False for round-based voting"""
-    return False
-  
-  def __lt__(self, other):
-    """Less than comparison - always returns False for round-based voting"""
-    return False
-  
-  def __ge__(self, other):
-    """Greater than or equal comparison - always returns True for round-based voting"""
-    return True
-  
-  def __gt__(self, other):
-    """Greater than comparison - always returns True for round-based voting"""
-    return True
-  
-  def __eq__(self, other):
-    """Equal comparison - only True if other is also DummyTime"""
-    return isinstance(other, DummyTime)
-  
-  def __ne__(self, other):
-    """Not equal comparison - True unless other is also DummyTime"""
-    return not isinstance(other, DummyTime)
 
 def report_unhandled_exception(bugreport):
   return # disable
@@ -126,7 +103,7 @@ def report_unhandled_exception(bugreport):
   print("-> Sending bug report..."),
   bugreport = "%s\\%s" % (VERSION, bugreport)
 
-  for i in range(3): # Attempt to send the bug report for a maximum of 3 times.
+  for i in xrange(3): # Attempt to send the bug report for a maximum of 3 times.
   
     sock = socket(AF_INET, SOCK_STREAM) # TCP layer.
     sock.settimeout(3.5)
@@ -134,7 +111,7 @@ def report_unhandled_exception(bugreport):
     try:
 
       sock.connect(("rtvrtm.gatetogames.net", 22998))
-      sock.send(bugreport.encode('utf-8', errors='ignore'))
+      sock.send(bugreport)
       status = "Sent!"
       break
 
@@ -184,8 +161,8 @@ def updater(filename, filecode):
     sock.settimeout(5)
     send = sock.send
     recv = sock.recv
-    send(hex(filecode).encode('utf-8', errors='ignore'))
-    new_version = recv(32).decode('utf-8', errors='ignore')
+    send(hex(filecode))
+    new_version = recv(32)
 
     if not new_version:
 
@@ -201,7 +178,7 @@ def updater(filename, filecode):
 
       while(True): # Infinite loop until we get [Y]es or [N]o.
       
-        update = lower(strip(input("-> Update %s to %s? [Y]es/[N]o: " % (VERSION,
+        update = lower(strip(raw_input("-> Update %s to %s? [Y]es/[N]o: " % (VERSION,
                                                                              new_version))))
 
         if update in ("y", "yes"):
@@ -213,15 +190,15 @@ def updater(filename, filecode):
           return
 
       print("[*] Getting file information..."),
-      send("CFG".encode('utf-8', errors='ignore')) # Check whether a new configuration file is necessary.
-      update_cfg = recv(32).decode('utf-8', errors='ignore')
+      send("CFG") # Check whether a new configuration file is necessary.
+      update_cfg = recv(32)
 
       if not update_cfg:
 
         raise ValueError
       
-      send("SIZE".encode('utf-8', errors='ignore')) # Get total size of the file we want to download. In bytes.
-      total_data = int(recv(128).decode('utf-8', errors='ignore'))
+      send("SIZE") # Get total size of the file we want to download. In bytes.
+      total_data = int(recv(128))
 
       if total_data >= 1073741824: # Convert bytes to gigabytes.
 
@@ -244,7 +221,7 @@ def updater(filename, filecode):
       data_size = download_offset = av_rates = av_total_rates = char_pos = 0
       rotating_chars = ("|", "/", "-", "\\")
       moving_dots = 1
-      send("GET".encode('utf-8', errors='ignore'))
+      send("GET")
       update_time = download_time = time()
       print("Done!")
       print("-> Update size: %s%s" % (update_size[1] % (update_size[0]),
@@ -336,7 +313,7 @@ def updater(filename, filecode):
 
             write(data)
 
-      except IOError as err:
+      except IOError, err:
 
         if err.errno == 13:
 
@@ -353,7 +330,7 @@ def updater(filename, filecode):
         print("-> A new configuration file is available at http://rtvrtm.gatetogames.net/rtvrtm.cfg")
       
       print("-> Update completed in %s.\n" % (calculate_time(update_time, time())))
-      input("Press ENTER to continue...")
+      raw_input("Press ENTER to continue...")
       exit(0)
 
   except gaierror:
@@ -462,7 +439,7 @@ class Config(object):
 
     while(True): # Infinite loop until we get [Y]es or [N]o.
         
-      create = lower(strip(input("-> Enter interactive map list creation? [Y]es/[N]o: ")))
+      create = lower(strip(raw_input("-> Enter interactive map list creation? [Y]es/[N]o: ")))
 
       if create in ("y", "yes"):
 
@@ -473,7 +450,7 @@ class Config(object):
 
           mapfile = open(self.maps, "at")
 
-        except IOError as err:
+        except IOError, err:
 
           errno = err.errno
 
@@ -493,7 +470,7 @@ class Config(object):
 
           secondary_mapfile = open(self.secondary_maps, "at")
 
-        except IOError as err:
+        except IOError, err:
 
           mapfile.close()
           errno = err.errno
@@ -532,7 +509,7 @@ class Config(object):
 
           while(True):# Infinite loop until we get a valid choice. 
 
-            add_map = lower(strip(input("-> %s? [P]rimary/[S]econdary/[I]gnore: " % (mapname))))
+            add_map = lower(strip(raw_input("-> %s? [P]rimary/[S]econdary/[I]gnore: " % (mapname))))
 
             if add_map in ("p", "primary"):
 
@@ -611,7 +588,7 @@ class Config(object):
 
               continue
 
-    except IOError as err:
+    except IOError, err:
 
       errno = err.errno
 
@@ -654,7 +631,7 @@ class Config(object):
 
         self.logfile = normpath(self.logfile)
 
-        with open(self.logfile, "rt+", encoding='utf-8', errors='ignore') as log:
+        with open(self.logfile, "rt+") as log:
 
           pass
 
@@ -666,7 +643,7 @@ class Config(object):
 
         error("Invalid log file.")
 
-      except IOError as err:
+      except IOError, err:
 
         errno = err.errno
 
@@ -705,7 +682,7 @@ class Config(object):
             bsps += [basename(bsp)[:-4] for bsp in iter(namelist(pk3zip)) if endswith(bsp.lower(), ".bsp")] # Get all BSP files.
             pk3close(pk3zip)
 
-          except IOError as err:
+          except IOError, err:
 
             warning("Error while trying to read %s (ERRNO: %i)." % (pk3, err.errno))
             print("[*] Checking options for errors..."),
@@ -729,7 +706,7 @@ class Config(object):
 
         error("MBII folder is not defined.")
 
-      except (WindowsError if platform == "win32" else OSError) as err:
+      except (WindowsError if platform == "win32" else OSError), err:
 
         errno = err.errno
 
@@ -1569,7 +1546,7 @@ class Config(object):
 
                     self.pick_secondary_maps = None
 
-                except IOError as err:
+                except IOError, err:
 
                   errno = err.errno
 
@@ -1594,7 +1571,7 @@ class Config(object):
 
                     error("Unexpected error while reading secondary map file (ERRNO: %i)." % (errno))
 
-            except IOError as err:
+            except IOError, err:
 
               errno = err.errno
 
@@ -2008,7 +1985,7 @@ class Config(object):
 
       if tries:
 
-        for i in range(1, (tries+1)):
+        for i in xrange(1, (tries+1)):
 
           sock = socket(AF_INET, SOCK_DGRAM)
 
@@ -2025,22 +2002,14 @@ class Config(object):
 
             settimeout(sock, 12)
             connect(sock, self.address)
-            # Use binary encoding for the special prefix bytes, then encode the rcon command
-            prefix = b'\xff\xff\xff\xff'
-            command = ("rcon %s sets RTVRTM %i/%s" % (self.rcon_pwd, self.cvar, VERSION)).encode('utf-8')
-            sock.send(prefix + command)
-            reply_bytes = sock.recv(1024)
-            reply = reply_bytes.decode('utf-8', errors='ignore').lower().strip()
+            sock.send("\xff\xff\xff\xffrcon %s sets RTVRTM %i/%s" % (self.rcon_pwd, self.cvar, VERSION))
+            reply = lower(strip(sock.recv(1024)))
 
-            # Check if response starts with the binary prefix + "print"
-            expected_response = b'\xff\xff\xff\xffprint'
-            bad_password_response = b'\xff\xff\xff\xffprint\nbad rconpassword'
-
-            if reply_bytes.lower().startswith(bad_password_response):
+            if startswith(reply, "\xff\xff\xff\xffprint\nbad rconpassword"):
 
               error("Incorrect rcon password.")
 
-            elif not reply_bytes.startswith(expected_response):
+            elif reply != "\xff\xff\xff\xffprint":
 
               error("Unexpected error while contacting server for the first time.")
 
@@ -2088,22 +2057,14 @@ class Config(object):
 
             settimeout(sock, 12)
             connect(sock, self.address)
-            # Use binary encoding for the special prefix bytes, then encode the rcon command
-            prefix = b'\xff\xff\xff\xff'
-            command = ("rcon %s sets RTVRTM %i/%s" % (self.rcon_pwd, self.cvar, VERSION)).encode('utf-8')
-            sock.send(prefix + command)
-            reply_bytes = sock.recv(1024)
-            reply = reply_bytes.decode('utf-8', errors='ignore').lower().strip()
+            sock.send("\xff\xff\xff\xffrcon %s sets RTVRTM %i/%s" % (self.rcon_pwd, self.cvar, VERSION))
+            reply = lower(strip(sock.recv(1024)))
 
-            # Check if response starts with the binary prefix + "print"
-            expected_response = b'\xff\xff\xff\xffprint'
-            bad_password_response = b'\xff\xff\xff\xffprint\nbad rconpassword'
-
-            if reply_bytes.lower().startswith(bad_password_response):
+            if startswith(reply, "\xff\xff\xff\xffprint\nbad rconpassword"):
 
               error("Incorrect rcon password.")
 
-            elif not reply_bytes.startswith(expected_response):
+            elif reply != "\xff\xff\xff\xffprint":
 
               error("Unexpected error while contacting server for the first time.")
 
@@ -2171,7 +2132,7 @@ class Config(object):
 
               continue
 
-    except IOError as err:
+    except IOError, err:
 
       errno = err.errno
 
@@ -2221,7 +2182,7 @@ class Config(object):
             bsps += [basename(bsp)[:-4] for bsp in iter(namelist(pk3zip)) if endswith(bsp.lower(), ".bsp")] # Get all BSP files.
             pk3close(pk3zip)
 
-          except IOError as err:
+          except IOError, err:
 
             warning("Error while trying to read %s (ERRNO: %i)." % (pk3, err.errno))
             print("[*] Checking options for errors..."),
@@ -2247,7 +2208,7 @@ class Config(object):
         warning("MBII folder is not defined.", rehash=True)
         return False
 
-      except (WindowsError if platform == "win32" else OSError) as err:
+      except (WindowsError if platform == "win32" else OSError), err:
 
         errno = err.errno
 
@@ -3106,7 +3067,7 @@ class Config(object):
                 self._maps = tuple((mapname for mapname in iter(self._maps)
                         if lower(mapname) in lower_bsps))
 
-            except IOError as err:
+            except IOError, err:
 
               errno = err.errno
 
@@ -3198,7 +3159,7 @@ class Config(object):
 
                 self._pick_secondary_maps = None
 
-            except IOError as err:
+            except IOError, err:
 
               errno = err.errno
 
@@ -3651,7 +3612,7 @@ class Config(object):
 
 # Connection test.
 
-      for i in range(5):
+      for i in xrange(5):
 
         sock = socket(AF_INET, SOCK_DGRAM)
 
@@ -3669,23 +3630,15 @@ class Config(object):
 
           settimeout(sock, 12)
           connect(sock, self._address)
-          # Use binary encoding for the special prefix bytes, then encode the rcon command
-          prefix = b'\xff\xff\xff\xff'
-          command = ("rcon %s sets RTVRTM %i/%s" % (self._rcon_pwd, cvar, VERSION)).encode('utf-8')
-          sock.send(prefix + command)
-          reply_bytes = sock.recv(1024)
-          reply = reply_bytes.decode('utf-8', errors='ignore').lower().strip()
+          sock.send("\xff\xff\xff\xffrcon %s sets RTVRTM %i/%s" % (self._rcon_pwd, cvar, VERSION))
+          reply = lower(strip(sock.recv(1024)))
 
-          # Check if response starts with the binary prefix + "print"
-          expected_response = b'\xff\xff\xff\xffprint'
-          bad_password_response = b'\xff\xff\xff\xffprint\nbad rconpassword'
-
-          if reply_bytes.lower().startswith(bad_password_response):
+          if startswith(reply, "\xff\xff\xff\xffprint\nbad rconpassword"):
 
             warning("Incorrect rcon password.", rehash=True)
             return False
 
-          elif not reply_bytes.startswith(expected_response):
+          elif reply != "\xff\xff\xff\xffprint":
 
             warning("Unexpected error while contacting server for the first time.", rehash=True)
             return False
@@ -3823,7 +3776,7 @@ class Rcon(object):
 
   def say(self, msg):
       
-    self._send(b"\xff\xff\xff\xffrcon %s say %s" % (self.rcon_pwd.encode('utf-8'), msg.encode('utf-8')),
+    self._send("\xff\xff\xff\xffrcon %s say %s" % (self.rcon_pwd, msg),
                2048)
 
   def svsay(self, msg):
@@ -3834,15 +3787,15 @@ class Rcon(object):
 
     else:
 
-      self._send(b"\xff\xff\xff\xffrcon %s svsay %s" % (self.rcon_pwd.encode('utf-8'), msg.encode('utf-8')))
+      self._send("\xff\xff\xff\xffrcon %s svsay %s" % (self.rcon_pwd, msg))
 
   def mbmode(self, cmd):
 
-    self._send(b"\xff\xff\xff\xffrcon %s mbmode %s" % (self.rcon_pwd.encode('utf-8'), cmd.encode('utf-8')))
+    self._send("\xff\xff\xff\xffrcon %s mbmode %s" % (self.rcon_pwd, cmd))
 
   def clientkick(self, player_id):
 
-    self._send(b"\xff\xff\xff\xffrcon %s clientkick %i" % (self.rcon_pwd.encode('utf-8'), player_id))
+    self._send("\xff\xff\xff\xffrcon %s clientkick %i" % (self.rcon_pwd, player_id))
 
 class Features(object):
 
@@ -3924,7 +3877,7 @@ def fix_line(line):
 
     line[0] = int(line[0]) # Timestamp.
 
-    for i in range(-1, -7, -1):
+    for i in xrange(-1, -7, -1):
 
       substring = int(line[-2][i:])
 
@@ -3941,7 +3894,7 @@ def remove_color(item):
 
   replace = str.replace
 
-  for i in range(10):
+  for i in xrange(10):
 
     item = replace(item, "^%i" % (i), "")
 
@@ -4009,7 +3962,7 @@ def main(argv):
 
   global REPORT_UNHANDLED_EXCEPTION
 
-  # setcheckinterval removed in Python 3.9 - no longer needed
+  setcheckinterval(2147483647)
   lower = str.lower
   startswith = str.startswith
   endswith = str.endswith
@@ -4121,17 +4074,17 @@ def main(argv):
 
   if not config.rtv:
 
-    status.times[0] = float('inf')
+    status.times[0] = object()
 
   if not config.rtm:
 
-    status.times[1] = float('inf')
+    status.times[1] = object()
 
   Check_Status = status.Check
   print("Done!")
   print("[*] Reading log file until EOF..."),
 
-  with open(config.logfile, "rt+", encoding='utf-8', errors='ignore') as log:
+  with open(config.logfile, "rt+") as log:
 
     seek = log.seek
     truncate  = log.truncate
@@ -4191,7 +4144,7 @@ def main(argv):
 
     del start_line
     cvars = split(cvars[11:], "\\")
-    cvars = dict((lower(cvars[i]), cvars[i+1]) for i in range(0, len(cvars), 2)) # Create cvar dictionary through the dict constructor.
+    cvars = dict((lower(cvars[i]), cvars[i+1]) for i in xrange(0, len(cvars), 2)) # Create cvar dictionary through the dict constructor.
 
     try:
 
@@ -4235,8 +4188,8 @@ def main(argv):
                 "mode": [current_time, 0],
                 "map": [current_time, 0]
                }
-    players_values = players.values()
-    players_items = players.items()
+    players_values = players.itervalues
+    players_items = players.iteritems
 
 # Initial RTV/RTM calculation.
 
@@ -4289,10 +4242,7 @@ def main(argv):
               bind(sock, (config.bindaddr, 0))
               settimeout(sock, 3)
               connect(sock, config.address)
-              # Use binary encoding for the special prefix bytes, then encode the rcon command
-              prefix = b'\xff\xff\xff\xff'
-              command = ("rcon %s sets RTVRTM %i/%s" % (config.rcon_pwd, config.cvar, VERSION)).encode('utf-8')
-              sock.send(prefix + command)
+              sock.send("\xff\xff\xff\xffrcon %s sets RTVRTM %i/%s" % (config.rcon_pwd, config.cvar, VERSION))
 
               try:
 
@@ -4358,9 +4308,6 @@ def main(argv):
 
                   if start_voting: # Cancel a running voting or map/mode change
                                    # when player count drops to 0.
-                    svsay("^2[RTV] ^7Voting cancelled - no tracked players remaining.")
-                    print("CONSOLE: (%s) [RTV] Voting cancelled - no tracked players (player tracking may be out of sync)."
-                          % (strftime(timenow(), "%d/%m/%Y %H:%M:%S")))
                     status.rtv = status.rtm = voting_instructions = start_voting = start_second_turn = False
                     change_instructions = None
 
@@ -4383,16 +4330,16 @@ def main(argv):
             elif startswith(line, "InitGame: "):
 
               cvars = split(lower(line[11:]), "\\")
-              cvars = dict(cvars[i:i+2] for i in range(0, len(cvars), 2)) # Create cvar dictionary through the dict constructor.
+              cvars = dict(cvars[i:i+2] for i in xrange(0, len(cvars), 2)) # Create cvar dictionary through the dict constructor.
               cvars["g_authenticity"] = int(cvars["g_authenticity"])
 
               if current_mode != cvars["g_authenticity"] or current_map != cvars["mapname"]:
 
                 players = dict((player_id, [timer, False, False, None, None])
                                for (player_id, (timer, rtv_vote, rtm_vote, nomination, vote_option))
-                               in players.items()) # Reset players options with the exception of their timer.
-                players_values = players.values()
-                players_items = players.items()
+                               in players_items()) # Reset players options with the exception of their timer.
+                players_values = players.itervalues
+                players_items = players.iteritems
                 nomination_order[:] = []
                 voting_description = change_instructions = None
                 admin_choices[:] = []
@@ -4435,7 +4382,7 @@ def main(argv):
                                ("" if voting_countdown == 1 else "s")))
                       voting_countdown -= 1
                       svsay("^2[Votes] ^71: %s, 2: %s" % (votes[1][3], votes[2][3]))
-                      voting_time = float('inf')
+                      voting_time = object()
 
                     elif not voting_instructions:
 
@@ -4446,7 +4393,7 @@ def main(argv):
                           svsay("^2[Description] ^7%s" % (voting_description))
 
                         send_voting_message(voting_name, voting_countdown, "round",
-                                            sum((vote_count for (vote_count, priority, vote_value, vote_display_value) in votes_values)),
+                                            sum((vote_count for (vote_count, priority, vote_value, vote_display_value) in votes_values())),
                                             len(players), votes_items, svsay)
                         voting_countdown -= 1
 
@@ -4500,10 +4447,10 @@ def main(argv):
 
               if not recover:
 
-                if startswith(line, "say: Admin: "):
-                  original_admin_cmd = strip(remove_color(line[12:]))
-                elif startswith(line, "say: Server: "):
-                  original_admin_cmd = strip(remove_color(line[13:]))
+		if startswith(line, "say: Admin: "):
+                	original_admin_cmd = strip(remove_color(line[12:]))
+		elif startswith(line, "say: Server: "):
+			original_admin_cmd = strip(remove_color(line[13:]))
                 admin_cmd = lower(original_admin_cmd)
 
                 if admin_cmd == "!rehash": # Rehash configuration.
@@ -4536,16 +4483,16 @@ def main(argv):
                   print("[*] Resetting parameters..."),
                   players = dict((player_id, [0, False, False, None, None])
                                  for player_id in iter(players)) # Reset players data.
-                  players_values = players.values()
-                  players_items = players.items()
+                  players_values = players.itervalues
+                  players_items = players.iteritems
                   nomination_order[:] = []
                   voting_description = change_instructions = None
                   admin_choices[:] = []
                   gameinfo["mode"][1] = gameinfo["map"][1] = 0
                   recently_played = defaultdict(int)
                   status.rtv = status.rtm = voting_instructions = start_voting = start_second_turn = False
-                  status.times[0] = 0 if config.rtv else float('inf')
-                  status.times[1] = 0 if config.rtm else float('inf')
+                  status.times[0] = 0 if config.rtv else object()
+                  status.times[1] = 0 if config.rtm else object()
                   rtv_players, rtm_players = [base if base else 1 for base in (((len(players) / 2) + 1) if not rate else
                                                                                int(round(((rate * len(players)) / 100.0)))
                                                                                for rate in (config.rtv_rate, config.rtm_rate))]
@@ -4621,8 +4568,8 @@ def main(argv):
                             players = dict((player_id, [timer, True, rtm_vote, nomination, None])
                                            for (player_id, (timer, rtv_vote, rtm_vote, nomination, vote_option))
                                            in players_items()) # Force RTV for all connected players.
-                            players_values = players.values()
-                            players_items = players.items()
+                            players_values = players.itervalues
+                            players_items = players.iteritems
                             check_votes = True
 
                         elif admin_cmd[1] == "rtm":
@@ -4632,8 +4579,8 @@ def main(argv):
                             players = dict((player_id, [timer, rtv_vote, True, nomination, None])
                                            for (player_id, (timer, rtv_vote, rtm_vote, nomination, vote_option))
                                            in players_items()) # Force RTM for all connected players.
-                            players_values = players.values()
-                            players_items = players.items()
+                            players_values = players.itervalues
+                            players_items = players.iteritems
                             check_votes = True
 
                         elif admin_cmd[1] == "admin":
@@ -4659,8 +4606,8 @@ def main(argv):
                           else:
 
                             votes = SortableDict(((i+1), [0, None, None, admin_choices[i]])
-                                                 for i in range(len(admin_choices)))
-                            votes_values = votes.values()
+                                                 for i in xrange(len(admin_choices)))
+                            votes_values = votes.itervalues
                             votes_items = votes.sorteditems
                             voting_name = "Admin"
                             voting_type = "admin"
@@ -4681,12 +4628,12 @@ def main(argv):
                                 (strftime(timenow(), "%d/%m/%Y %H:%M:%S")))
                           disable_time = int(admin_cmd[2])
                           status.rtv = False
-                          status.times[0] = (time() + disable_time) if disable_time else float('inf')
+                          status.times[0] = (time() + disable_time) if disable_time else object()
                           players = dict((player_id, [timer, False, rtm_vote, nomination, None])
                                          for (player_id, (timer, rtv_vote, rtm_vote, nomination, vote_option))
                                          in players_items()) # Reset RTV votes.
-                          players_values = players.values()
-                          players_items = players.items()
+                          players_values = players.itervalues
+                          players_items = players.iteritems
 
                       elif admin_cmd[1] == "rtm" and config.rtm:
 
@@ -4695,12 +4642,12 @@ def main(argv):
                               (strftime(timenow(), "%d/%m/%Y %H:%M:%S")))
                         disable_time = int(admin_cmd[2])
                         status.rtm = False
-                        status.times[1] = (time() + disable_time) if disable_time else float('inf')
+                        status.times[1] = (time() + disable_time) if disable_time else object()
                         players = dict((player_id, [timer, rtv_vote, False, nomination, None])
                                        for (player_id, (timer, rtv_vote, rtm_vote, nomination, vote_option))
                                        in players_items()) # Reset RTM votes.
-                        players_values = players.values()
-                        players_items = players.items()
+                        players_values = players.itervalues
+                        players_items = players.iteritems
 
                 elif admin_cmd == "!cancel":
 
@@ -4714,8 +4661,8 @@ def main(argv):
                       players = dict((player_id, [timer, False, False, None, None])
                                      for (player_id, (timer, rtv_vote, rtm_vote, nomination, vote_option))
                                      in players_items()) # Reset players options with the exception of their timer.
-                      players_values = players.values()
-                      players_items = players.items()
+                      players_values = players.itervalues
+                      players_items = players.iteritems
                       nomination_order[:] = []
                       voting_description = None
                       admin_choices[:] = []
@@ -4758,7 +4705,7 @@ def main(argv):
 
                   nominated_maps = [nomination
                                     for (timer, rtv_vote, rtm_vote, nomination, vote_option)
-                                    in players_values if nomination]
+                                    in players_values() if nomination]
 
                   if config.nomination_type:
 
@@ -4784,7 +4731,7 @@ def main(argv):
 
                       else: # Compare maps with the map priority system
                             # to define which maps remain.
-                        for i in range(3):
+                        for i in xrange(3):
 
                           decrease_maps = (len(voting_maps) - 5) # Number of remaining maps to remove.
 
@@ -4844,9 +4791,9 @@ def main(argv):
                             % (strftime(timenow(), "%d/%m/%Y %H:%M:%S")))
                       players = dict((player_id, [timer, False, rtm_vote, None, None])
                                      for (player_id, (timer, rtv_vote, rtm_vote, nomination, vote_option)) in
-                                     players.items()) # Reset RTV votes.
-                      players_values = players.values()
-                      players_items = players.items()
+                                     players_items()) # Reset RTV votes.
+                      players_values = players.itervalues
+                      players_items = players.iteritems
                       continue
 
                     append_map = voting_maps.append
@@ -4854,7 +4801,7 @@ def main(argv):
 
                     try:
 
-                      for i in range(missing_maps):
+                      for i in xrange(missing_maps):
 
 # Fill any remaining map slots with random maps.
 
@@ -4871,7 +4818,7 @@ def main(argv):
 
                         try:
                         
-                          for i in range((5 - len(voting_maps))):
+                          for i in xrange((5 - len(voting_maps))):
 
 # Fill any remaining map slots with random secondary maps.
 
@@ -4886,14 +4833,14 @@ def main(argv):
 # Create voting options.
 
                   votes = SortableDict(((i+1), [0, voting_maps[i][0], voting_maps[i][1], voting_maps[i][1]])
-                                       for i in range(len(voting_maps)))
+                                       for i in xrange(len(voting_maps)))
 
                   if (config.limit_extend[0] == 2 or
                       (config.limit_extend[0] == 1 and gameinfo["map"][1] < config.limit_extend[1])):
           
                     votes[(len(votes) + 1)] = [0, config.map_priority[2], None, "Don't change"] # Add the "Don't change" option.
                   
-                  votes_values = votes.values()
+                  votes_values = votes.itervalues
                   votes_items = votes.sorteditems
                   voting_name = "Roundlimit"
                   voting_type = "map"
@@ -4913,7 +4860,7 @@ def main(argv):
 
                   nominated_maps = [nomination
                                     for (timer, rtv_vote, rtm_vote, nomination, vote_option)
-                                    in players_values if nomination]
+                                    in players_values() if nomination]
 
                   if config.nomination_type:
 
@@ -4939,7 +4886,7 @@ def main(argv):
 
                       else: # Compare maps with the map priority system
                             # to define which maps remain.
-                        for i in range(3):
+                        for i in xrange(3):
 
                           decrease_maps = (len(voting_maps) - 5) # Number of remaining maps to remove.
 
@@ -4999,9 +4946,9 @@ def main(argv):
                             % (strftime(timenow(), "%d/%m/%Y %H:%M:%S")))
                       players = dict((player_id, [timer, False, rtm_vote, None, None])
                                      for (player_id, (timer, rtv_vote, rtm_vote, nomination, vote_option)) in
-                                     players.items()) # Reset RTV votes.
-                      players_values = players.values()
-                      players_items = players.items()
+                                     players_items()) # Reset RTV votes.
+                      players_values = players.itervalues
+                      players_items = players.iteritems
                       continue
 
                     append_map = voting_maps.append
@@ -5009,7 +4956,7 @@ def main(argv):
 
                     try:
 
-                      for i in range(missing_maps):
+                      for i in xrange(missing_maps):
 
 # Fill any remaining map slots with random maps.
 
@@ -5026,7 +4973,7 @@ def main(argv):
 
                         try:
                         
-                          for i in range((5 - len(voting_maps))):
+                          for i in xrange((5 - len(voting_maps))):
 
 # Fill any remaining map slots with random secondary maps.
 
@@ -5041,14 +4988,14 @@ def main(argv):
 # Create voting options.
 
                   votes = SortableDict(((i+1), [0, voting_maps[i][0], voting_maps[i][1], voting_maps[i][1]])
-                                       for i in range(len(voting_maps)))
+                                       for i in xrange(len(voting_maps)))
 
                   if (config.limit_extend[0] == 2 or
                       (config.limit_extend[0] == 1 and gameinfo["map"][1] < config.limit_extend[1])):
           
                     votes[(len(votes) + 1)] = [0, config.map_priority[2], None, "Don't change"] # Add the "Don't change" option.
                   
-                  votes_values = votes.values()
+                  votes_values = votes.itervalues
                   votes_items = votes.sorteditems
                   voting_name = "Timelimit"
                   voting_type = "map"
@@ -5114,15 +5061,15 @@ def main(argv):
                           players = dict((player_id, [timer, False, rtm_vote, None, None])
                                          for (player_id, (timer, rtv_vote, rtm_vote, nomination, vote_option))
                                          in players_items()) # Reset RTV votes.
-                          players_values = players.values()
-                          players_items = players.items()
+                          players_values = players.itervalues
+                          players_items = players.iteritems
                           
                         elif players[player_id][1]:
                           
                           say("^2[RTV] ^7%s ^7already wanted to rock the vote (%i/%i)."
                               % (player_name,
                                  sum((rtv_vote for (timer, rtv_vote, rtm_vote, nomination, vote_option)
-                                      in players_values)),
+                                      in players_values())),
                                  rtv_players))
                           
                         else:
@@ -5131,7 +5078,7 @@ def main(argv):
                           svsay("^2[RTV] ^7%s ^7wants to rock the vote (%i/%i)."
                                 % (player_name,
                                    sum((rtv_vote for (timer, rtv_vote, rtm_vote, nomination, vote_option)
-                                        in players_values)),
+                                        in players_values())),
                                    rtv_players))
 
                       players[player_id][0] = (current_time + config.flood_protection)
@@ -5173,15 +5120,15 @@ def main(argv):
                           players = dict((player_id, [timer, False, rtm_vote, None, None])
                                          for (player_id, (timer, rtv_vote, rtm_vote, nomination, vote_option))
                                          in players_items()) # Reset RTV votes.
-                          players_values = players.values()
-                          players_items = players.items()
+                          players_values = players.itervalues
+                          players_items = players.iteritems
                           
                         elif not players[player_id][1]:
                           
                           say("^2[RTV] ^7%s ^7didn't want to rock the vote yet (%i/%i)."
                               % (player_name,
                                  sum((rtv_vote for (timer, rtv_vote, rtm_vote, nomination, vote_option)
-                                      in players_values)),
+                                      in players_values())),
                                  rtv_players))
                           
                         else:
@@ -5190,7 +5137,7 @@ def main(argv):
                           svsay("^2[RTV] ^7%s ^7no longer wants to rock the vote (%i/%i)."
                                 % (player_name,
                                    sum((rtv_vote for (timer, rtv_vote, rtm_vote, nomination, vote_option)
-                                        in players_values)),
+                                        in players_values())),
                                    rtv_players))
 
                       players[player_id][0] = (current_time + config.flood_protection)
@@ -5218,15 +5165,15 @@ def main(argv):
                         players = dict((player_id, [timer, rtv_vote, False, nomination, None])
                                        for (player_id, (timer, rtv_vote, rtm_vote, nomination, vote_option))
                                        in players_items()) # Reset RTM votes.
-                        players_values = players.values()
-                        players_items = players.items()
+                        players_values = players.itervalues
+                        players_items = players.iteritems
                         
                       elif players[player_id][2]:
                           
                         say("^2[RTM] ^7%s ^7already wanted to rock the mode (%i/%i)."
                             % (player_name,
                                sum((rtm_vote for (timer, rtv_vote, rtm_vote, nomination, vote_option)
-                                    in players_values)),
+                                    in players_values())),
                                rtm_players))
                           
                       else:
@@ -5235,7 +5182,7 @@ def main(argv):
                         svsay("^2[RTM] ^7%s ^7wants to rock the mode (%i/%i)."
                               % (player_name,
                                  sum((rtm_vote for (timer, rtv_vote, rtm_vote, nomination, vote_option)
-                                      in players_values)),
+                                      in players_values())),
                                  rtm_players))
 
                       players[player_id][0] = (current_time + config.flood_protection)
@@ -5263,15 +5210,15 @@ def main(argv):
                         players = dict((player_id, [timer, rtv_vote, False, nomination, None])
                                        for (player_id, (timer, rtv_vote, rtm_vote, nomination, vote_option))
                                        in players_items()) # Reset RTM votes.
-                        players_values = players.values()
-                        players_items = players.items()
+                        players_values = players.itervalues
+                        players_items = players.iteritems
 
                       elif not players[player_id][2]:
                           
                         say("^2[RTM] ^7%s ^7didn't want to rock the mode yet (%i/%i)."
                             % (player_name,
                                sum((rtm_vote for (timer, rtv_vote, rtm_vote, nomination, vote_option)
-                                    in players_values)),
+                                    in players_values())),
                                rtm_players))
                           
                       else:
@@ -5280,7 +5227,7 @@ def main(argv):
                         svsay("^2[RTM] ^7%s ^7no longer wants to rock the mode (%i/%i)."
                               % (player_name,
                                  sum((rtm_vote for (timer, rtv_vote, rtm_vote, nomination, vote_option)
-                                      in players_values)),
+                                      in players_values())),
                                  rtm_players))
 
                       players[player_id][0] = (current_time + config.flood_protection)
@@ -5318,7 +5265,7 @@ def main(argv):
                                        if lower(mapname) == nominated_map] # Compare nominated mapname against both map lists.
                         nominated_maps = [nomination
                                           for (timer, rtv_vote, rtm_vote, nomination, vote_option)
-                                          in players_values if nomination]
+                                          in players_values() if nomination]
 
                         if config.nomination_type:
 
@@ -5430,7 +5377,7 @@ def main(argv):
 
                           nominations = (count([nomination
                                                 for (timer, rtv_vote, rtm_vote, nomination, vote_option)
-                                                in players_values], players[player_id][3]) - 1)
+                                                in players_values()], players[player_id][3]) - 1)
                           svsay("^2[Revoke] ^7%s ^7nomination to %s was revoked (%i nomination%s)." %
                                 (player_name, players[player_id][3], nominations,
                                  ("" if nominations == 1 else "s")))
@@ -5466,7 +5413,7 @@ def main(argv):
                           
                           nominated_maps = [nomination
                                             for (timer, rtv_vote, rtm_vote, nomination, vote_option)
-                                            in players_values if nomination]
+                                            in players_values() if nomination]
                           sorted_maps = (mapname for mapname in sorted_maps if mapname not in nominated_maps)
 
 # Create split lists for display in the server based on a maximum of MAPLIST_MAX_SIZE bytes per
@@ -5527,7 +5474,7 @@ def main(argv):
                           
                           nominated_maps = [nomination
                                             for (timer, rtv_vote, rtm_vote, nomination, vote_option)
-                                            in players_values if nomination]
+                                            in players_values() if nomination]
                           sorted_maps = (mapname for mapname in sorted_maps if mapname not in nominated_maps)
 
 # Create split lists for display in the server based on a maximum of MAPLIST_MAX_SIZE bytes per
@@ -5746,11 +5693,11 @@ def main(argv):
               check_votes = False
 
               if (sum((rtv_vote for (timer, rtv_vote, rtm_vote, nomination, vote_option)
-                       in players_values)) >= rtv_players): # Start a RTV voting.
+                       in players_values())) >= rtv_players): # Start a RTV voting.
 
                 nominated_maps = [nomination
                                   for (timer, rtv_vote, rtm_vote, nomination, vote_option)
-                                  in players_values if nomination]
+                                  in players_values() if nomination]
 
                 if config.nomination_type:
 
@@ -5776,7 +5723,7 @@ def main(argv):
 
                     else: # Compare maps with the map priority system
                           # to define which maps remain.
-                      for i in range(3):
+                      for i in xrange(3):
 
                         decrease_maps = (len(voting_maps) - 5) # Number of remaining maps to remove.
 
@@ -5836,12 +5783,12 @@ def main(argv):
                           % (strftime(timenow(), "%d/%m/%Y %H:%M:%S")))
                     players = dict((player_id, [timer, False, rtm_vote, None, None])
                                    for (player_id, (timer, rtv_vote, rtm_vote, nomination, vote_option)) in
-                                     players.items()) # Reset RTV votes.
-                    players_values = players.values()
-                    players_items = players.items()
+                                   players_items()) # Reset RTV votes.
+                    players_values = players.itervalues
+                    players_items = players.iteritems
 
                     if (sum((rtm_vote for (timer, rtv_vote, rtm_vote, nomination, vote_option)
-                             in players_values)) >= rtm_players): # Make sure RTM is checked even
+                             in players_values())) >= rtm_players): # Make sure RTM is checked even
                                                                     # if RTV failed to start.
                       voting_modes = [gamemode for gamemode in iter(config.rtm) if gamemode != current_mode]
 
@@ -5853,20 +5800,20 @@ def main(argv):
                         players = dict((player_id, [timer, rtv_vote, False, nomination, None])
                                        for (player_id, (timer, rtv_vote, rtm_vote, nomination, vote_option))
                                        in players_items()) # Reset RTM votes.
-                        players_values = players.values()
-                        players_items = players.items()
+                        players_values = players.itervalues
+                        players_items = players.iteritems
 
                       else: # Create voting options.
                       
                         votes = SortableDict(((i+1), [0, config.mode_priority[voting_modes[i]], voting_modes[i], gamemodes[voting_modes[i]]])
-                                             for i in range(len(voting_modes)))
+                                             for i in xrange(len(voting_modes)))
 
                         if (config.rtm_extend[0] == 2 or
                             (config.rtm_extend[0] == 1 and gameinfo["mode"][1] < config.rtm_extend[1])):
           
                           votes[(len(votes) + 1)] = [0, config.mode_priority[3], None, "Don't change"] # Add the "Don't change" option.
                         
-                        votes_values = votes.values()
+                        votes_values = votes.itervalues
                         votes_items = votes.sorteditems
                         voting_name = "RTM"
                         voting_type = "mode"
@@ -5887,7 +5834,7 @@ def main(argv):
 
                   try:
 
-                    for i in range(missing_maps):
+                    for i in xrange(missing_maps):
 
 # Fill any remaining map slots with random maps.
 
@@ -5904,7 +5851,7 @@ def main(argv):
 
                       try:
                       
-                        for i in range((5 - len(voting_maps))):
+                        for i in xrange((5 - len(voting_maps))):
 
 # Fill any remaining map slots with random secondary maps.
 
@@ -5919,14 +5866,14 @@ def main(argv):
 # Create voting options.
 
                 votes = SortableDict(((i+1), [0, voting_maps[i][0], voting_maps[i][1], voting_maps[i][1]])
-                                     for i in range(len(voting_maps)))
+                                     for i in xrange(len(voting_maps)))
 
                 if (config.rtv_extend[0] == 2 or
                     (config.rtv_extend[0] == 1 and gameinfo["map"][1] < config.rtv_extend[1])):
           
                   votes[(len(votes) + 1)] = [0, config.map_priority[2], None, "Don't change"] # Add the "Don't change" option.
                         
-                votes_values = votes.values()
+                votes_values = votes.itervalues
                 votes_items = votes.sorteditems
                 voting_name = "RTV"
                 voting_type = "map"
@@ -5941,7 +5888,7 @@ def main(argv):
                 status.rtv = status.rtm = voting_instructions = start_voting = True
 
               elif (sum((rtm_vote for (timer, rtv_vote, rtm_vote, nomination, vote_option)
-                         in players_values)) >= rtm_players): # Start a RTM voting.
+                         in players_values())) >= rtm_players): # Start a RTM voting.
                 
                 voting_modes = [gamemode for gamemode in iter(config.rtm) if gamemode != current_mode]
 
@@ -5953,20 +5900,20 @@ def main(argv):
                   players = dict((player_id, [timer, rtv_vote, False, nomination, None])
                                  for (player_id, (timer, rtv_vote, rtm_vote, nomination, vote_option))
                                  in players_items()) # Reset RTM votes.
-                  players_values = players.values()
-                  players_items = players.items()
+                  players_values = players.itervalues
+                  players_items = players.iteritems
 
                 else: # Create voting options.
                 
                   votes = SortableDict(((i+1), [0, config.mode_priority[voting_modes[i]], voting_modes[i], gamemodes[voting_modes[i]]])
-                                       for i in range(len(voting_modes)))
+                                       for i in xrange(len(voting_modes)))
 
                   if (config.rtm_extend[0] == 2 or
                       (config.rtm_extend[0] == 1 and gameinfo["mode"][1] < config.rtm_extend[1])):
           
                     votes[(len(votes) + 1)] = [0, config.mode_priority[3], None, "Don't change"] # Add the "Don't change" option.
                         
-                  votes_values = votes.values()
+                  votes_values = votes.itervalues
                   votes_items = votes.sorteditems
                   voting_name = "RTM"
                   voting_type = "mode"
@@ -6040,9 +5987,9 @@ def main(argv):
 
               players = dict((player_id, [timer, False, False, None, None])
                              for (player_id, (timer, rtv_vote, rtm_vote, nomination, vote_option)) in
-                                     players.items()) # Reset players options with the exception of their timer.
-              players_values = players.values()
-              players_items = players.items()
+                             players_items()) # Reset players options with the exception of their timer.
+              players_values = players.itervalues
+              players_items = players.iteritems
               nomination_order[:] = []
               voting_description = None
               admin_choices[:] = []
@@ -6105,7 +6052,7 @@ def main(argv):
           else:
 
             total_players = len(players)
-            total_votes = [vote_count for (vote_count, priority, vote_value, vote_display_value) in votes_values]
+            total_votes = [vote_count for (vote_count, priority, vote_value, vote_display_value) in votes_values()]
             most_voted = max(total_votes)
             remove(total_votes, most_voted)
             second_most_voted = max(total_votes)
@@ -6177,15 +6124,15 @@ def main(argv):
 
                   players = dict((player_id, [timer, rtv_vote, rtm_vote, nomination, None])
                                  for (player_id, (timer, rtv_vote, rtm_vote, nomination, vote_option)) in
-                                     players.items()) # Reset players votes.
-                  players_values = players.values()
-                  players_items = players.items()
+                                 players_items()) # Reset players votes.
+                  players_values = players.itervalues
+                  players_items = players.iteritems
                   second_turn_options = [vote_id for (vote_id, (vote_count, priority, vote_value, vote_display_value))
                                          in votes_items() if vote_count == most_voted]
 
                   if len(second_turn_options) > 2: # We have too many most voted values for second turn.
 
-                    for i in range(3): # Priority selection.
+                    for i in xrange(3): # Priority selection.
 
                       decrease_options = (len(second_turn_options) - 2) # Number of remaining options to remove.
 
@@ -6212,7 +6159,7 @@ def main(argv):
 
                     if len(second_turn_second_most_voted) > 1: # We have too many second most voted values.
 
-                      for i in range(2, -1, -1): # Priority selection.
+                      for i in xrange(2, -1, -1): # Priority selection.
 
                         second_turn_options_filtered = [vote_id for vote_id in iter(second_turn_second_most_voted)
                                                         if votes[vote_id][1] == i]
@@ -6236,7 +6183,7 @@ def main(argv):
                                         (2, [0, votes[second_turn_options[1]][1],
                                                 votes[second_turn_options[1]][2], votes[second_turn_options[1]][3]])
                                       ))
-                  votes_values = votes.values()
+                  votes_values = votes.itervalues
                   votes_items = votes.sorteditems
 
                   if not voting_method:
@@ -6263,7 +6210,7 @@ def main(argv):
 
                   if len(most_voted_options) > 1: # Two or more options tied.
 
-                    for i in range(2, -1, -1): # Priority selection.
+                    for i in xrange(2, -1, -1): # Priority selection.
 
                       most_voted_options_filtered = [vote_id for vote_id in iter(most_voted_options)
                                                      if votes[vote_id][1] == i]
@@ -6352,9 +6299,9 @@ def main(argv):
 
               players = dict((player_id, [timer, False, False, None, None])
                              for (player_id, (timer, rtv_vote, rtm_vote, nomination, vote_option)) in
-                                     players.items()) # Reset players options with the exception of their timer.
-              players_values = players.values()
-              players_items = players.items()
+                             players_items()) # Reset players options with the exception of their timer.
+              players_values = players.itervalues
+              players_items = players.iteritems
               nomination_order[:] = []
               voting_description = None
               admin_choices[:] = []
