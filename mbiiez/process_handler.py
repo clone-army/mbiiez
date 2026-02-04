@@ -97,6 +97,16 @@ class process_handler:
             
                 func = "{} ".format(func)
                 
+                # Parse out LD_PRELOAD if present in command
+                env = os.environ.copy()
+                if func.startswith("LD_PRELOAD="):
+                    # Extract the LD_PRELOAD value and the actual command
+                    parts = func.split(" ", 1)
+                    ld_preload_part = parts[0]  # LD_PRELOAD=/path/to/lib.so
+                    func = parts[1] if len(parts) > 1 else ""
+                    # Parse the LD_PRELOAD value
+                    env['LD_PRELOAD'] = ld_preload_part.split("=", 1)[1]
+                
                 container_name = name + " Container"
             
                 # When running a shell command, a fork is created which acts are the parent to the new process.
@@ -123,7 +133,7 @@ class process_handler:
                         if os.path.exists(std_out_file):
                             os.remove(std_out_file)
                         log = open(std_out_file, 'a')
-                        process = subprocess.Popen(shlex.split(func), shell=False, stdin=log, stdout=log, stderr=log) 
+                        process = subprocess.Popen(shlex.split(func), shell=False, stdin=log, stdout=log, stderr=log, env=env) 
                         db().insert("processes", {"name": name, "pid": process.pid, "instance": instance}) 
                         time.sleep(1)
                         if(crashes > 0):

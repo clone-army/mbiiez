@@ -89,6 +89,15 @@ class instance:
         ''' Runs the Dedicated OpenJK Server ''' 
         cmd = "{} --quiet +set dedicated 2 +set net_port {} +set fs_game {} +set fs_homepath {} +exec {}".format(self.config['server']['engine'], self.config['server']['port'], self.get_game(), self.config['server']['home_path'], self.config['server']['server_config_file']);       
 
+        # Check for anytime_spin plugin - prepend LD_PRELOAD to trick the game into thinking it's Sunday
+        if self.has_plugin('anytime_spin'):
+            fake_sunday_lib = os.path.join(settings.locations.plugins_path, 'anytime_spin', 'fake_sunday_32.so')
+            if os.path.exists(fake_sunday_lib):
+                cmd = "LD_PRELOAD={} {}".format(fake_sunday_lib, cmd)
+                self.log_handler.log("Anytime Spin: Using LD_PRELOAD for fake Sunday")
+            else:
+                self.log_handler.log("Anytime Spin: WARNING - {} not found".format(fake_sunday_lib))
+
         self.start_cmd = cmd
         
         #print(bcolors.CYAN + cmd  + bcolors.ENDC )  
@@ -445,6 +454,18 @@ class instance:
             self.config['server']['server_config_file']
         )
         
+        # Check for anytime_spin plugin - prepend LD_PRELOAD to trick the game into thinking it's Sunday
+        env = os.environ.copy()
+        anytime_spin_enabled = False
+        if self.has_plugin('anytime_spin'):
+            fake_sunday_lib = os.path.join(settings.locations.plugins_path, 'anytime_spin', 'fake_sunday_32.so')
+            if os.path.exists(fake_sunday_lib):
+                env['LD_PRELOAD'] = fake_sunday_lib
+                anytime_spin_enabled = True
+                print(bcolors.GREEN + "Anytime Spin: ENABLED (using fake Sunday)" + bcolors.ENDC)
+            else:
+                print(bcolors.RED + "Anytime Spin: WARNING - {} not found".format(fake_sunday_lib) + bcolors.ENDC)
+        
         print(bcolors.CYAN + "=" * 60 + bcolors.ENDC)
         print(bcolors.CYAN + "DEBUG MODE - Engine output will be shown below" + bcolors.ENDC)
         print(bcolors.CYAN + "Press Ctrl+C to stop the server" + bcolors.ENDC)
@@ -452,6 +473,9 @@ class instance:
         print()
         print(bcolors.YELLOW + "Command:" + bcolors.ENDC)
         print(cmd)
+        if anytime_spin_enabled and 'LD_PRELOAD' in env:
+            print(bcolors.YELLOW + "LD_PRELOAD:" + bcolors.ENDC)
+            print(env['LD_PRELOAD'])
         print()
         print(bcolors.YELLOW + "Working Directory:" + bcolors.ENDC)
         print(self.config['server']['home_path'])
@@ -471,7 +495,8 @@ class instance:
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 universal_newlines=True,
-                bufsize=1
+                bufsize=1,
+                env=env
             )
             
             # Stream output line by line

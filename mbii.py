@@ -36,6 +36,7 @@ class main:
         print("Option             Description")
         print("------------------------------------")        
         print("start              Start Instance")
+        print("startd             Start Instance in Debug Mode (shows command and engine output)")
         print("stop               Stop Instance (use --force to skip confirmation)") 
         print("restart            Restart Instance (use --force to skip confirmation)") 
         print("status             Instance Status") 

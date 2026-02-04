@@ -122,8 +122,12 @@ class conf:
             data = data.replace("[competitive_config]",str(self.config['game']['competitive_config']))
             
             # Spin settings
-            if("enable_spin" in self.config['game'].keys()):      
-                data = data.replace("[enable_spin]",str(self.config['game']['enable_spin']))    
+            if("enable_spin" in self.config['game'].keys()):
+                spin_val = self.config['game']['enable_spin']
+                # Convert boolean to int, or use value directly
+                if isinstance(spin_val, bool):
+                    spin_val = 1 if spin_val else 0
+                data = data.replace("[enable_spin]",str(spin_val))    
             else:
                 data = data.replace("[enable_spin]","0")
                 
