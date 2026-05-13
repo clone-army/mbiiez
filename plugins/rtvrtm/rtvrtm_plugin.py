@@ -434,9 +434,13 @@ RTM change immediately: {rtm_change_immediately}
                 self.log(f"RTVRTM: Command: {sys.executable} {rtvrtm_script} -c {self.cfg_path}")
                 
                 # Run the original RTVRTM script with the generated config file
+                # Clear LD_PRELOAD to avoid issues with 32-bit libraries (e.g., anytime_spin)
+                env = os.environ.copy()
+                env.pop('LD_PRELOAD', None)
+                
                 self.rtvrtm_process = subprocess.Popen([
                     sys.executable, rtvrtm_script, '-c', self.cfg_path
-                ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, bufsize=1, universal_newlines=True)
+                ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, bufsize=1, universal_newlines=True, env=env)
                 
                 self.log(f"RTVRTM: Process started with PID: {self.rtvrtm_process.pid}")
                 
@@ -494,9 +498,13 @@ RTM change immediately: {rtm_change_immediately}
             
             # Run the original RTVRTM script with the generated config file
             # This blocks as expected for a service
+            # Clear LD_PRELOAD to avoid issues with 32-bit libraries (e.g., anytime_spin)
+            env = os.environ.copy()
+            env.pop('LD_PRELOAD', None)
+            
             self.rtvrtm_process = subprocess.Popen([
                 sys.executable, rtvrtm_script, '-c', self.cfg_path
-            ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, bufsize=1, universal_newlines=True)
+            ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, bufsize=1, universal_newlines=True, env=env)
             
             self.log(f"RTVRTM: Service process started with PID: {self.rtvrtm_process.pid}")
             
