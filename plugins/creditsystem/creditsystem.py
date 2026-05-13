@@ -24,7 +24,7 @@ class plugin:
 
         while(True):
             try:
-                self.instance.cvar("g_creditsSystemEnable", "1")
+                self.instance.cvar("g_creditSystemEnable", "1")
             except Exception as e:
                 self.instance.exception_handler.log(e)
 
