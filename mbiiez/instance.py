@@ -158,9 +158,51 @@ class instance:
     # Run a console command
     def cmd(self, command):
         print(self.console.console(str(command), False))      
+
+    def ensure_cvar_in_server_config(self, key, value):
+        config_path = self.config['server'].get('server_config_path')
+        if(not config_path or not os.path.isfile(config_path)):
+            return
+
+        with open(config_path, "r", encoding="utf-8", errors="ignore") as cfg_file:
+            lines = cfg_file.readlines()
+
+        # If the cvar is already present as set/seta, do not add a duplicate.
+        key_pattern = re.compile(r"^\s*seta?\s+{}\b".format(re.escape(str(key))), re.IGNORECASE)
+        for line in lines:
+            if(key_pattern.match(line)):
+                return
+
+        newline = "\n"
+        if(lines and lines[0].endswith("\r\n")):
+            newline = "\r\n"
+
+        safe_value = str(value).replace('"', '\\"')
+        cvar_line = "seta {} \"{}\"{}".format(key, safe_value, newline)
+
+        insert_index = None
+        logfile_pattern = re.compile(r"^\s*seta\s+logfile\b", re.IGNORECASE)
+        for idx, line in enumerate(lines):
+            if(logfile_pattern.match(line)):
+                insert_index = idx
+                break
+
+        if(insert_index == None):
+            insert_index = 0
+
+        lines.insert(insert_index, cvar_line)
+
+        with open(config_path, "w", encoding="utf-8") as cfg_file:
+            cfg_file.writelines(lines)
        
     # Get / Set a CVAR
     def cvar(self, key, value = None):
+       if(not value == None):
+            try:
+                self.ensure_cvar_in_server_config(key, value)
+            except Exception as e:
+                self.exception_handler.log(e)
+
        return self.console.cvar(key, value)   
        
     # Run an SVSAY command
