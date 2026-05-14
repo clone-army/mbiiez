@@ -107,11 +107,12 @@ class instance:
         homepath = self.ensure_homepath()
 
         # Runs the Dedicated OpenJK Server
-        cmd = "{} --quiet +set dedicated 2 +set net_port {} +set fs_game {} +set fs_homepath {}{} +exec {}".format(
+        cmd = "{} --quiet +set dedicated 2 +set net_port {} +set fs_game {} +set fs_homepath {} +set fs_basepath {}{} +exec {}".format(
             self.config['server']['engine'],
             self.config['server']['port'],
             self.get_game(),
             homepath,
+            settings.locations.base_path,
             self.get_startup_cvar_args(),
             self.config['server']['server_config_file']
         )
