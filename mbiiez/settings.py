@@ -18,6 +18,8 @@ class locations:
     if not os.path.isabs(config_path) or not os.path.exists(config_path):
         config_path = os.path.join(script_path, 'configs')
     plugins_path = os.path.join(script_path, "plugins")
+    # Default base for fs_homepath directories
+    homepath_base = os.path.join(script_path, 'homepaths')
 
 class dedicated:    
     game = globals.config.get('dedicated', 'game')
