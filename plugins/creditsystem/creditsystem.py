@@ -19,6 +19,8 @@ class plugin:
             self.instance.config['plugins']['auto_message']['messages'].append("!buy - Lists available items or buys the selected one by ID.")
             self.instance.config['plugins']['auto_message']['messages'].append("!bounty - Places a credit bounty on another player.")
 
+        self.instance.cvar("g_creditSystemEnable", "1")
+
     def register(self):
         self.instance.process_handler.register_service("Credit System Service", self.credit_system_service)
 

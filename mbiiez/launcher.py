@@ -60,7 +60,7 @@ class launcher:
             while(not self.process_handler.process_status("OpenJK")): 
                 print("Starting OpenJK Dedicated...")
                 self.log_handler.log("Starting OpenJK Dedicated Server")
-                cmd = "nohup {} --quiet +set dedicated 2 +set net_port {} +set fs_game {} +exec {}".format(self.config['server']['engine'], self.config['server']['port'], settings.dedicated.game, self.config['server']['server_config_file']);       
+                cmd = "nohup {} --quiet +set dedicated 2 +set net_port {} +set fs_game {}{} +exec {}".format(self.config['server']['engine'], self.config['server']['port'], settings.dedicated.game, self.instance.get_startup_cvar_args(), self.config['server']['server_config_file']);       
                 process = subprocess.Popen(shlex.split(cmd), shell=False)  # ,stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL   
                 pid = process.pid
                 self.process_handler.add_pid("OpenJK", pid, self.instance_name)

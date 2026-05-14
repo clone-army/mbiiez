@@ -40,6 +40,7 @@ class instance:
     process_handler = None
     plugin_handler = None
     launcher = None
+    startup_cvars = None
     
     # Constructor
     def __init__(self, name):
@@ -48,6 +49,7 @@ class instance:
         self.external_ip = urllib.request.urlopen('https://www.myexternalip.com/raw').read().decode()       
 
         self.start_cmd = None
+        self.startup_cvars = {}
 
         # Generate Config for this instance 
         self.conf = conf(self.name, settings)       
@@ -69,15 +71,15 @@ class instance:
         
         # Create a UDP / RCON Client
         self.console = console(self.config['security']['rcon_password'], str(self.config['server']['port']))
+
+        # Load plugins before services so they can register launch-time CVARs.
+        self.plugin_hander = plugin_handler(self)
         
         # Load Internal Services
         self.services_internal()
 
         # Load Internal Events
         self.events_internal()
-
-        #Load Plugins
-        self.plugin_hander = plugin_handler(self)
         
         ''' Add any configs to external plugins if they are enabled '''    
         if(self.has_plugin("auto_message")):
@@ -87,7 +89,7 @@ class instance:
         ''' Internal Services we wish to start on an instance start ''' 
 
         ''' Runs the Dedicated OpenJK Server ''' 
-        cmd = "{} --quiet +set dedicated 2 +set net_port {} +set fs_game {} +set fs_homepath {} +exec {}".format(self.config['server']['engine'], self.config['server']['port'], self.get_game(), self.config['server']['home_path'], self.config['server']['server_config_file']);       
+        cmd = "{} --quiet +set dedicated 2 +set net_port {} +set fs_game {} +set fs_homepath {}{} +exec {}".format(self.config['server']['engine'], self.config['server']['port'], self.get_game(), self.config['server']['home_path'], self.get_startup_cvar_args(), self.config['server']['server_config_file']);       
 
         # Check for anytime_spin plugin - prepend LD_PRELOAD to trick the game into thinking it's Sunday
         if self.has_plugin('anytime_spin'):
@@ -159,6 +161,20 @@ class instance:
     def cmd(self, command):
         print(self.console.console(str(command), False))      
 
+    def register_startup_cvar(self, key, value):
+        self.startup_cvars[str(key)] = str(value)
+
+    def get_startup_cvar_args(self):
+        if(not self.startup_cvars):
+            return ""
+
+        parts = []
+        for key, value in self.startup_cvars.items():
+            safe_value = str(value).replace('"', '\\"')
+            parts.append(f'+set {key} "{safe_value}"')
+
+        return " " + " ".join(parts)
+
     def ensure_cvar_in_server_config(self, key, value):
         config_path = self.config['server'].get('server_config_path')
         if(not config_path or not os.path.isfile(config_path)):
@@ -199,9 +215,15 @@ class instance:
     def cvar(self, key, value = None):
        if(not value == None):
             try:
+                self.register_startup_cvar(key, value)
                 self.ensure_cvar_in_server_config(key, value)
             except Exception as e:
                 self.exception_handler.log(e)
+
+            if(self.server_running()):
+                return self.console.cvar(key, value)
+
+            return None
 
        return self.console.cvar(key, value)   
        
@@ -488,11 +510,12 @@ class instance:
                 os.symlink(settings.locations.game_path, "/root/.ja")  
 
         # Build the command (without --quiet so we see output)
-        cmd = "{} +set dedicated 2 +set net_port {} +set fs_game {} +set fs_homepath {} +exec {}".format(
+        cmd = "{} +set dedicated 2 +set net_port {} +set fs_game {} +set fs_homepath {}{} +exec {}".format(
             engine_path,
             self.config['server']['port'],
             self.get_game(),
             self.config['server']['home_path'],
+            self.get_startup_cvar_args(),
             self.config['server']['server_config_file']
         )
         

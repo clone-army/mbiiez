@@ -15,6 +15,9 @@ class plugin:
         self.config = self.instance.config['plugins'].get('chaos', {})
         self.cooldown = int(self.config.get('cooldown', 20))
 
+        self.instance.cvar("g_chaosEnable", "1")
+        self.instance.cvar("g_chaosCooldown", str(self.cooldown))
+
     def register(self):
         self.instance.process_handler.register_service("Chaos Mode Service", self.chaos_service)
 
