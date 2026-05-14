@@ -181,10 +181,10 @@ class instance:
         cvar_line = "seta {} \"{}\"{}".format(key, safe_value, newline)
 
         insert_index = None
-        logfile_pattern = re.compile(r"^\s*seta\s+logfile\b", re.IGNORECASE)
+        rcon_password_pattern = re.compile(r"^\s*seta\s+rconpassword\b", re.IGNORECASE)
         for idx, line in enumerate(lines):
-            if(logfile_pattern.match(line)):
-                insert_index = idx
+            if(rcon_password_pattern.match(line)):
+                insert_index = idx + 1
                 break
 
         if(insert_index == None):
