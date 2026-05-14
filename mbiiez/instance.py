@@ -85,11 +85,36 @@ class instance:
         if(self.has_plugin("auto_message")):
             self.config['plugins']['auto_message']['messages'].append("This server is powered by MBIIEZ, visit bit.ly/2JhJRpO")    
 
-    def services_internal(self):
-        ''' Internal Services we wish to start on an instance start ''' 
+    def get_homepath(self):
+        """
+        Return the unique fs_homepath for this instance.
+        """
+        return os.path.join(settings.locations.homepath_base, self.name)
 
-        ''' Runs the Dedicated OpenJK Server ''' 
-        cmd = "{} --quiet +set dedicated 2 +set net_port {} +set fs_game {} +set fs_homepath {}{} +exec {}".format(self.config['server']['engine'], self.config['server']['port'], self.get_game(), self.config['server']['home_path'], self.get_startup_cvar_args(), self.config['server']['server_config_file']);       
+    def ensure_homepath(self):
+        """
+        Ensure the unique fs_homepath directory exists for this instance.
+        """
+        homepath = self.get_homepath()
+        if not os.path.exists(homepath):
+            os.makedirs(homepath)
+        return homepath
+
+    def services_internal(self):
+        """ Internal Services we wish to start on an instance start """
+
+        # Ensure the homepath exists
+        homepath = self.ensure_homepath()
+
+        # Runs the Dedicated OpenJK Server
+        cmd = "{} --quiet +set dedicated 2 +set net_port {} +set fs_game {} +set fs_homepath {}{} +exec {}".format(
+            self.config['server']['engine'],
+            self.config['server']['port'],
+            self.get_game(),
+            homepath,
+            self.get_startup_cvar_args(),
+            self.config['server']['server_config_file']
+        )
 
         # Check for anytime_spin plugin - prepend LD_PRELOAD to trick the game into thinking it's Sunday
         if self.has_plugin('anytime_spin'):
@@ -513,7 +538,7 @@ class instance:
             engine_path,
             self.config['server']['port'],
             self.get_game(),
-            self.config['server']['home_path'],
+            self.get_homepath(),
             self.get_startup_cvar_args(),
             self.config['server']['server_config_file']
         )
@@ -727,4 +752,4 @@ class instance:
     def restart(self):     
         self.stop()
         time.sleep(2)
-        self.start()    
+        self.start()
