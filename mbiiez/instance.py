@@ -216,7 +216,6 @@ class instance:
        if(not value == None):
             try:
                 self.register_startup_cvar(key, value)
-                self.ensure_cvar_in_server_config(key, value)
             except Exception as e:
                 self.exception_handler.log(e)
 
