@@ -100,6 +100,37 @@ class instance:
             os.makedirs(homepath)
         return homepath
 
+    def cleanup_legacy_root_files(self):
+        """
+        Remove legacy per-instance files that were written directly into the game root.
+        """
+        root_path = settings.locations.game_path
+        if not os.path.isdir(root_path):
+            return
+
+        legacy_suffixes = (".cfg", ".log", ".txt")
+        legacy_prefixes = (
+            self.name,
+            "{}-".format(self.name),
+        )
+
+        for entry in os.scandir(root_path):
+            if not entry.is_file():
+                continue
+
+            name = entry.name
+            if not name.endswith(legacy_suffixes):
+                continue
+
+            if not any(name.startswith(prefix) for prefix in legacy_prefixes):
+                continue
+
+            try:
+                os.remove(entry.path)
+                self.log_handler.log("Removed legacy file: {}".format(entry.path))
+            except Exception as e:
+                self.log_handler.log("Failed to remove legacy file {}: {}".format(entry.path, str(e)))
+
     def services_internal(self):
         """ Internal Services we wish to start on an instance start """
 
@@ -456,6 +487,7 @@ class instance:
    
         # Generate our configs
         self.conf.generate_server_config()
+        self.cleanup_legacy_root_files()
         
         # Can Instance Can Start?
         if(os.path.exists(self.config['server']['server_config_path'])): 
@@ -511,6 +543,7 @@ class instance:
    
         # Generate our configs
         self.conf.generate_server_config()
+        self.cleanup_legacy_root_files()
         
         # Can Instance Can Start?
         if not os.path.exists(self.config['server']['server_config_path']):

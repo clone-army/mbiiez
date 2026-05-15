@@ -173,6 +173,10 @@ async function loadDashboardInstancesSequentially() {
 	loader.remove();
 }
 
-window.addEventListener('load', loadDashboardInstancesSequentially);
+if (document.readyState === 'loading') {
+	document.addEventListener('DOMContentLoaded', loadDashboardInstancesSequentially);
+} else {
+	loadDashboardInstancesSequentially();
+}
 </script>
 {% endblock %}

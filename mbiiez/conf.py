@@ -39,16 +39,16 @@ class conf:
                 data['server']['home_path'] = instance_home_path
                     
                 data['server']['rtvrtm_config_file'] = "{}-rtvrtm.cfg".format(self.name)
-                data['server']['rtvrtm_config_path'] = "{}/{}".format(self.mbii_path, data['server']['rtvrtm_config_file'])
+                data['server']['rtvrtm_config_path'] = os.path.join(instance_home_path, data['server']['rtvrtm_config_file'])
                 
                 data['server']['server_config_file'] = "{}-server.cfg".format(self.name) 
-                data['server']['server_config_path'] = "{}/{}".format(self.mbii_path, data['server']['server_config_file'])
+                data['server']['server_config_path'] = os.path.join(instance_home_path, data['server']['server_config_file'])
                 
                 data['server']['primary_maplist_file'] = "{}-primary.txt".format(self.name) 
-                data['server']['primary_maplist_path'] = "{}/{}".format(self.mbii_path, data['server']['primary_maplist_file'])  
+                data['server']['primary_maplist_path'] = os.path.join(instance_home_path, data['server']['primary_maplist_file'])  
                 
                 data['server']['secondary_maplist_file'] = "{}-secondary.txt".format(self.name) 
-                data['server']['secondary_maplist_path'] = "{}/{}".format(self.mbii_path, data['server']['secondary_maplist_file']) 
+                data['server']['secondary_maplist_path'] = os.path.join(instance_home_path, data['server']['secondary_maplist_file']) 
                 
                 data['server']['log_file'] = "{}-games.log".format(self.name)  
                 data['server']['log_path'] = "{}/{}".format(instance_game_path, data['server']['log_file'])
