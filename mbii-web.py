@@ -918,9 +918,12 @@ def status_api(instance_name):
         return jsonify(
             {
                 "server_name": status.get("server_name", ""),
+                "server_name_html": status.get("server_name_html", ""),
                 "players_count": status.get("players_count", 0),
                 "map": status.get("map", ""),
+                "map_html": status.get("map_html", ""),
                 "mode": status.get("mode", ""),
+                "mode_html": status.get("mode_html", ""),
                 "uptime": status.get("uptime", ""),
                 "running": status.get("server_running", False),
                 "error": None,
