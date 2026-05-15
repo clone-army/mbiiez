@@ -59,14 +59,15 @@ class RTVRTMPlugin:
     def setup_rtvrtm_files(self):
         """Generate .cfg and map files from JSON config with instance name prefix"""
         try:
-            # Get MBII folder path from MBIIEZ instance configuration (not OpenJK home)
-            mbii_folder = self.instance.conf.mbii_path
+            # Use the instance's MBII directory so RTVRTM stays isolated per instance.
+            mbii_folder = os.path.dirname(self.instance.config['server']['server_config_path'])
+            os.makedirs(mbii_folder, exist_ok=True)
             
             # Create file names with instance prefix
             instance_name = self.instance.name
             cfg_filename = f"{instance_name}_rtvrtm.cfg"
-            maps_filename = f"{instance_name}_maps.txt"
-            secondary_maps_filename = f"{instance_name}_secondary_maps.txt"
+            maps_filename = "maps.txt"
+            secondary_maps_filename = "secondary_maps.txt"
             
             # Full paths
             self.cfg_path = os.path.join(mbii_folder, cfg_filename)
@@ -95,7 +96,15 @@ class RTVRTMPlugin:
         mbii_folder = self.instance.conf.mbii_path
         port = self.instance.config['server']['port']
         rcon_password = self.instance.config['security']['rcon_password']
-        log_file = os.path.join(mbii_folder, f"{instance_name}-games.log")
+        log_file = self.instance.config['server']['log_path']
+
+        # Ensure the directory and the log file itself exist; RTVRTM aborts
+        # at startup if the Log: path doesn't resolve to an existing file.
+        log_dir = os.path.dirname(log_file)
+        if log_dir:
+            os.makedirs(log_dir, exist_ok=True)
+        if not os.path.exists(log_file):
+            open(log_file, 'a').close()
         
         # Build address and bind automatically
         address = f"127.0.0.1:{port}"
@@ -355,7 +364,8 @@ RTM change immediately: {rtm_change_immediately}
     def generate_maps_files(self):
         """Generate the maps.txt and secondary_maps.txt files from JSON configuration"""
         # Primary maps
-        primary_maps = list(self.config.get('primary_maps', []))
+        rtv_config = self.config.get('rtv', {})
+        primary_maps = list(rtv_config.get('primary_maps', self.config.get('primary_maps', [])))
         
         # Add active holiday maps
         holiday_maps = self.get_active_holiday_maps()
@@ -369,7 +379,7 @@ RTM change immediately: {rtm_change_immediately}
                 f.write(f"{map_name}\n")
         
         # Secondary maps
-        secondary_maps = self.config.get('secondary_maps', [])
+        secondary_maps = rtv_config.get('secondary_maps', self.config.get('secondary_maps', []))
         with open(self.secondary_maps_path, 'w') as f:
             for map_name in secondary_maps:
                 f.write(f"{map_name}\n")

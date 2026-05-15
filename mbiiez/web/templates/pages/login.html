@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <title>MBIIEZ Login</title>
+  <link href="/assets/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body {
+      background: radial-gradient(circle at 20% 20%, #e9f2fa 0%, #eef3f8 45%, #dde6ef 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .login-card {
+      width: 100%;
+      max-width: 460px;
+      border: 0;
+      border-radius: 14px;
+      box-shadow: 0 16px 38px rgba(20, 34, 56, 0.16);
+    }
+    .brand {
+      font-weight: 700;
+      letter-spacing: 0.3px;
+      color: #0f355c;
+    }
+    .hint {
+      color: #5f6e7e;
+      font-size: 0.95rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="card login-card">
+    <div class="card-body p-4 p-md-5">
+      <div class="mb-3">
+        <h3 class="brand mb-1">MBIIEZ Control Panel</h3>
+        <p class="hint mb-0">Sign in with your panel account.</p>
+      </div>
+
+      {% if error %}
+      <div class="alert alert-danger py-2">{{ error }}</div>
+      {% endif %}
+
+      <form method="post" action="/login">
+        <input type="hidden" name="next" value="{{ next_path }}">
+
+        <div class="mb-3">
+          <label for="username" class="form-label">Username</label>
+          <input id="username" name="username" class="form-control" autocomplete="username" required>
+        </div>
+
+        <div class="mb-3">
+          <label for="password" class="form-label">Password</label>
+          <input id="password" name="password" type="password" class="form-control" autocomplete="current-password" required>
+        </div>
+
+        <div class="d-grid">
+          <button type="submit" class="btn btn-primary">Sign In</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</body>
+</html>

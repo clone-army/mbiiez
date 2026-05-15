@@ -1,3 +1,6 @@
+# Ignore all configs except .example
+configs/*
+!configs/*.example
 .DS_Store
 *.json
 *.log
@@ -10,3 +13,4 @@ MBII.zip
 mbiiez.db-wal
 mbiiez.db-shm
 mbiiez.conf
+web_users.json

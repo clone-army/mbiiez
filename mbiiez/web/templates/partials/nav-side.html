@@ -1,6 +1,6 @@
 <nav id="sidebar" class="active">
             <div class="sidebar-header">
-                <img src="assets/img/bootstraper-logo.png" alt="bootraper logo" class="app-logo">
+                <img src="/assets/img/bootstraper-logo.png" alt="MBIIEZ logo" class="app-logo">
             </div>
             <ul class="list-unstyled components text-secondary">
                 <li>
@@ -15,7 +15,7 @@
                             <a href="#instance-{{ instance|lower }}" data-bs-toggle="collapse" aria-expanded="{{ 'true' if is_active_instance else 'false' }}" class="dropdown-toggle no-caret-down">
                                 <i class="fas fa-angle-right"></i> {{ instance|capitalize }}
                             </a>
-                            <ul class="collapse list-unstyled {% if is_active_instance %}show{% endif %}" id="instance-{{ instance|lower }}" style="padding-left: 1.5rem; background-color: #EEE;">
+                            <ul class="collapse list-unstyled {% if is_active_instance %}show{% endif %}" id="instance-{{ instance|lower }}" style="padding-left: 1.5rem; background-color: #151b24;">
                                 <li>
                                     <a href="/instance?instance={{ instance|lower }}" class="{% if request.path.startswith('/instance') and is_active_instance and not request.path.startswith('/instance/') %}active{% endif %}"><i class="fas fa-info-circle"></i> Status</a>
                                 </li>
@@ -25,18 +25,27 @@
                                 <li>
                                     <a href="/chat?instance={{ instance|lower }}" class="{% if request.path.startswith('/chat') and is_active_instance %}active{% endif %}"><i class="fas fa-comments"></i> Chat</a>
                                 </li>
+                                {% if can_admin %}
                                 <li>
                                     <a href="/config?instance={{ instance|lower }}" class="{% if request.path.startswith('/config') and is_active_instance %}active{% endif %}"><i class="fas fa-cog"></i> Config</a>
                                 </li>
+                                {% endif %}
+                                {% if can_mod %}
                                 <li>
                                     <a href="/rcon?instance={{ instance|lower }}" class="{% if request.path.startswith('/rcon') and is_active_instance %}active{% endif %}"><i class="fas fa-terminal"></i> RCON</a>
                                 </li>
                                 <li><a href="/mod?instance={{ instance|lower }}"><i class="fas fa-wrench"></i> Mod</a></li>
+                                {% endif %}
                             </ul>
                         </li>
                         {% endfor %}
                     </ul>
                 </li>
+                {% if can_admin %}
+                <li>
+                    <a href="/admin/users"><i class="fas fa-users-cog"></i> Admin Users</a>
+                </li>
+                {% endif %}
                 {# Comment out all other menu items for now #}
                 {#
                 <li>

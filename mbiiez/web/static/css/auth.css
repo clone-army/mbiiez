@@ -378,8 +378,9 @@ p.text-muted {
 .form-control,
 .form-select {
     border-radius: 3px;
-    border: 2px solid #E0E0E0;
-    background-color: #FAFAFA !important;
+    border: 2px solid #243041;
+    background-color: #0f141b !important;
+    color: #e6edf7;
     box-shadow: none !important;
 }
 
@@ -388,10 +389,16 @@ p.text-muted {
 }
 
 .form-control:focus,
-.form-select:focus, {
+.form-select:focus {
     box-shadow: none !important;
-    border: 2px solid #1e84c4;
-    background-color: #FAFAFA;
+    border: 2px solid #1f6feb;
+    background-color: #0f141b;
+    color: #ffffff;
+}
+
+.form-control::placeholder {
+    color: #8fa0b8;
+    opacity: 1;
 }
 
 .form-check-input:focus {

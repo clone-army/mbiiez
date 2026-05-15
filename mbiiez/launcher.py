@@ -26,14 +26,13 @@ class launcher:
     process_handler = None
     instance = None
     
-    services = []
-
     def __init__(self, instance):
         self.config = instance.config      
         self.log_handler = instance.log_handler
         self.process_handler = instance.process_handler
         self.instance_name = self.config['server']['name']
         self.instance = instance
+        self.services = []
 
     # Register a service that needs launching
     def register_service(self, name, func, auto_restart = True):
@@ -60,7 +59,7 @@ class launcher:
             while(not self.process_handler.process_status("OpenJK")): 
                 print("Starting OpenJK Dedicated...")
                 self.log_handler.log("Starting OpenJK Dedicated Server")
-                cmd = "nohup {} --quiet +set dedicated 2 +set net_port {} +set fs_game {}{} +exec {}".format(self.config['server']['engine'], self.config['server']['port'], settings.dedicated.game, self.instance.get_startup_cvar_args(), self.config['server']['server_config_file']);       
+                cmd = "nohup {} --quiet +set dedicated 2 +set net_port {} +set fs_game {}{} +exec {}".format(self.config['server']['engine'], self.config['server']['port'], settings.dedicated.game, self.instance.get_startup_cvar_args(), self.config['server']['server_config_exec_path']);       
                 process = subprocess.Popen(shlex.split(cmd), shell=False)  # ,stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL   
                 pid = process.pid
                 self.process_handler.add_pid("OpenJK", pid, self.instance_name)
@@ -86,14 +85,17 @@ class launcher:
         os.system("chmod +x {}/{}".format("/usr/bin", self.config['server']['engine']))  
           
         # Sym Links
-        if(os.path.exists("/root/.local/share/openjk")):
-            if(not os.path.islink("/root/.local/share/openjk")):
-                shutil.rmtree("/root/.local/share/openjk")       
-                os.symlink(settings.locations.game_path, "/root/.local/share/openjk")
-        
-        if(os.path.exists("/root/.ja")):
-            if(not os.path.islink("/root/.ja")):
-                shutil.rmtree("/root/.ja")       
-                os.symlink(settings.locations.game_path, "/root/.ja")  
+        openjk_link = os.path.expanduser("~/.local/share/openjk")
+        ja_link = os.path.expanduser("~/.ja")
+
+        if(os.path.exists(openjk_link)):
+            if(not os.path.islink(openjk_link)):
+                shutil.rmtree(openjk_link)
+                os.symlink(settings.locations.game_path, openjk_link)
+
+        if(os.path.exists(ja_link)):
+            if(not os.path.islink(ja_link)):
+                shutil.rmtree(ja_link)
+                os.symlink(settings.locations.game_path, ja_link)
     
         self.process_handler.start(self.launch_dedicated_server_thread, self.name_dedicated, self.instance_name)

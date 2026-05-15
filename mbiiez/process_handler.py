@@ -15,10 +15,10 @@ import inspect
 class process_handler:
 
     instance = None
-    services = []
     
     def __init__(self, instance):
         self.instance = instance
+        self.services = []
                
     def register_service(self, name, func, priority = 99, awaiter = None):
         """ 
@@ -34,6 +34,18 @@ class process_handler:
         services = sorted(self.services, key=lambda k: k['priority'])
         
         for service in services:
+
+            existing = db().select("processes", {"instance": self.instance.name, "name": service['name']})
+            if(existing):
+                still_running = False
+                for row in existing:
+                    if self.process_status_pid(row['pid']):
+                        still_running = True
+                        break
+
+                if still_running:
+                    self.instance.log_handler.log("Service already running: " + service['name'])
+                    continue
         
             if(service['awaiter'] and callable(service['awaiter'])):
                 service['awaiter']();
@@ -218,7 +230,6 @@ class process_handler:
         """         
         pr = db().select("processes",{"instance": self.instance.name, "name": name})
         db().execute("delete from processes where instance = \"{}\" and name = \"{}\"".format(self.instance.name, name))
-        
         self.services = [s for s in self.services if s["name"] != name]
         
         if(len(pr) == 0): # Without its pid we cant do anything here

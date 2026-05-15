@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <title>MBIIEZ First-Run Setup</title>
+  <link href="/assets/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body {
+      background: linear-gradient(135deg, #f4f6f8 0%, #e7edf3 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .setup-card {
+      width: 100%;
+      max-width: 520px;
+      border: 0;
+      border-radius: 14px;
+      box-shadow: 0 16px 40px rgba(20, 34, 56, 0.14);
+    }
+    .brand {
+      font-weight: 700;
+      letter-spacing: 0.4px;
+      color: #0f355c;
+    }
+    .hint {
+      color: #5f6e7e;
+      font-size: 0.95rem;
+    }
+    .mono {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.85rem;
+      color: #4d5967;
+      word-break: break-all;
+    }
+  </style>
+</head>
+<body>
+  <div class="card setup-card">
+    <div class="card-body p-4 p-md-5">
+      <div class="mb-3">
+        <h3 class="brand mb-1">MBIIEZ Control Panel Setup</h3>
+        <p class="hint mb-0">Create the first admin account to finish first-run setup.</p>
+      </div>
+
+      <form id="setup-form">
+        <div class="mb-3">
+          <label for="username" class="form-label">Admin Username</label>
+          <input id="username" name="username" class="form-control" autocomplete="username" required minlength="3">
+        </div>
+        <div class="mb-3">
+          <label for="password" class="form-label">Admin Password</label>
+          <input id="password" name="password" type="password" class="form-control" autocomplete="new-password" required minlength="8">
+          <div class="form-text">Use at least 8 characters.</div>
+        </div>
+
+        <div class="d-grid">
+          <button type="submit" class="btn btn-primary">Create Admin User</button>
+        </div>
+      </form>
+
+      <div id="status" class="mt-3"></div>
+
+      <hr class="my-4">
+      <div class="hint">Users file path:</div>
+      <div class="mono">{{ users_file }}</div>
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById('setup-form');
+    const statusEl = document.getElementById('status');
+
+    function setStatus(message, ok) {
+      statusEl.innerHTML = `<div class="alert ${ok ? 'alert-success' : 'alert-danger'} py-2 mb-0">${message}</div>`;
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const payload = {
+        username: document.getElementById('username').value.trim(),
+        password: document.getElementById('password').value
+      };
+
+      try {
+        const response = await fetch('/setup/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+          setStatus(data.error || 'Failed to create admin user.', false);
+          return;
+        }
+
+        setStatus(data.message || 'Setup complete. Reload and log in.', true);
+        setTimeout(() => window.location.href = '/', 1200);
+      } catch (err) {
+        setStatus(String(err), false);
+      }
+    });
+  </script>
+</body>
+</html>

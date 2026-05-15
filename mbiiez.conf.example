@@ -7,7 +7,7 @@ mbii_path = /opt/openjk/MBII
 ; Path to your Base Folder;
 base_path = /opt/openjk/Base
 
-config_path = /root/mbiiez/configs 
+config_path = configs
 
 [dedicated]
 ; This is the Dedicated Server Engine, you can choose between openjk.i386 and mbiided.i386 or any custom one in /usr/bin
@@ -17,11 +17,12 @@ engine = mbiided.i386
 game = MBII 
 
 [database]
-database = /root/mbiiez/mbiiez.db
+database = mbiiez.db
 
 [web_service]
 port = 8080
 username = admin
 password = admin
-auth_enabled = false
+auth_enabled = true
+users_file = web_users.json
 

@@ -1,4 +1,189 @@
 {% extends 'base.html' %}
 {% block content %}
-<!-- Dashboard intentionally left blank -->
+<div class="page-header mb-3">
+	<h3 class="page-title">Operations Dashboard</h3>
+</div>
+
+<div class="row mb-4">
+	<div class="col-md-4 mb-3">
+		<div class="card">
+			<div class="card-body">
+				<div class="text-muted">Instances</div>
+				<div class="h2 mb-0" id="dashboard-total">{{ view_bag.summary.total }}</div>
+			</div>
+		</div>
+	</div>
+	<div class="col-md-4 mb-3">
+		<div class="card">
+			<div class="card-body">
+				<div class="text-muted">Running</div>
+				<div class="h2 mb-0 text-success" id="dashboard-running">--</div>
+			</div>
+		</div>
+	</div>
+	<div class="col-md-4 mb-3">
+		<div class="card">
+			<div class="card-body">
+				<div class="text-muted">Online Players</div>
+				<div class="h2 mb-0 text-primary" id="dashboard-players">--</div>
+			</div>
+		</div>
+	</div>
+</div>
+
+<div class="card mb-4" id="dashboard-loader">
+	<div class="card-body d-flex align-items-center gap-3">
+		<div class="spinner-border text-primary" role="status" aria-hidden="true"></div>
+		<div>
+			<div class="fw-semibold">Loading instance details</div>
+			<div class="text-muted" id="dashboard-loader-text">Preparing cards...</div>
+		</div>
+	</div>
+</div>
+
+<div class="row">
+	{% for item in view_bag.instances %}
+	<div class="col-lg-6 mb-4">
+		<div class="card h-100 instance-card" data-instance="{{ item.name }}">
+			<div class="card-body">
+				<div class="d-flex justify-content-between align-items-center mb-2">
+					<h5 class="card-title mb-0" style="white-space:pre;" id="instance-title-{{ loop.index }}">{{ item.server_name_html|safe if item.server_name_html else item.name }}</h5>
+					<span class="badge bg-secondary" id="instance-status-{{ loop.index }}">Loading...</span>
+				</div>
+
+				<div class="row small mb-3">
+					<div class="col-6"><strong>Instance:</strong> {{ item.name }}</div>
+					<div class="col-6"><strong>Port:</strong> <span id="instance-port-{{ loop.index }}">{{ item.port if item.port else '...' }}</span></div>
+					<div class="col-6"><strong>Players:</strong> <span id="instance-players-{{ loop.index }}">...</span></div>
+					<div class="col-6"><strong>Map:</strong> <span style="white-space:pre;" id="instance-map-{{ loop.index }}">...</span></div>
+					<div class="col-6"><strong>Mode:</strong> <span style="white-space:pre;" id="instance-mode-{{ loop.index }}">...</span></div>
+					<div class="col-12"><strong>Uptime:</strong> <span id="instance-uptime-{{ loop.index }}">...</span></div>
+				</div>
+
+				<div class="d-flex flex-wrap gap-2">
+					<a href="/instance?instance={{ item.name }}" class="btn btn-outline-primary btn-sm">Status</a>
+					<a href="/logs?instance={{ item.name }}" class="btn btn-outline-secondary btn-sm">Logs</a>
+					<a href="/chat?instance={{ item.name }}" class="btn btn-outline-info btn-sm">Chat</a>
+					{% if can_mod %}
+					<a href="/mod?instance={{ item.name }}" class="btn btn-outline-warning btn-sm">Mod</a>
+					<a href="/rcon?instance={{ item.name }}" class="btn btn-outline-dark btn-sm">RCON</a>
+					{% endif %}
+					{% if can_admin %}
+					<button class="btn btn-success btn-sm" onclick="issueCommand('{{ item.name }}','start')">Start</button>
+					<button class="btn btn-warning btn-sm" onclick="issueCommand('{{ item.name }}','stop')">Stop</button>
+					<button class="btn btn-primary btn-sm" onclick="issueCommand('{{ item.name }}','restart')">Restart</button>
+					{% endif %}
+				</div>
+			</div>
+		</div>
+	</div>
+	{% endfor %}
+</div>
+
+{% if can_admin %}
+<script>
+async function issueCommand(instance, cmd) {
+	const endpoint = (cmd === 'start' || cmd === 'restart')
+		? `/instance/${instance}/command_async`
+		: `/instance/${instance}/command`;
+
+	const response = await fetch(endpoint, {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ command: cmd })
+	});
+
+	const data = await response.json();
+	if (!response.ok || data.error) {
+		alert(data.error || 'Command failed');
+		return;
+	}
+
+	alert(data.output || `${cmd} requested for ${instance}`);
+	setTimeout(() => location.reload(), 1500);
+}
+</script>
+{% endif %}
+
+<script>
+const dashboardCards = Array.from(document.querySelectorAll('.instance-card'));
+let dashboardRunningCount = 0;
+let dashboardPlayerCount = 0;
+let dashboardLoadedCount = 0;
+
+function updateDashboardTotals() {
+	document.getElementById('dashboard-running').textContent = dashboardLoadedCount > 0 ? String(dashboardRunningCount) : '--';
+	document.getElementById('dashboard-players').textContent = dashboardLoadedCount > 0 ? String(dashboardPlayerCount) : '--';
+}
+
+function setCardValue(instanceIndex, field, value) {
+	const element = document.getElementById(`instance-${field}-${instanceIndex}`);
+	if (element) {
+		element.textContent = value;
+	}
+}
+
+async function hydrateDashboardCard(card, instanceIndex) {
+	const instanceName = card.dataset.instance;
+	const statusBadge = document.getElementById(`instance-status-${instanceIndex}`);
+
+	try {
+		const response = await fetch(`/api/instance_status/${encodeURIComponent(instanceName)}`);
+		const data = await response.json();
+
+		if (!response.ok || data.error) {
+			throw new Error(data.error || 'Failed to load status');
+		}
+
+		const titleElement = document.getElementById(`instance-title-${instanceIndex}`);
+		titleElement.innerHTML = data.server_name_html || data.server_name || instanceName;
+		statusBadge.className = `badge ${data.running ? 'bg-success' : 'bg-danger'}`;
+		statusBadge.textContent = data.running ? 'Running' : 'Stopped';
+		const currentPort = document.getElementById(`instance-port-${instanceIndex}`)?.textContent || '';
+		const hydratedPort = String(data.port ?? '').trim();
+		setCardValue(instanceIndex, 'port', hydratedPort || currentPort || '...');
+		setCardValue(instanceIndex, 'players', data.players_count ?? 0);
+		setCardValue(instanceIndex, 'map', data.map || '');
+		setCardValue(instanceIndex, 'mode', data.mode || '');
+		setCardValue(instanceIndex, 'uptime', data.uptime || '');
+
+		if (data.running) {
+			dashboardRunningCount += 1;
+		}
+		dashboardPlayerCount += Number(data.players_count || 0);
+	} catch (error) {
+		statusBadge.className = 'badge bg-warning text-dark';
+		statusBadge.textContent = 'Unavailable';
+		setCardValue(instanceIndex, 'port', '...');
+		setCardValue(instanceIndex, 'players', 'N/A');
+		setCardValue(instanceIndex, 'map', 'N/A');
+		setCardValue(instanceIndex, 'mode', 'N/A');
+		setCardValue(instanceIndex, 'uptime', 'N/A');
+	} finally {
+		dashboardLoadedCount += 1;
+		updateDashboardTotals();
+	}
+}
+
+async function loadDashboardInstancesSequentially() {
+	const loader = document.getElementById('dashboard-loader');
+	const loaderText = document.getElementById('dashboard-loader-text');
+	const total = dashboardCards.length;
+
+	updateDashboardTotals();
+
+	for (let index = 0; index < dashboardCards.length; index += 1) {
+		loaderText.textContent = `Loading ${index + 1} of ${total}...`;
+		await hydrateDashboardCard(dashboardCards[index], index + 1);
+	}
+
+	loader.remove();
+}
+
+if (document.readyState === 'loading') {
+	document.addEventListener('DOMContentLoaded', loadDashboardInstancesSequentially);
+} else {
+	loadDashboardInstancesSequentially();
+}
+</script>
 {% endblock %}

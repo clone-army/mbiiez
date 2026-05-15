@@ -46,7 +46,7 @@ class instance:
     def __init__(self, name):
     
         self.name = name
-        self.external_ip = urllib.request.urlopen('https://www.myexternalip.com/raw').read().decode()       
+        self.external_ip = None
 
         self.start_cmd = None
         self.startup_cvars = {}
@@ -85,11 +85,101 @@ class instance:
         if(self.has_plugin("auto_message")):
             self.config['plugins']['auto_message']['messages'].append("This server is powered by MBIIEZ, visit bit.ly/2JhJRpO")    
 
-    def services_internal(self):
-        ''' Internal Services we wish to start on an instance start ''' 
+    def get_external_ip(self):
+        """
+        Fetch and cache the public IP only when it is actually needed.
+        """
+        if self.external_ip:
+            return self.external_ip
 
-        ''' Runs the Dedicated OpenJK Server ''' 
-        cmd = "{} --quiet +set dedicated 2 +set net_port {} +set fs_game {} +set fs_homepath {}{} +exec {}".format(self.config['server']['engine'], self.config['server']['port'], self.get_game(), self.config['server']['home_path'], self.get_startup_cvar_args(), self.config['server']['server_config_file']);       
+        try:
+            request = urllib.request.Request(
+                'https://www.myexternalip.com/raw',
+                headers={'User-Agent': 'MBIIEZ/1.0'},
+            )
+            with urllib.request.urlopen(request, timeout=2) as response:
+                self.external_ip = response.read().decode().strip()
+        except Exception:
+            self.external_ip = "unknown"
+
+        return self.external_ip
+
+    def get_homepath(self):
+        """
+        Return the unique fs_homepath for this instance.
+        """
+        return os.path.join(settings.locations.homepath_base, self.name)
+
+    def ensure_homepath(self):
+        """
+        Ensure the unique fs_homepath directory exists for this instance.
+        """
+        homepath = self.get_homepath()
+        if not os.path.exists(homepath):
+            os.makedirs(homepath)
+        return homepath
+
+    def cleanup_legacy_root_files(self):
+        """
+        Remove legacy per-instance files that were written directly into the game root.
+        """
+        root_path = settings.locations.game_path
+        if not os.path.isdir(root_path):
+            return
+
+        legacy_suffixes = (".cfg", ".log", ".txt")
+        legacy_prefixes = (
+            self.name,
+            "{}-".format(self.name),
+        )
+
+        for entry in os.scandir(root_path):
+            if not entry.is_file():
+                continue
+
+            name = entry.name
+            if not name.endswith(legacy_suffixes):
+                continue
+
+            if not any(name.startswith(prefix) for prefix in legacy_prefixes):
+                continue
+
+            try:
+                os.remove(entry.path)
+                self.log_handler.log("Removed legacy file: {}".format(entry.path))
+            except Exception as e:
+                self.log_handler.log("Failed to remove legacy file {}: {}".format(entry.path, str(e)))
+
+    def _build_launch_context(self, mode, cmd, working_directory, server_config_path, env=None):
+        context = {
+            "mode": mode,
+            "cmd": cmd,
+            "working_directory": working_directory,
+            "server_config_path": server_config_path,
+            "instance": self.name,
+        }
+
+        if env and 'LD_PRELOAD' in env:
+            context["ld_preload"] = env['LD_PRELOAD']
+
+        return context
+
+    def services_internal(self):
+        """ Internal Services we wish to start on an instance start """
+
+        # Ensure the homepath exists
+        homepath = self.ensure_homepath()
+
+        # Runs the Dedicated OpenJK Server
+        cmd = "{} --quiet +set dedicated 2 +set net_port {} +set fs_game {} +set fs_homepath {} +set fs_basepath {}{} +exec {}".format(
+            self.config['server']['engine'],
+            self.config['server']['port'],
+            self.get_game(),
+            homepath,
+            settings.locations.game_path,
+            self.get_startup_cvar_args(),
+            self.config['server']['server_config_exec_path']
+        )
 
         # Check for anytime_spin plugin - prepend LD_PRELOAD to trick the game into thinking it's Sunday
         if self.has_plugin('anytime_spin'):
@@ -212,7 +302,7 @@ class instance:
             cfg_file.writelines(lines)
        
     # Get / Set a CVAR
-    def cvar(self, key, value = None):
+    def cvar(self, key, value = None, quiet = False):
        if(not value == None):
             try:
                 self.register_startup_cvar(key, value)
@@ -220,11 +310,11 @@ class instance:
                 self.exception_handler.log(e)
 
             if(self.server_running()):
-                return self.console.cvar(key, value)
+                return self.console.cvar(key, value, quiet)
 
             return None
 
-       return self.console.cvar(key, value)   
+       return self.console.cvar(key, value, quiet)   
        
     # Run an SVSAY command
     def say(self, message):
@@ -251,10 +341,12 @@ class instance:
             return True
          else:
             try:
-                server_map = self.cvar("mapname")
+                server_map = self.cvar("mapname", quiet=True)
+                if(not server_map):
+                    return "Loading"
                
             except:
-                server_map = "Error while fetching"
+                server_map = "Loading"
             
             return server_map        
         
@@ -267,7 +359,11 @@ class instance:
             print("Mode change requested to Mode {}".format(mode))
             return True
         else:   
-            mode = self.cvar("g_authenticity")
+            mode = self.cvar("g_authenticity", quiet=True)
+            if(not mode):
+                mode = self.cvar("g_Authenticity", quiet=True)
+            if(not mode):
+                mode = "Loading"
 
         try:
             
@@ -404,7 +500,7 @@ class instance:
         output = []
 
         lookup = helpers().ip_info()
-        output.append(f"Server IP {self.external_ip}")
+        output.append(f"Server IP {self.get_external_ip()}")
         output.append(f"Server Location {lookup['region']}")
         output.append("-------------------------------------------")
         output.append("CA Central: " + testing().ping_test("35.182.0.251"))
@@ -429,7 +525,17 @@ class instance:
              return;
    
         # Generate our configs
+        self.ensure_homepath()
         self.conf.generate_server_config()
+        self.cleanup_legacy_root_files()
+
+        launch_context = self._build_launch_context(
+            mode="service",
+            cmd=self.start_cmd or "",
+            working_directory=self.get_homepath(),
+            server_config_path=self.config['server']['server_config_path'],
+        )
+        self.event_handler.run_event("before_launch_server", launch_context)
         
         # Can Instance Can Start?
         if(os.path.exists(self.config['server']['server_config_path'])): 
@@ -444,18 +550,22 @@ class instance:
             os.system("chmod +x {}/{}".format("/usr/bin", self.config['server']['engine']))  
               
             # Sym Links
-            if(os.path.exists("/root/.local/share/openjk")):
-                if(not os.path.islink("/root/.local/share/openjk")):
-                    shutil.rmtree("/root/.local/share/openjk")       
-                    os.symlink(settings.locations.game_path, "/root/.local/share/openjk")
-            
-            if(os.path.exists("/root/.ja")):
-                if(not os.path.islink("/root/.ja")):
-                    shutil.rmtree("/root/.ja")       
-                    os.symlink(settings.locations.game_path, "/root/.ja")  
+            openjk_link = os.path.expanduser("~/.local/share/openjk")
+            ja_link = os.path.expanduser("~/.ja")
+
+            if(os.path.exists(openjk_link)):
+                if(not os.path.islink(openjk_link)):
+                    shutil.rmtree(openjk_link)
+                    os.symlink(settings.locations.game_path, openjk_link)
+
+            if(os.path.exists(ja_link)):
+                if(not os.path.islink(ja_link)):
+                    shutil.rmtree(ja_link)
+                    os.symlink(settings.locations.game_path, ja_link)
+
+            self.log_handler.log("OpenJK user paths resolved: openjk_link={}, ja_link={}".format(openjk_link, ja_link))
         
                            
-            self.event_handler.run_event("before_launch_server")
             self.process_handler.launch_services()
      
       
@@ -479,7 +589,9 @@ class instance:
              return
    
         # Generate our configs
+        self.ensure_homepath()
         self.conf.generate_server_config()
+        self.cleanup_legacy_root_files()
         
         # Can Instance Can Start?
         if not os.path.exists(self.config['server']['server_config_path']):
@@ -498,26 +610,24 @@ class instance:
         os.system("chmod +x {}".format(engine_path))  
           
         # Sym Links
-        if(os.path.exists("/root/.local/share/openjk")):
-            if(not os.path.islink("/root/.local/share/openjk")):
-                shutil.rmtree("/root/.local/share/openjk")       
-                os.symlink(settings.locations.game_path, "/root/.local/share/openjk")
-        
-        if(os.path.exists("/root/.ja")):
-            if(not os.path.islink("/root/.ja")):
-                shutil.rmtree("/root/.ja")       
-                os.symlink(settings.locations.game_path, "/root/.ja")  
+        openjk_link = os.path.expanduser("~/.local/share/openjk")
+        ja_link = os.path.expanduser("~/.ja")
 
-        # Build the command (without --quiet so we see output)
-        cmd = "{} +set dedicated 2 +set net_port {} +set fs_game {} +set fs_homepath {}{} +exec {}".format(
-            engine_path,
-            self.config['server']['port'],
-            self.get_game(),
-            self.config['server']['home_path'],
-            self.get_startup_cvar_args(),
-            self.config['server']['server_config_file']
-        )
-        
+        if(os.path.exists(openjk_link)):
+            if(not os.path.islink(openjk_link)):
+                shutil.rmtree(openjk_link)
+                os.symlink(settings.locations.game_path, openjk_link)
+
+        if(os.path.exists(ja_link)):
+            if(not os.path.islink(ja_link)):
+                shutil.rmtree(ja_link)
+                os.symlink(settings.locations.game_path, ja_link)
+
+        print(bcolors.YELLOW + "User Paths:" + bcolors.ENDC)
+        print("openjk_link: {}".format(openjk_link))
+        print("ja_link: {}".format(ja_link))
+        print()
+
         # Check for anytime_spin plugin - prepend LD_PRELOAD to trick the game into thinking it's Sunday
         env = os.environ.copy()
         anytime_spin_enabled = False
@@ -529,6 +639,26 @@ class instance:
                 print(bcolors.GREEN + "Anytime Spin: ENABLED (using fake Sunday)" + bcolors.ENDC)
             else:
                 print(bcolors.RED + "Anytime Spin: WARNING - {} not found".format(fake_sunday_lib) + bcolors.ENDC)
+
+        # Build the command (without --quiet so we see output)
+        cmd = "{} +set dedicated 2 +set net_port {} +set fs_game {} +set fs_homepath {} +set fs_basepath {}{} +exec {}".format(
+            engine_path,
+            self.config['server']['port'],
+            self.get_game(),
+            self.get_homepath(),
+            settings.locations.game_path,
+            self.get_startup_cvar_args(),
+            self.config['server']['server_config_exec_path']
+        )
+
+        launch_context = self._build_launch_context(
+            mode="debug",
+            cmd=cmd,
+            working_directory=self.config['server']['home_path'],
+            server_config_path=self.config['server']['server_config_path'],
+            env=env,
+        )
+        self.event_handler.run_event("before_debug_launch_server", launch_context)
         
         print(bcolors.CYAN + "=" * 60 + bcolors.ENDC)
         print(bcolors.CYAN + "DEBUG MODE - Engine output will be shown below" + bcolors.ENDC)
@@ -568,6 +698,9 @@ class instance:
                 print(line, end='')
             
             process.wait()
+
+            launch_context["returncode"] = process.returncode
+            self.event_handler.run_event("after_debug_launch_server", launch_context)
             
             print()
             print(bcolors.CYAN + "=" * 60 + bcolors.ENDC)
@@ -611,13 +744,16 @@ class instance:
         """
         Return all status information as a dictionary for programmatic use.
         """
+        server_name_raw = self.config['server']['host_name']
         info = {
             "instance_name": self.name,
-            "server_name": bcolors().color_convert(self.config['server']['host_name']),
+            "server_name": server_name_raw,
+            "server_name_ansi": bcolors().color_convert(server_name_raw),
+            "server_name_html": bcolors().html_color_convert(server_name_raw),
             "game": self.get_game(),
             "engine": self.config['server']['engine'],
             "port": self.config['server']['port'],
-            "full_address": f"{self.external_ip}:{self.config['server']['port']}",
+            "full_address": f"{self.get_external_ip()}:{self.config['server']['port']}",
             "mode": self.mode(None),
             "map": self.map(None),
             "plugins": self.plugins_registered,
@@ -646,7 +782,7 @@ class instance:
         output.append("------------------------------------")
         if info['server_running']:
             output.append(f"{bcolors.CYAN}Instance Name: {bcolors.ENDC}{info['instance_name']}")
-            output.append(f"{bcolors.CYAN}Server Name: {bcolors.ENDC}{info['server_name']}")
+            output.append(f"{bcolors.CYAN}Server Name: {bcolors.ENDC}{info['server_name_ansi']}")
             output.append(f"{bcolors.CYAN}Game: {bcolors.ENDC}{info['game']}")
             output.append(f"{bcolors.CYAN}Engine: {bcolors.ENDC}{info['engine']}")
             output.append(f"{bcolors.CYAN}Port: {bcolors.ENDC}{info['port']}")
@@ -695,7 +831,10 @@ class instance:
     def version(self):
         """Return the MBII version string from RCON 'gamename'."""
         try:
-            return self.cvar('gamename')
+            version = self.cvar('gamename', quiet=True)
+            if(not version):
+                return "Unknown"
+            return version
         except Exception:
             return "Unknown"
 
@@ -727,4 +866,4 @@ class instance:
     def restart(self):     
         self.stop()
         time.sleep(2)
-        self.start()    
+        self.start()

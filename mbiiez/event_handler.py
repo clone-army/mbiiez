@@ -14,10 +14,9 @@ class event_handler:
 
     instance = None
 
-    events = {}
-
     def __init__(self, instance):
         self.instance = instance
+        self.events = {}
     
     def register_event(self, event_name, func):
         if(not event_name in self.events):

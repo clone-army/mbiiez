@@ -13,12 +13,25 @@ class db:
     _cleanup_interval_seconds = 6 * 60 * 60  # every 6 hours
     _last_cleanup = 0.0
     _cleanup_lock = threading.Lock()
+    _init_lock = threading.Lock()
+    _initialized = False
 
     def __init__(self):
         """ generates schema if not already created """
-        self.generate_schema()
-        self.enable_wal()
+        self._ensure_initialized()
         self._maybe_cleanup()
+
+    def _ensure_initialized(self):
+        if db._initialized:
+            return
+
+        with db._init_lock:
+            if db._initialized:
+                return
+
+            self.generate_schema()
+            self.enable_wal()
+            db._initialized = True
 
 
 
@@ -136,6 +149,29 @@ class db:
             conn.close()
                     
         return cur.lastrowid 
+
+    def insert_logs_batch(self, rows):
+        """
+        Insert many log rows in one transaction.
+        rows: list of tuples (added, log, instance)
+        """
+        if not rows:
+            return
+
+        conn = None
+        try:
+            conn = self.connect()
+            cur = conn.cursor()
+            cur.executemany(
+                "INSERT INTO logs (added, log, instance) VALUES (?, ?, ?)",
+                rows,
+            )
+            conn.commit()
+        except Error as e:
+            print(e)
+        finally:
+            if conn:
+                conn.close()
         
     """ Table exists without locking """           
     def table_exists(self, table):
@@ -328,6 +364,20 @@ class db:
                 name text,
                 instance text
             );""")        
+
+        # Tracks moderation/admin actions triggered from the web UI
+        if(not self.table_exists("web_audit")):
+            self.create_table("""
+            CREATE TABLE IF NOT EXISTS web_audit (
+                id integer PRIMARY KEY AUTOINCREMENT,
+                added datetime,
+                actor text,
+                role text,
+                action text,
+                instance text,
+                details text,
+                ip text
+            );""")
                   
         
         # View, latest player "Client Change Info"

@@ -1,6 +1,7 @@
 from flask import request, jsonify
 from mbiiez.instance import instance as MBInstance
 from mbiiez.bcolors import bcolors
+import re
 
 class controller:
     controller_bag = {}
@@ -20,8 +21,18 @@ class controller:
             for p in players:
                 p['name'] = bc.html_color_convert(str(p.get('name', '')))
             self.controller_bag['players'] = players
-            # TODO: Fill bans with actual data if available
-            self.controller_bag['bans'] = []  # To be filled by listbans logic
+            self.controller_bag['bans'] = self.get_bans(inst)
+
+    @staticmethod
+    def get_bans(inst):
+        """Parse banned IPs from g_banips output."""
+        try:
+            output = inst.rconResponse("g_banips") or ""
+            ips = re.findall(r"\b(?:\d{1,3}\.){3}\d{1,3}\b", output)
+            # Preserve insertion order while removing duplicates.
+            return list(dict.fromkeys(ips))
+        except Exception:
+            return []
 
     @staticmethod
     def change_map(instance, mapname):

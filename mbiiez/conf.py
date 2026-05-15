@@ -14,6 +14,8 @@ class conf:
         self.name = name
         self.mbii_path = settings.locations.mbii_path
         self.script_path = settings.locations.script_path
+        self.homepath_base = settings.locations.homepath_base
+        self.game_name = settings.dedicated.game
         self.config_path = "{}/configs".format(settings.locations.script_path)
         self.get_config()
     
@@ -30,23 +32,29 @@ class conf:
                 data = json.load(config_data)
             
                 data['server']['name'] = self.name
-                
-                data['server']['home_path'] = '/root/.local/share/openjk'
+
+                instance_home_path = os.path.join(self.homepath_base, self.name)
+                instance_game_path = os.path.join(instance_home_path, self.game_name)
+                data['server']['home_path'] = instance_home_path
                     
                 data['server']['rtvrtm_config_file'] = "{}-rtvrtm.cfg".format(self.name)
-                data['server']['rtvrtm_config_path'] = "{}/{}".format(self.mbii_path, data['server']['rtvrtm_config_file'])
+                data['server']['rtvrtm_config_path'] = os.path.join(instance_home_path, data['server']['rtvrtm_config_file'])
                 
                 data['server']['server_config_file'] = "{}-server.cfg".format(self.name) 
-                data['server']['server_config_path'] = "{}/{}".format(self.mbii_path, data['server']['server_config_file'])
+                data['server']['server_config_path'] = os.path.join(instance_game_path, data['server']['server_config_file'])
+                # `exec` is resolved relative to fs_game, so only pass the filename.
+                data['server']['server_config_exec_path'] = data['server']['server_config_file']
                 
                 data['server']['primary_maplist_file'] = "{}-primary.txt".format(self.name) 
-                data['server']['primary_maplist_path'] = "{}/{}".format(self.mbii_path, data['server']['primary_maplist_file'])  
+                data['server']['primary_maplist_path'] = os.path.join(instance_home_path, data['server']['primary_maplist_file'])  
                 
                 data['server']['secondary_maplist_file'] = "{}-secondary.txt".format(self.name) 
-                data['server']['secondary_maplist_path'] = "{}/{}".format(self.mbii_path, data['server']['secondary_maplist_file']) 
+                data['server']['secondary_maplist_path'] = os.path.join(instance_home_path, data['server']['secondary_maplist_file']) 
                 
-                data['server']['log_file'] = "{}-games.log".format(self.name)  
-                data['server']['log_path'] = "{}/{}".format(self.mbii_path, data['server']['log_file'])
+                data['server']['log_file'] = "{}-games.log".format(self.name)
+                # OpenJK writes g_log relative to fs_homepath/fs_game, so the real
+                # log lives inside the MBII subfolder of the instance homepath.
+                data['server']['log_path'] = os.path.join(instance_game_path, data['server']['log_file'])
                     
                 data['server']['pid_file'] = "{}/pids/{}.pid".format(self.script_path, self.name)  
                 
@@ -61,6 +69,10 @@ class conf:
 
     # Generate a server.cfg from JSON config   
     def generate_server_config(self):
+        config_dir = os.path.dirname(self.config['server']['server_config_path'])
+        if config_dir and not os.path.exists(config_dir):
+            os.makedirs(config_dir, exist_ok=True)
+
         with open("{}/server.template".format(self.config_path), 'r') as file:
             data = file.read()
             
@@ -220,4 +232,19 @@ class conf:
             f = open(self.config['server']['server_config_path'], "w")
             f.write(data)
             f.close()
+
+            # Remove stale root configs and the old compatibility shim if they were created by earlier versions.
+            root_cfg_path = os.path.join(self.config['server']['home_path'], self.config['server']['server_config_file'])
+            if os.path.exists(root_cfg_path):
+                try:
+                    os.remove(root_cfg_path)
+                except Exception:
+                    pass
+
+            legacy_cfg_path = os.path.join(self.config['server']['home_path'], self.game_name, "openjk_server.cfg")
+            if os.path.exists(legacy_cfg_path):
+                try:
+                    os.remove(legacy_cfg_path)
+                except Exception:
+                    pass
 

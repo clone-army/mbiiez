@@ -9,6 +9,9 @@
     </ol>
   </nav>
 </div>
+<div class="alert alert-info py-2">
+  Moderation actions are live. Use map/mode controls carefully during active rounds.
+</div>
 <div class="row">
   <!-- Map Card -->
   <div class="col-md-6 mb-4">
@@ -103,6 +106,12 @@
   </div>
 </div>
 <script>
+function showStatus(targetId, message, ok = true) {
+  const el = document.getElementById(targetId);
+  if (!el) return;
+  el.innerHTML = `<span class="${ok ? 'text-success' : 'text-danger'}">${message}</span>`;
+}
+
 function showTellModal(playerId, playerName) {
   document.getElementById('tell-player-name').innerHTML = 'To: ' + playerName;
   document.getElementById('tell-message').value = '';
@@ -116,52 +125,79 @@ function showTellModal(playerId, playerName) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ instance: '{{ view_bag.instance }}', player_id: playerId, message: msg })
     }).then(r => r.json()).then(data => {
+      if (!data.success) {
+        alert(data.error || 'Failed to send message');
+        return;
+      }
       modal.hide();
+      showStatus('mode-status', 'Tell sent successfully.');
     });
   };
 }
 function banPlayer(ip) {
+  if (!confirm(`Ban IP ${ip}?`)) return;
   fetch(`/mod/ban`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ instance: '{{ view_bag.instance }}', ip })
-  }).then(r => r.json()).then(data => { location.reload(); });
+  }).then(r => r.json()).then(data => {
+    if (!data.success) {
+      alert(data.error || 'Ban failed');
+      return;
+    }
+    location.reload();
+  });
 }
 function kickPlayer(id) {
+  if (!confirm(`Kick player ${id}?`)) return;
   fetch(`/mod/kick`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ instance: '{{ view_bag.instance }}', player_id: id })
-  }).then(r => r.json()).then(data => { location.reload(); });
+  }).then(r => r.json()).then(data => {
+    if (!data.success) {
+      alert(data.error || 'Kick failed');
+      return;
+    }
+    location.reload();
+  });
 }
 function unbanIp(ip) {
   fetch(`/mod/unban`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ instance: '{{ view_bag.instance }}', ip })
-  }).then(r => r.json()).then(data => { location.reload(); });
+  }).then(r => r.json()).then(data => {
+    if (!data.success) {
+      alert(data.error || 'Unban failed');
+      return;
+    }
+    location.reload();
+  });
 }
 document.getElementById('change-map').onclick = function() {
   const map = document.getElementById('map-input').value.trim();
   if (!map) return;
+  if (!confirm(`Change map to ${map}?`)) return;
   fetch(`/mod/map`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ instance: '{{ view_bag.instance }}', mapname: map })
   }).then(r => r.json()).then(data => {
-    document.getElementById('map-status').innerText = data.success ? 'Changed!' : data.error;
+    showStatus('map-status', data.success ? 'Map change sent.' : (data.error || 'Failed'), data.success);
     if (data.success) location.reload();
   });
 };
 document.getElementById('change-mode').onclick = function() {
   const mode = document.getElementById('mode-input').value;
   if (!mode) return;
+  if (!confirm('Change mode now?')) return;
   fetch(`/mod/mode`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ instance: '{{ view_bag.instance }}', mode })
   }).then(r => r.json()).then(data => {
-    document.getElementById('mode-status').innerText = data.success ? 'Changed!' : data.error;
+    showStatus('mode-status', data.success ? 'Mode change sent.' : (data.error || 'Failed'), data.success);
     if (data.success) location.reload();
   });
 };

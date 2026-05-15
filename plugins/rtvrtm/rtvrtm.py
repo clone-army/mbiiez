@@ -158,6 +158,13 @@ class plugin:
             
             if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
                 self.instance.log_handler.log(f"RTVRTM: Plugin registered with status: {self.rtvrtm_plugin_instance.status()}")
+
+            if hasattr(self.instance, 'event_handler'):
+                self.instance.event_handler.register_event("before_launch_server", self.before_dedicated_server_launch)
+                self.instance.event_handler.register_event("before_debug_launch_server", self.before_dedicated_server_launch)
+                self.instance.event_handler.register_event("after_debug_launch_server", self.after_dedicated_server_launch)
+                if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
+                    self.instance.log_handler.log("RTVRTM: Registered launch debug hooks")
             
         except Exception as e:
             if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
@@ -198,7 +205,27 @@ class plugin:
         try:
             if self.rtvrtm_plugin_instance:
                 if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
-                    self.instance.log_handler.log("RTVRTM: Server starting - RTVRTM ready")
+                    cmd = data.get('cmd', '') if isinstance(data, dict) else ''
+                    mode = data.get('mode', 'unknown') if isinstance(data, dict) else 'unknown'
+                    working_directory = data.get('working_directory', '') if isinstance(data, dict) else ''
+                    server_config_path = data.get('server_config_path', '') if isinstance(data, dict) else ''
+                    self.instance.log_handler.log(
+                        "RTVRTM: Launch hook mode={} cwd={} config={} cmd={}".format(
+                            mode,
+                            working_directory,
+                            server_config_path,
+                            cmd,
+                        )
+                    )
+                    if hasattr(self.rtvrtm_plugin_instance, 'cfg_path'):
+                        rtvrtm_script = os.path.join(os.path.dirname(__file__), 'rtvrtm_original.py')
+                        self.instance.log_handler.log(
+                            "RTVRTM: Command: {} {} -c {}".format(
+                                sys.executable,
+                                rtvrtm_script,
+                                self.rtvrtm_plugin_instance.cfg_path,
+                            )
+                        )
         except Exception as e:
             if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
                 self.instance.log_handler.log(f"RTVRTM: Error in before_dedicated_server_launch: {e}")
@@ -207,9 +234,10 @@ class plugin:
         """Called after server starts"""
         try:
             if self.rtvrtm_plugin_instance:
-                status = self.rtvrtm_plugin_instance.status()
                 if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
-                    self.instance.log_handler.log(f"RTVRTM: Status after server launch: {status}")
+                    status = self.rtvrtm_plugin_instance.status()
+                    returncode = data.get('returncode', 'unknown') if isinstance(data, dict) else 'unknown'
+                    self.instance.log_handler.log(f"RTVRTM: Status after debug launch (returncode={returncode}): {status}")
                     
                 # Check if the process is actually running (service might be managed differently)
                 if hasattr(self.rtvrtm_plugin_instance, 'rtvrtm_process') and self.rtvrtm_plugin_instance.rtvrtm_process:

@@ -140,6 +140,12 @@ This is still a little rough round the edges, i am NOT a full python dev, if any
 - The webui can be installed using `bash install_web.sh` it will try to install as a service called `mbii-web`
 - Run manually with `bash mbii-web.py`
 - defaults to port 8080
+- Authentication is role-aware (`viewer`, `mod`, `admin`)
+- Configure users in `web_users.json` (created by first-run setup)
+- `mbiiez.conf` supports:
+	- `auth_enabled = true|false`
+	- `users_file = web_users.json`
+- On first run, if `users_file` does not exist, the web UI shows a setup page to create the first admin user.
 
 ### Still to do
 

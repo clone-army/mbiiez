@@ -10,8 +10,12 @@ import time
 import re
 import os
 import random
+import queue
+import threading
 import inotify.adapters
 from mbiiez.helpers import helpers
+from mbiiez import settings
+from mbiiez.db import db
 
 from mbiiez.models import chatter, log, frag, connection
 
@@ -24,6 +28,40 @@ class log_handler:
         self.instance = instance
         self.log_file = self.instance.config['server']['log_path']
         self.file_position = 0  # Track position in file for inotify
+        self._db_log_queue = queue.Queue(maxsize=5000)
+        self._db_log_batch_size = 100
+        self._db_log_flush_interval = 0.25
+        self._db_log_writer = threading.Thread(target=self._log_writer_loop, daemon=True)
+        self._db_log_writer.start()
+
+    def _flush_log_batch(self, batch):
+        if not batch:
+            return
+
+        try:
+            db().insert_logs_batch(batch)
+        except Exception as e:
+            # Avoid recursive logging loops if DB writes fail.
+            print("Log batch flush error: {}".format(str(e)))
+
+    def _log_writer_loop(self):
+        batch = []
+
+        while True:
+            try:
+                item = self._db_log_queue.get(timeout=self._db_log_flush_interval)
+                batch.append(item)
+
+                if len(batch) >= self._db_log_batch_size:
+                    self._flush_log_batch(batch)
+                    batch.clear()
+
+            except queue.Empty:
+                if batch:
+                    self._flush_log_batch(batch)
+                    batch.clear()
+            except Exception as e:
+                print("Log writer error: {}".format(str(e)))
     
     def log_await(self):
         x = 0
@@ -146,11 +184,21 @@ class log_handler:
 
     def log(self, log_line):
         """
-        log to database
+        Queue a log line for batched database writes.
         """    
         log_line = log_line.lstrip().lstrip()
         log_line = helpers().ansi_strip(log_line)
-        log().new(log_line, self.instance.name)
+        row = (str(datetime.datetime.now()), log_line, self.instance.name)
+
+        try:
+            self._db_log_queue.put_nowait(row)
+        except queue.Full:
+            # Keep newest data flowing under burst load.
+            try:
+                self._db_log_queue.get_nowait()
+                self._db_log_queue.put_nowait(row)
+            except Exception:
+                pass
         
     def process(self, last_line):
         """
@@ -302,7 +350,8 @@ class log_handler:
                 player_id = None
             
             # Log successful parsing for debugging
-            self.instance.log_handler.log("Chat parsed - Player: '{}' Message: '{}'".format(player_clean, message[:50]))
+            if settings.globals.verbose:
+                self.instance.log_handler.log("Chat parsed - Player: '{}' Message: '{}'".format(player_clean, message[:50]))
             
             # Determine event type and trigger
             if message.startswith("!") and not is_team:
@@ -317,7 +366,8 @@ class log_handler:
                 # Regular chat event
                 event_name = "player_chat_team" if is_team else "player_chat"
                 chat_type_str = "TEAM" if is_team else "PUBLIC"
-                self.instance.log_handler.log("Triggering {} event for message: '{}'".format(event_name, message))
+                if settings.globals.verbose:
+                    self.instance.log_handler.log("Triggering {} event for message: '{}'".format(event_name, message))
                 self.instance.event_handler.run_event(event_name, {
                     "type": chat_type_str, 
                     "message": message, 

@@ -10,8 +10,5 @@
     // Always keep sidebar open
     $('#sidebar').addClass('active');
     $('#body').addClass('active');
-
-    // Optionally, disable the toggle button
-    $('#sidebarCollapse').hide();
 })();
 

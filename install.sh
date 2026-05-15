@@ -62,6 +62,7 @@ readonly MBII_DIR="${BASE}/MBII"
 readonly VENV_DIR="${BASE}/venv"
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly SERVICE_NAME="mbii-web"
+readonly WEB_INSTALL_SCRIPT="${SCRIPT_DIR}/install_web.sh"
 
 # ─── 1) APT packages ──────────────────────────────────────────────────────
 run_step "Installing APT packages" \
@@ -195,10 +196,10 @@ run_step "Installing openjkded command" \
    chmod +x /usr/bin/openjkded.i386"
 
 
-# ─── Symlink OpenJK into root’s local share ───────────────────────────────
-run_step "Symlinking /opt/openjk to /root/.local/share/openjk" \
-  "mkdir -p /root/.local/share && \
-   ln -sfn \"${BASE}\" /root/.local/share/openjk"
+# ─── Symlink OpenJK into current user's local share ───────────────────────
+run_step "Symlinking /opt/openjk to \$HOME/.local/share/openjk" \
+  "mkdir -p \"$HOME/.local/share\" && \
+   ln -sfn \"${BASE}\" \"$HOME/.local/share/openjk\""
 
 # ─── Install mbii CLI command ─────────────────────────────────────────────
 run_step "Installing mbii CLI command" \
@@ -226,32 +227,32 @@ run_step "Setting up configuration files" \
      echo \"mbiiez.conf already exists, skipping\"; \
    fi"
 
-# ─── 9) Write systemd service ─────────────────────────────────────────────
-printf "${BLUE}→ Writing systemd service...${NC} "
-cat >"/etc/systemd/system/${SERVICE_NAME}.service" <<EOF
-[Unit]
-Description=MBII Web UI
-After=network.target
+# ─── 9) Optional Web panel installation ───────────────────────────────────
+echo
+if [[ -t 0 ]]; then
+  printf "${BLUE}Install Web Panel now?${NC} [y/N]: "
+  read -r install_web_choice
+else
+  install_web_choice="n"
+fi
 
-[Service]
-WorkingDirectory=${SCRIPT_DIR}
-ExecStart=${VENV_DIR}/bin/python3 ${SCRIPT_DIR}/server.py
-Restart=always
-
-[Install]
-WantedBy=multi-user.target
-EOF
-printf "${GREEN}✔${NC}\n"
-
-# ─── 9) Enable & start ────────────────────────────────────────────────────
-run_step "Enabling systemd service" \
-  "systemctl daemon-reload && systemctl enable ${SERVICE_NAME} && systemctl restart ${SERVICE_NAME}"
+if [[ "${install_web_choice:-n}" =~ ^[Yy]$ ]]; then
+  if [[ -f "$WEB_INSTALL_SCRIPT" ]]; then
+    run_step "Running Web Panel installer" \
+      "chmod +x \"${WEB_INSTALL_SCRIPT}\" && \"${WEB_INSTALL_SCRIPT}\""
+  else
+    printf "${RED}✗ install_web.sh not found at %s${NC}\n" "$WEB_INSTALL_SCRIPT"
+  fi
+else
+  printf "${YELLOW}→ Skipping Web Panel install.${NC}\n"
+  printf "   Run manually later with: ${BLUE}bash %s${NC}\n" "$WEB_INSTALL_SCRIPT"
+fi
 
 # ─── Done ────────────────────────────────────────────────────────────────
 printf "\n${GREEN}✅ Installation complete!${NC}\n"
 printf " • Engines in %s:\n     - MBII installed via updater DLL into %s\n     - OpenJK under %s\n" \
   "$BASE" "$MBII_DIR" "$BASE"
-printf " • Web UI: http://0.0.0.0:8080  (default Admin/Admin)\n"
+printf " • Web UI installer: %s\n" "$WEB_INSTALL_SCRIPT"
 
 printf "\n${YELLOW}⚠️  IMPORTANT CONFIGURATION STEPS:${NC}\n"
 printf " • Edit ${SCRIPT_DIR}/mbiiez.conf to configure your server settings\n"

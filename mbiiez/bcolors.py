@@ -43,32 +43,47 @@ class bcolors:
 
     def html_color_convert(self, text):
         """
-        Convert ^-style color codes and also handle ANSI escape codes to HTML <span> tags with inline color styles.
+        Convert Quake 3 ^-style color codes and ANSI escape codes to HTML <span> tags with inline color styles.
         """
+        import html
         import re
+
         color_map = {
-            '0': 'black',
-            '1': 'red',
-            '2': 'green',
-            '3': 'yellow',
-            '4': 'blue',
-            '5': 'cyan',
-            '6': 'purple',
-            '7': 'white',
+            '0': '#000000',
+            '1': '#ff4d4d',
+            '2': '#00ff00',
+            '3': '#ffff00',
+            '4': '#3366ff',
+            '5': '#00ffff',
+            '6': '#ff55ff',
+            '7': '#ffffff',
             '9': '',
         }
-        # Remove ANSI escape codes (e.g., \x1b[0;36m)
+
+        if text is None:
+            return ''
+
+        text = str(text)
         text = re.sub(r'\x1b\[[0-9;]*m', '', text)
         text = re.sub(r'\033\[[0-9;]*m', '', text)
-        # Replace ^[0-9] with span
-        def repl(match):
-            code = match.group(1)
-            color = color_map.get(code, 'white')
-            if color:
-                return f'<span style="color: {color}">'  # open span
+
+        parts = re.split(r'(\^\d)', text)
+        output = []
+        current_color = None
+
+        for part in parts:
+            if not part:
+                continue
+
+            if re.fullmatch(r'\^\d', part):
+                code = part[1]
+                current_color = color_map.get(code)
+                continue
+
+            escaped = html.escape(part)
+            if current_color:
+                output.append(f'<span style="color: {current_color}">{escaped}</span>')
             else:
-                return ''  # blank or reset
-        text = re.sub(r'\^(\d)', repl, text)
-        # Close all open spans at the end of each color run
-        text = re.sub(r'(<span style="color: [^>]+">)([^<]*)', r'\1\2</span>', text)
-        return text
+                output.append(escaped)
+
+        return ''.join(output)
