@@ -66,6 +66,10 @@ class conf:
 
     # Generate a server.cfg from JSON config   
     def generate_server_config(self):
+        config_dir = os.path.dirname(self.config['server']['server_config_path'])
+        if config_dir and not os.path.exists(config_dir):
+            os.makedirs(config_dir, exist_ok=True)
+
         with open("{}/server.template".format(self.config_path), 'r') as file:
             data = file.read()
             

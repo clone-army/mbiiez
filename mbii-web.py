@@ -919,6 +919,7 @@ def status_api(instance_name):
             {
                 "server_name": status.get("server_name", ""),
                 "server_name_html": status.get("server_name_html", ""),
+                "port": status.get("port", ""),
                 "players_count": status.get("players_count", 0),
                 "map": status.get("map", ""),
                 "map_html": status.get("map_html", ""),

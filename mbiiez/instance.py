@@ -302,7 +302,7 @@ class instance:
             cfg_file.writelines(lines)
        
     # Get / Set a CVAR
-    def cvar(self, key, value = None):
+    def cvar(self, key, value = None, quiet = False):
        if(not value == None):
             try:
                 self.register_startup_cvar(key, value)
@@ -310,11 +310,11 @@ class instance:
                 self.exception_handler.log(e)
 
             if(self.server_running()):
-                return self.console.cvar(key, value)
+                return self.console.cvar(key, value, quiet)
 
             return None
 
-       return self.console.cvar(key, value)   
+       return self.console.cvar(key, value, quiet)   
        
     # Run an SVSAY command
     def say(self, message):
@@ -341,10 +341,12 @@ class instance:
             return True
          else:
             try:
-                server_map = self.cvar("mapname")
+                server_map = self.cvar("mapname", quiet=True)
+                if(not server_map):
+                    return "Loading"
                
             except:
-                server_map = "Error while fetching"
+                server_map = "Loading"
             
             return server_map        
         
@@ -357,7 +359,11 @@ class instance:
             print("Mode change requested to Mode {}".format(mode))
             return True
         else:   
-            mode = self.cvar("g_authenticity")
+            mode = self.cvar("g_authenticity", quiet=True)
+            if(not mode):
+                mode = self.cvar("g_Authenticity", quiet=True)
+            if(not mode):
+                mode = "Loading"
 
         try:
             
@@ -519,6 +525,7 @@ class instance:
              return;
    
         # Generate our configs
+        self.ensure_homepath()
         self.conf.generate_server_config()
         self.cleanup_legacy_root_files()
 
@@ -582,6 +589,7 @@ class instance:
              return
    
         # Generate our configs
+        self.ensure_homepath()
         self.conf.generate_server_config()
         self.cleanup_legacy_root_files()
         
@@ -823,7 +831,10 @@ class instance:
     def version(self):
         """Return the MBII version string from RCON 'gamename'."""
         try:
-            return self.cvar('gamename')
+            version = self.cvar('gamename', quiet=True)
+            if(not version):
+                return "Unknown"
+            return version
         except Exception:
             return "Unknown"
 

@@ -23,7 +23,7 @@ class controller:
                     with open(config_path, "r", encoding="utf-8") as config_file:
                         config = json.load(config_file)
                         host_name = str(config.get("server", {}).get("host_name", name)) or name
-                        port = config.get("server", {}).get("port", "")
+                        port = str(config.get("server", {}).get("port", "") or "")
             except Exception:
                 host_name = name
                 port = ""

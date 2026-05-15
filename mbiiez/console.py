@@ -52,7 +52,7 @@ class console:
     def tell(self, player_id, message):
         self.rcon("svtell {} {}".format(player_id,message))
         
-    def cvar(self, key, value = None):
+    def cvar(self, key, value = None, quiet = False):
     
         if(value == None): # GET a CVAR Value
             response = self.rcon(key, True)
@@ -63,8 +63,10 @@ class console:
                 #JAMP    
                 else:
                     response = response.split('"')[1::2][1]; # the [1::2] is a slicing which extracts odd values                
-            except:    
-                print("Error, unknown or invalid cvar")
+            except:
+                if(not quiet):
+                    print("Error, unknown or invalid cvar: {}".format(key))
+                return None
                 
             result = self.cvar_clean(response)   
             return result
