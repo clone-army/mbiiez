@@ -59,8 +59,9 @@ class RTVRTMPlugin:
     def setup_rtvrtm_files(self):
         """Generate .cfg and map files from JSON config with instance name prefix"""
         try:
-            # Get MBII folder path from MBIIEZ instance configuration (not OpenJK home)
-            mbii_folder = self.instance.conf.mbii_path
+            # Use the instance's MBII directory so RTVRTM stays isolated per instance.
+            mbii_folder = os.path.dirname(self.instance.config['server']['server_config_path'])
+            os.makedirs(mbii_folder, exist_ok=True)
             
             # Create file names with instance prefix
             instance_name = self.instance.name
@@ -92,7 +93,7 @@ class RTVRTMPlugin:
         
         # Get automatic values from MBIIEZ instance
         instance_name = self.instance.name
-        mbii_folder = self.instance.conf.mbii_path
+        mbii_folder = os.path.dirname(self.instance.config['server']['server_config_path'])
         port = self.instance.config['server']['port']
         rcon_password = self.instance.config['security']['rcon_password']
         log_file = self.instance.config['server']['log_path']
