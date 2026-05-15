@@ -170,8 +170,8 @@ class instance:
         # Ensure the homepath exists
         homepath = self.ensure_homepath()
 
-        # Runs the Dedicated OpenJK Server
-        cmd = "{} --quiet +set dedicated 2 +set net_port {} +set fs_game {} +set fs_homepath {} +set fs_basepath {}{} +exec {}".format(
+        # Runs the Dedicated OpenJK Server inside a named screen session for isolated process management
+        inner_cmd = "{} --quiet +set dedicated 2 +set net_port {} +set fs_game {} +set fs_homepath {} +set fs_basepath {}{} +exec {}".format(
             self.config['server']['engine'],
             self.config['server']['port'],
             self.get_game(),
@@ -181,21 +181,22 @@ class instance:
             self.config['server']['server_config_exec_path']
         )
 
-        # Check for anytime_spin plugin - prepend LD_PRELOAD to trick the game into thinking it's Sunday
+        # Check for anytime_spin plugin - use env(1) inside the screen session for LD_PRELOAD
         if self.has_plugin('anytime_spin'):
             fake_sunday_lib = os.path.join(settings.locations.plugins_path, 'anytime_spin', 'fake_sunday_32.so')
             if os.path.exists(fake_sunday_lib):
-                cmd = "LD_PRELOAD={} {}".format(fake_sunday_lib, cmd)
+                inner_cmd = "env LD_PRELOAD={} {}".format(fake_sunday_lib, inner_cmd)
                 self.log_handler.log("Anytime Spin: Using LD_PRELOAD for fake Sunday")
             else:
                 self.log_handler.log("Anytime Spin: WARNING - {} not found".format(fake_sunday_lib))
 
+        screen_name = "mb2_{}".format(self.name)
+        cmd = "screen -dmS {} {}".format(screen_name, inner_cmd)
         self.start_cmd = cmd
-        
-        #print(bcolors.CYAN + cmd  + bcolors.ENDC )  
+
         print()  
       
-        self.process_handler.register_service("OpenJK", cmd, 1) 
+        self.process_handler.register_service("OpenJK", cmd, 1, supervised=False)
         
         ''' Log Watcher Service ''' 
         self.process_handler.register_service("Log Watcher", self.log_handler.log_watcher)
