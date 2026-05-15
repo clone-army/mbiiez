@@ -464,6 +464,57 @@ table.dataTable>tbody>tr.child ul.dtr-details {
 */
 :root {
     color-scheme: dark;
+    --bs-body-bg: #0b0f14;
+    --bs-body-color: #d7deea;
+    --bs-emphasis-color: #f5f7fb;
+    --bs-secondary-color: #94a3b8;
+    --bs-tertiary-color: #94a3b8;
+    --bs-secondary-bg: #111722;
+    --bs-tertiary-bg: #0f141b;
+    --bs-border-color: #243041;
+    --bs-border-color-translucent: rgba(148, 163, 184, 0.2);
+    --bs-link-color: #7ab7ff;
+    --bs-link-hover-color: #9ec7ff;
+
+    --bs-card-bg: #111722;
+    --bs-card-cap-bg: #111722;
+    --bs-card-border-color: #243041;
+
+    --bs-modal-bg: #111722;
+    --bs-modal-border-color: #243041;
+    --bs-modal-header-border-color: #243041;
+    --bs-modal-footer-border-color: #243041;
+
+    --bs-dropdown-bg: #111722;
+    --bs-dropdown-color: #d7deea;
+    --bs-dropdown-border-color: #243041;
+    --bs-dropdown-link-color: #d7deea;
+    --bs-dropdown-link-hover-color: #ffffff;
+    --bs-dropdown-link-hover-bg: #1a2230;
+
+    --bs-list-group-bg: #111722;
+    --bs-list-group-color: #d7deea;
+    --bs-list-group-border-color: #243041;
+    --bs-list-group-action-color: #d7deea;
+    --bs-list-group-action-hover-color: #ffffff;
+    --bs-list-group-action-hover-bg: #1a2230;
+    --bs-list-group-action-active-color: #ffffff;
+    --bs-list-group-action-active-bg: #1f6feb;
+
+    --bs-input-bg: #0f141b;
+    --bs-input-color: #e6edf7;
+    --bs-input-border-color: #243041;
+}
+
+.list-group {
+    --bs-list-group-bg: #111722;
+    --bs-list-group-color: #d7deea;
+    --bs-list-group-border-color: #243041;
+}
+
+.list-group-item {
+    background-color: var(--bs-list-group-bg);
+    color: var(--bs-list-group-color);
 }
 
 .content-wrapper,
