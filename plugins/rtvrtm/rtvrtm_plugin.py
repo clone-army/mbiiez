@@ -96,7 +96,10 @@ class RTVRTMPlugin:
         mbii_folder = os.path.dirname(self.instance.config['server']['server_config_path'])
         port = self.instance.config['server']['port']
         rcon_password = self.instance.config['security']['rcon_password']
-        log_file = self.instance.config['server']['log_path']
+        log_file = os.path.join(mbii_folder, self.instance.config['server']['log_file'])
+
+        if not os.path.exists(log_file):
+            open(log_file, 'a').close()
         
         # Build address and bind automatically
         address = f"127.0.0.1:{port}"
