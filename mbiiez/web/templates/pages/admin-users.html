@@ -1,69 +1,116 @@
 {% extends 'base.html' %}
 {% block content %}
-<div class="page-header mb-3">
-  <h3 class="page-title">Admin Users</h3>
+<style>
+  .users-title {
+    font-weight: 700;
+  }
+  .users-subtitle {
+    color: #6c757d;
+    font-size: 0.95rem;
+  }
+  .users-card {
+    border: 0;
+    box-shadow: 0 8px 22px rgba(31, 44, 62, 0.08);
+  }
+  .users-table td {
+    vertical-align: middle;
+  }
+  .users-role-select {
+    min-width: 140px;
+    max-width: 170px;
+  }
+  .users-action-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .role-pill {
+    text-transform: uppercase;
+    font-size: 0.72rem;
+    letter-spacing: 0.3px;
+  }
+</style>
+
+<div class="page-header mb-4">
+  <h3 class="page-title users-title mb-1">Admin Users</h3>
+  <div class="users-subtitle">Create accounts, reset passwords, and control role access.</div>
 </div>
 
+<div id="status" class="mb-3"></div>
+
 <div class="row">
-  <div class="col-lg-5 mb-4">
-    <div class="card">
+  <div class="col-xl-4 col-lg-5 mb-4">
+    <div class="card users-card h-100">
       <div class="card-body">
-        <h5 class="card-title">Add User</h5>
-        <form id="add-user-form">
-          <div class="mb-2">
-            <label class="form-label">Username</label>
+        <h5 class="card-title mb-3">Add User</h5>
+        <form id="add-user-form" autocomplete="off">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Username</label>
             <input type="text" id="add-username" class="form-control" minlength="3" required>
           </div>
-          <div class="mb-2">
-            <label class="form-label">Password</label>
-            <input type="password" id="add-password" class="form-control" minlength="8" required>
-          </div>
           <div class="mb-3">
-            <label class="form-label">Role</label>
+            <label class="form-label fw-semibold">Password</label>
+            <input type="password" id="add-password" class="form-control" minlength="8" required>
+            <div class="form-text">Use at least 8 characters.</div>
+          </div>
+          <div class="mb-4">
+            <label class="form-label fw-semibold">Role</label>
             <select id="add-role" class="form-select">
               <option value="viewer">Viewer</option>
               <option value="mod">Mod</option>
               <option value="admin">Admin</option>
             </select>
           </div>
-          <button type="submit" class="btn btn-primary">Create User</button>
+          <button type="submit" class="btn btn-primary w-100">Create User</button>
         </form>
       </div>
     </div>
   </div>
 
-  <div class="col-lg-7 mb-4">
-    <div class="card">
+  <div class="col-xl-8 col-lg-7 mb-4">
+    <div class="card users-card h-100">
       <div class="card-body">
-        <h5 class="card-title">Existing Users</h5>
-        <div id="status"></div>
+        <h5 class="card-title mb-3">Existing Users</h5>
         <div class="table-responsive">
-          <table class="table table-striped align-middle">
-            <thead>
+          <table class="table table-hover users-table">
+            <thead class="table-light">
               <tr>
                 <th>User</th>
                 <th>Role</th>
-                <th>Actions</th>
+                <th style="min-width: 290px;">Actions</th>
               </tr>
             </thead>
             <tbody>
               {% for user in view_bag.users %}
               <tr>
-                <td>{{ user.username }}</td>
                 <td>
-                  <div class="d-flex align-items-center gap-2">
-                    <select id="role-{{ user.username }}" class="form-select form-select-sm" style="max-width: 140px;">
+                  <div class="fw-semibold">{{ user.username }}</div>
+                </td>
+                <td>
+                  {% if user.role == 'admin' %}
+                  <span class="badge bg-danger role-pill">Admin</span>
+                  {% elif user.role == 'mod' %}
+                  <span class="badge bg-warning text-dark role-pill">Mod</span>
+                  {% else %}
+                  <span class="badge bg-secondary role-pill">Viewer</span>
+                  {% endif %}
+                </td>
+                <td>
+                  <div class="users-action-buttons">
+                    <select id="role-{{ loop.index0 }}" class="form-select form-select-sm users-role-select">
                       <option value="viewer" {% if user.role == 'viewer' %}selected{% endif %}>Viewer</option>
                       <option value="mod" {% if user.role == 'mod' %}selected{% endif %}>Mod</option>
                       <option value="admin" {% if user.role == 'admin' %}selected{% endif %}>Admin</option>
                     </select>
-                    <button class="btn btn-sm btn-outline-primary" onclick="changeRole('{{ user.username }}')">Update</button>
+                    <button class="btn btn-sm btn-outline-primary" onclick="changeRole('{{ user.username }}', {{ loop.index0 }})">Update Role</button>
+                    <button class="btn btn-sm btn-outline-warning" onclick="resetPassword('{{ user.username }}')">Reset Password</button>
+                    <button class="btn btn-sm btn-outline-danger" onclick="deleteUser('{{ user.username }}')">Delete</button>
                   </div>
                 </td>
-                <td>
-                  <button class="btn btn-sm btn-outline-warning" onclick="resetPassword('{{ user.username }}')">Reset Password</button>
-                  <button class="btn btn-sm btn-outline-danger" onclick="deleteUser('{{ user.username }}')">Delete</button>
-                </td>
+              </tr>
+              {% else %}
+              <tr>
+                <td colspan="3" class="text-muted py-4 text-center">No users found.</td>
               </tr>
               {% endfor %}
             </tbody>
@@ -99,52 +146,69 @@ document.getElementById('add-user-form').addEventListener('submit', async (e) =>
     role: document.getElementById('add-role').value
   };
 
-  const { response, data } = await postJson('/admin/users/add', payload);
-  if (!response.ok || !data.success) {
-    setStatus(data.error || 'Failed to create user.', false);
-    return;
-  }
+  try {
+    const { response, data } = await postJson('/admin/users/add', payload);
+    if (!response.ok || !data.success) {
+      setStatus(data.error || 'Failed to create user.', false);
+      return;
+    }
 
-  setStatus('User created.');
-  setTimeout(() => location.reload(), 700);
+    setStatus('User created.');
+    setTimeout(() => location.reload(), 700);
+  } catch (error) {
+    setStatus(String(error), false);
+  }
 });
 
 async function resetPassword(username) {
   const password = prompt(`Enter new password for ${username} (min 8 chars):`);
   if (!password) return;
 
-  const { response, data } = await postJson('/admin/users/password', { username, password });
-  if (!response.ok || !data.success) {
-    setStatus(data.error || 'Password reset failed.', false);
-    return;
-  }
+  try {
+    const { response, data } = await postJson('/admin/users/password', { username, password });
+    if (!response.ok || !data.success) {
+      setStatus(data.error || 'Password reset failed.', false);
+      return;
+    }
 
-  setStatus(`Password updated for ${username}.`);
+    setStatus(`Password updated for ${username}.`);
+  } catch (error) {
+    setStatus(String(error), false);
+  }
 }
 
-async function changeRole(username) {
-  const role = document.getElementById(`role-${username}`).value;
+async function changeRole(username, rowIndex) {
+  const role = document.getElementById(`role-${rowIndex}`).value;
 
-  const { response, data } = await postJson('/admin/users/role', { username, role });
-  if (!response.ok || !data.success) {
-    setStatus(data.error || 'Role update failed.', false);
-    return;
+  try {
+    const { response, data } = await postJson('/admin/users/role', { username, role });
+    if (!response.ok || !data.success) {
+      setStatus(data.error || 'Role update failed.', false);
+      return;
+    }
+
+    setStatus(`Updated role for ${username} to ${role}.`);
+    setTimeout(() => location.reload(), 500);
+  } catch (error) {
+    setStatus(String(error), false);
   }
-
-  setStatus(`Updated role for ${username} to ${role}.`);
 }
 
 async function deleteUser(username) {
   if (!confirm(`Delete user ${username}?`)) return;
 
-  const { response, data } = await postJson('/admin/users/delete', { username });
-  if (!response.ok || !data.success) {
-    setStatus(data.error || 'Delete failed.', false);
-    return;
-  }
+  try {
+    const { response, data } = await postJson('/admin/users/delete', { username });
+    if (!response.ok || !data.success) {
+      setStatus(data.error || 'Delete failed.', false);
+      return;
+    }
 
-  setStatus(`Deleted ${username}.`);
-  setTimeout(() => location.reload(), 700);
+    setStatus(`Deleted ${username}.`);
+    setTimeout(() => location.reload(), 700);
+  } catch (error) {
+    setStatus(String(error), false);
+  }
 }
 </script>
 {% endblock %}
