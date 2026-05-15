@@ -112,7 +112,7 @@ class instance:
             self.config['server']['port'],
             self.get_game(),
             homepath,
-            settings.locations.base_path,
+            settings.locations.game_path,
             self.get_startup_cvar_args(),
             self.config['server']['server_config_file']
         )
@@ -540,7 +540,7 @@ class instance:
             self.config['server']['port'],
             self.get_game(),
             self.get_homepath(),
-            settings.locations.base_path,
+            settings.locations.game_path,
             self.get_startup_cvar_args(),
             self.config['server']['server_config_file']
         )
