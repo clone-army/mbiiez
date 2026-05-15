@@ -230,14 +230,11 @@ class conf:
             f.write(data)
             f.close()
 
-            # Compatibility shim for engines or legacy paths that still look for the default MBII config.
-            # The per-instance cfg remains authoritative at <homepath>/<instance>-server.cfg.
-            mbii_dir = os.path.join(self.config['server']['home_path'], self.game_name)
-            if not os.path.exists(mbii_dir):
-                os.makedirs(mbii_dir, exist_ok=True)
-
-            legacy_cfg_path = os.path.join(mbii_dir, "openjk_server.cfg")
-            shim_data = "exec ../{}\n".format(self.config['server']['server_config_file'])
-            with open(legacy_cfg_path, "w") as legacy_file:
-                legacy_file.write(shim_data)
+            # Remove the old compatibility shim if it was created by an earlier version.
+            legacy_cfg_path = os.path.join(self.config['server']['home_path'], self.game_name, "openjk_server.cfg")
+            if os.path.exists(legacy_cfg_path):
+                try:
+                    os.remove(legacy_cfg_path)
+                except Exception:
+                    pass
 
