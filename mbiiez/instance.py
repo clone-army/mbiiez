@@ -73,7 +73,7 @@ class instance:
         self.console = console(self.config['security']['rcon_password'], str(self.config['server']['port']))
 
         # Load plugins before services so they can register launch-time CVARs.
-        self.plugin_hander = plugin_handler(self)
+        self.plugin_handler = plugin_handler(self)
         
         # Load Internal Services
         self.services_internal()
