@@ -139,7 +139,9 @@ async function hydrateDashboardCard(card, instanceIndex) {
 		titleElement.innerHTML = data.server_name_html || data.server_name || instanceName;
 		statusBadge.className = `badge ${data.running ? 'bg-success' : 'bg-danger'}`;
 		statusBadge.textContent = data.running ? 'Running' : 'Stopped';
-		setCardValue(instanceIndex, 'port', data.port ?? '');
+		const currentPort = document.getElementById(`instance-port-${instanceIndex}`)?.textContent || '';
+		const hydratedPort = String(data.port ?? '').trim();
+		setCardValue(instanceIndex, 'port', hydratedPort || currentPort || '...');
 		setCardValue(instanceIndex, 'players', data.players_count ?? 0);
 		setCardValue(instanceIndex, 'map', data.map || '');
 		setCardValue(instanceIndex, 'mode', data.mode || '');
