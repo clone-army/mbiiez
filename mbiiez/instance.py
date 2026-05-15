@@ -46,7 +46,7 @@ class instance:
     def __init__(self, name):
     
         self.name = name
-        self.external_ip = urllib.request.urlopen('https://www.myexternalip.com/raw').read().decode()       
+        self.external_ip = None
 
         self.start_cmd = None
         self.startup_cvars = {}
@@ -84,6 +84,25 @@ class instance:
         ''' Add any configs to external plugins if they are enabled '''    
         if(self.has_plugin("auto_message")):
             self.config['plugins']['auto_message']['messages'].append("This server is powered by MBIIEZ, visit bit.ly/2JhJRpO")    
+
+    def get_external_ip(self):
+        """
+        Fetch and cache the public IP only when it is actually needed.
+        """
+        if self.external_ip:
+            return self.external_ip
+
+        try:
+            request = urllib.request.Request(
+                'https://www.myexternalip.com/raw',
+                headers={'User-Agent': 'MBIIEZ/1.0'},
+            )
+            with urllib.request.urlopen(request, timeout=2) as response:
+                self.external_ip = response.read().decode().strip()
+        except Exception:
+            self.external_ip = "unknown"
+
+        return self.external_ip
 
     def get_homepath(self):
         """
@@ -145,7 +164,7 @@ class instance:
             homepath,
             settings.locations.game_path,
             self.get_startup_cvar_args(),
-            self.config['server']['server_config_file']
+            self.config['server']['server_config_path']
         )
 
         # Check for anytime_spin plugin - prepend LD_PRELOAD to trick the game into thinking it's Sunday
@@ -461,7 +480,7 @@ class instance:
         output = []
 
         lookup = helpers().ip_info()
-        output.append(f"Server IP {self.external_ip}")
+        output.append(f"Server IP {self.get_external_ip()}")
         output.append(f"Server Location {lookup['region']}")
         output.append("-------------------------------------------")
         output.append("CA Central: " + testing().ping_test("35.182.0.251"))
@@ -588,7 +607,7 @@ class instance:
             self.get_homepath(),
             settings.locations.game_path,
             self.get_startup_cvar_args(),
-            self.config['server']['server_config_file']
+            self.config['server']['server_config_path']
         )
         
         # Check for anytime_spin plugin - prepend LD_PRELOAD to trick the game into thinking it's Sunday
@@ -690,7 +709,7 @@ class instance:
             "game": self.get_game(),
             "engine": self.config['server']['engine'],
             "port": self.config['server']['port'],
-            "full_address": f"{self.external_ip}:{self.config['server']['port']}",
+            "full_address": f"{self.get_external_ip()}:{self.config['server']['port']}",
             "mode": self.mode(None),
             "map": self.map(None),
             "plugins": self.plugins_registered,
