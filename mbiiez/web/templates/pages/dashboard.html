@@ -47,12 +47,13 @@
 		<div class="card h-100 instance-card" data-instance="{{ item.name }}">
 			<div class="card-body">
 				<div class="d-flex justify-content-between align-items-center mb-2">
-					<h5 class="card-title mb-0" style="white-space:pre;" id="instance-title-{{ loop.index }}">{{ item.name }}</h5>
+					<h5 class="card-title mb-0" style="white-space:pre;" id="instance-title-{{ loop.index }}">{{ item.server_name_html|safe if item.server_name_html else item.name }}</h5>
 					<span class="badge bg-secondary" id="instance-status-{{ loop.index }}">Loading...</span>
 				</div>
 
 				<div class="row small mb-3">
 					<div class="col-6"><strong>Instance:</strong> {{ item.name }}</div>
+					<div class="col-6"><strong>Port:</strong> <span id="instance-port-{{ loop.index }}">{{ item.port if item.port else '...' }}</span></div>
 					<div class="col-6"><strong>Players:</strong> <span id="instance-players-{{ loop.index }}">...</span></div>
 					<div class="col-6"><strong>Map:</strong> <span style="white-space:pre;" id="instance-map-{{ loop.index }}">...</span></div>
 					<div class="col-6"><strong>Mode:</strong> <span style="white-space:pre;" id="instance-mode-{{ loop.index }}">...</span></div>
@@ -62,6 +63,7 @@
 				<div class="d-flex flex-wrap gap-2">
 					<a href="/instance?instance={{ item.name }}" class="btn btn-outline-primary btn-sm">Status</a>
 					<a href="/logs?instance={{ item.name }}" class="btn btn-outline-secondary btn-sm">Logs</a>
+					<a href="/chat?instance={{ item.name }}" class="btn btn-outline-info btn-sm">Chat</a>
 					{% if can_mod %}
 					<a href="/mod?instance={{ item.name }}" class="btn btn-outline-warning btn-sm">Mod</a>
 					<a href="/rcon?instance={{ item.name }}" class="btn btn-outline-dark btn-sm">RCON</a>
@@ -137,6 +139,7 @@ async function hydrateDashboardCard(card, instanceIndex) {
 		titleElement.innerHTML = data.server_name_html || data.server_name || instanceName;
 		statusBadge.className = `badge ${data.running ? 'bg-success' : 'bg-danger'}`;
 		statusBadge.textContent = data.running ? 'Running' : 'Stopped';
+		setCardValue(instanceIndex, 'port', data.port ?? '');
 		setCardValue(instanceIndex, 'players', data.players_count ?? 0);
 		setCardValue(instanceIndex, 'map', data.map || '');
 		setCardValue(instanceIndex, 'mode', data.mode || '');
@@ -149,6 +152,7 @@ async function hydrateDashboardCard(card, instanceIndex) {
 	} catch (error) {
 		statusBadge.className = 'badge bg-warning text-dark';
 		statusBadge.textContent = 'Unavailable';
+		setCardValue(instanceIndex, 'port', '...');
 		setCardValue(instanceIndex, 'players', 'N/A');
 		setCardValue(instanceIndex, 'map', 'N/A');
 		setCardValue(instanceIndex, 'mode', 'N/A');
