@@ -1,8 +1,7 @@
 import time
 import six
 import re
-import socket 
-import select 
+import socket
 
 class console:
 
@@ -11,8 +10,7 @@ class console:
         self.port = int(server_port)
         self.password = rcon_password
         self.prefix_rcon = bytes([0xff, 0xff, 0xff, 0xff]) + b'rcon '
-        self.prefix_console = bytes([0xff, 0xff, 0xff, 0xff])        
-        self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.prefix_console = bytes([0xff, 0xff, 0xff, 0xff])
 
     def rcon(self, command, quiet = False):
         cmd = f"{self.password} {command}".encode()
@@ -25,21 +23,25 @@ class console:
         return self.send(query)
 
     def send(self, query):
-        self.socket.connect((self.ip, self.port))
-        self.socket.send(query)
-        self.socket.setblocking(0)  # Set the socket to non-blocking
+        # Create a fresh socket for every request so there is no state
+        # bleed (non-blocking flag, stale buffer) from previous calls.
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.settimeout(2)
+        try:
+            sock.connect((self.ip, self.port))
+            sock.send(query)
 
-        total_data = []
-        while True:
-            ready = select.select([self.socket], [], [], 1)  # Adjust the timeout as needed
-            if ready[0]:  # Data is ready to be read
-                data = self.socket.recv(4096)
-                if not data:
-                    break  # No more data to read
-                total_data.append(data.decode("utf-8", "ignore"))
-            else:
-                # No data ready to be read, and timeout occurred
-                break
+            total_data = []
+            while True:
+                try:
+                    data = sock.recv(4096)
+                    if not data:
+                        break
+                    total_data.append(data.decode("utf-8", "ignore"))
+                except socket.timeout:
+                    break
+        finally:
+            sock.close()
 
         return ''.join(total_data)
 
