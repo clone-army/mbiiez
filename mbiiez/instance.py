@@ -703,9 +703,12 @@ class instance:
         """
         Return all status information as a dictionary for programmatic use.
         """
+        server_name_raw = self.config['server']['host_name']
         info = {
             "instance_name": self.name,
-            "server_name": bcolors().color_convert(self.config['server']['host_name']),
+            "server_name": server_name_raw,
+            "server_name_ansi": bcolors().color_convert(server_name_raw),
+            "server_name_html": bcolors().html_color_convert(server_name_raw),
             "game": self.get_game(),
             "engine": self.config['server']['engine'],
             "port": self.config['server']['port'],
@@ -738,7 +741,7 @@ class instance:
         output.append("------------------------------------")
         if info['server_running']:
             output.append(f"{bcolors.CYAN}Instance Name: {bcolors.ENDC}{info['instance_name']}")
-            output.append(f"{bcolors.CYAN}Server Name: {bcolors.ENDC}{info['server_name']}")
+            output.append(f"{bcolors.CYAN}Server Name: {bcolors.ENDC}{info['server_name_ansi']}")
             output.append(f"{bcolors.CYAN}Game: {bcolors.ENDC}{info['game']}")
             output.append(f"{bcolors.CYAN}Engine: {bcolors.ENDC}{info['engine']}")
             output.append(f"{bcolors.CYAN}Port: {bcolors.ENDC}{info['port']}")

@@ -133,7 +133,8 @@ async function hydrateDashboardCard(card, instanceIndex) {
 			throw new Error(data.error || 'Failed to load status');
 		}
 
-		document.getElementById(`instance-title-${instanceIndex}`).textContent = data.server_name || instanceName;
+		const titleElement = document.getElementById(`instance-title-${instanceIndex}`);
+		titleElement.innerHTML = data.server_name_html || data.server_name || instanceName;
 		statusBadge.className = `badge ${data.running ? 'bg-success' : 'bg-danger'}`;
 		statusBadge.textContent = data.running ? 'Running' : 'Stopped';
 		setCardValue(instanceIndex, 'players', data.players_count ?? 0);
