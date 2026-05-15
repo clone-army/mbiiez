@@ -2,10 +2,10 @@ import json
 import os
 import socket
 import subprocess
+import time
 from functools import wraps
 
-from flask import Flask, abort, g, jsonify, redirect, render_template, request
-from flask_httpauth import HTTPBasicAuth
+from flask import Flask, abort, g, jsonify, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from mbiiez import settings
@@ -46,11 +46,13 @@ app = Flask(
     template_folder="mbiiez/web/templates",
 )
 app.config["TEMPLATES_AUTO_RELOAD"] = True
+app.secret_key = os.environ.get("MBIIEZ_WEB_SECRET_KEY", "mbiiez-change-this-secret")
 
 
 # Authentication
-auth = HTTPBasicAuth()
 ROLE_RANK = {"viewer": 10, "mod": 20, "admin": 30}
+INSTANCE_LIST_CACHE_SECONDS = 3
+_instance_list_cache = {"expires": 0.0, "items": []}
 
 
 def _normalize_role(role):
@@ -182,12 +184,45 @@ def _migrate_plaintext_user(username, plaintext_password):
         _save_users_data(data)
 
 
-def _auth_challenge():
-    return (
-        jsonify({"error": "Authentication required"}),
-        401,
-        {"WWW-Authenticate": 'Basic realm="MBIIEZ"'},
-    )
+def _is_api_request(path):
+    return path.startswith("/api/") or path.endswith("_api")
+
+
+def _session_user():
+    return str(session.get("mbiiez_user", "")).strip()
+
+
+def _session_role():
+    return _normalize_role(session.get("mbiiez_role", "viewer"))
+
+
+def _set_session_auth(username, role):
+    session["mbiiez_user"] = username
+    session["mbiiez_role"] = _normalize_role(role)
+
+
+def _clear_session_auth():
+    session.pop("mbiiez_user", None)
+    session.pop("mbiiez_role", None)
+
+
+def _is_logged_in():
+    return bool(_session_user())
+
+
+def _auth_failed_response(path):
+    if _is_api_request(path) or request.method != "GET":
+        return jsonify({"error": "Authentication required"}), 401
+
+    next_url = request.full_path if request.query_string else request.path
+    return redirect(url_for("login", next=_safe_next_path(next_url)), code=302)
+
+
+def _safe_next_path(path):
+    path = str(path or "").strip()
+    if not path.startswith("/") or path.startswith("//"):
+        return "/dashboard"
+    return path
 
 
 def _role_allows(current_role, required_role):
@@ -199,6 +234,9 @@ def _required_role_for_path(path, method):
         return None
 
     if path.startswith("/health"):
+        return None
+
+    if path.startswith("/login") or path.startswith("/logout") or path.startswith("/setup"):
         return None
 
     admin_prefixes = [
@@ -240,40 +278,42 @@ def _required_role_for_path(path, method):
 
 
 def _current_user():
-    return getattr(g, "current_user", "anonymous")
+    user = getattr(g, "current_user", "")
+    return user if user else "anonymous"
 
 
 def _current_role():
     return getattr(g, "current_role", "viewer")
 
 
-def _authenticate_request():
-    if not settings.web_service.auth_enabled:
-        g.current_user = "local"
-        g.current_role = "admin"
-        return True
-
-    if _setup_required():
-        return False
-
-    auth_data = request.authorization
-    if not auth_data:
-        return False
-
+def _authenticate_credentials(username, password):
     users = _load_users()
-    user = users.get(auth_data.username)
+    user = users.get(username)
     if not user:
-        return False
+        return False, ""
 
-    if not _password_matches(user.get("password"), auth_data.password):
-        return False
+    if not _password_matches(user.get("password"), password):
+        return False, ""
 
     if not _is_password_hashed(user.get("password")):
-        _migrate_plaintext_user(auth_data.username, auth_data.password)
+        _migrate_plaintext_user(username, password)
 
-    g.current_user = auth_data.username
-    g.current_role = user.get("role", "viewer")
-    return True
+    return True, user.get("role", "viewer")
+
+
+def _list_instances_cached():
+    now = time.time()
+    if now < _instance_list_cache["expires"]:
+        return _instance_list_cache["items"]
+
+    try:
+        items = tools().list_of_instances()
+    except Exception:
+        items = []
+
+    _instance_list_cache["items"] = items
+    _instance_list_cache["expires"] = now + INSTANCE_LIST_CACHE_SECONDS
+    return items
 
 
 def _audit(action, instance_name=None, details=""):
@@ -306,41 +346,21 @@ def require_role(required_role):
     return decorator
 
 
-@auth.verify_password
-def verify_password(username, password):
-    if not settings.web_service.auth_enabled:
-        g.current_user = "local"
-        g.current_role = "admin"
-        return "local"
-
-    if _setup_required():
-        return None
-
-    users = _load_users()
-    user = users.get(username)
-    if not user:
-        return None
-
-    if not _password_matches(user.get("password"), password):
-        return None
-
-    if not _is_password_hashed(user.get("password")):
-        _migrate_plaintext_user(username, password)
-
-    g.current_user = username
-    g.current_role = user.get("role", "viewer")
-    return username
-
-
 @app.before_request
 def enforce_auth_and_role():
     path = request.path or "/"
+
+    # Default to anonymous each request, then elevate when authenticated.
+    g.current_user = ""
+    g.current_role = "viewer"
 
     if _setup_required():
         setup_allowed = (
             path.startswith("/assets/")
             or path.startswith("/health")
             or path.startswith("/setup")
+            or path.startswith("/login")
+            or path.startswith("/logout")
         )
         if not setup_allowed:
             return redirect("/setup", code=302)
@@ -349,13 +369,20 @@ def enforce_auth_and_role():
     if path.startswith("/setup"):
         return redirect("/dashboard", code=302)
 
+    if not settings.web_service.auth_enabled:
+        g.current_user = "local"
+        g.current_role = "admin"
+    elif _is_logged_in():
+        g.current_user = _session_user()
+        g.current_role = _session_role()
+
     required_role = _required_role_for_path(path, request.method)
 
     if required_role is None:
         return None
 
-    if not _authenticate_request():
-        return _auth_challenge()
+    if settings.web_service.auth_enabled and not _is_logged_in():
+        return _auth_failed_response(path)
 
     if not _role_allows(_current_role(), required_role):
         return jsonify({"error": "Insufficient permissions"}), 403
@@ -365,9 +392,9 @@ def enforce_auth_and_role():
 
 @app.context_processor
 def include_instances_and_auth():
-    users = _load_users()
+    users = _load_users() if settings.web_service.auth_enabled else {}
     return dict(
-        instances=tools().list_of_instances(),
+        instances=_list_instances_cached(),
         current_user=_current_user(),
         current_role=_current_role(),
         can_mod=_role_allows(_current_role(), "mod"),
@@ -426,8 +453,41 @@ def setup_create():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if not settings.web_service.auth_enabled:
+        return redirect("/dashboard", code=302)
+
+    if _setup_required():
+        return redirect("/setup", code=302)
+
+    if _is_logged_in():
+        return redirect(_safe_next_path(request.args.get("next")), code=302)
+
+    error = ""
+    next_path = _safe_next_path(request.args.get("next") or "/dashboard")
+
+    if request.method == "POST":
+        username = str(request.form.get("username", "")).strip()
+        password = str(request.form.get("password", "")).strip()
+
+        ok, role = _authenticate_credentials(username, password)
+        if ok:
+            _set_session_auth(username, role)
+            return redirect(_safe_next_path(request.form.get("next")), code=302)
+
+        error = "Invalid username or password."
+
+    return render_template("pages/login.html", error=error, next_path=next_path)
+
+
+@app.route("/logout", methods=["GET", "POST"])
+def logout():
+    _clear_session_auth()
+    return redirect("/login", code=302)
+
+
 @app.route("/admin/users", methods=["GET"])
-@auth.login_required
 @require_role("admin")
 def admin_users_page():
     users = _load_users_data().get("users", [])
@@ -444,7 +504,6 @@ def admin_users_page():
 
 
 @app.route("/admin/users/add", methods=["POST"])
-@auth.login_required
 @require_role("admin")
 def admin_users_add():
     data = request.get_json(silent=True) or request.form or {}
@@ -479,7 +538,6 @@ def admin_users_add():
 
 
 @app.route("/admin/users/password", methods=["POST"])
-@auth.login_required
 @require_role("admin")
 def admin_users_password():
     data = request.get_json(silent=True) or request.form or {}
@@ -510,7 +568,6 @@ def admin_users_password():
 
 
 @app.route("/admin/users/role", methods=["POST"])
-@auth.login_required
 @require_role("admin")
 def admin_users_role():
     data = request.get_json(silent=True) or request.form or {}
@@ -550,7 +607,6 @@ def admin_users_role():
 
 
 @app.route("/admin/users/delete", methods=["POST"])
-@auth.login_required
 @require_role("admin")
 def admin_users_delete():
     data = request.get_json(silent=True) or request.form or {}
@@ -582,13 +638,11 @@ def admin_users_delete():
 
 
 @app.route("/", methods=["GET", "POST"])
-@auth.login_required
 def home():
     return redirect("/dashboard", code=302)
 
 
 @app.route("/dashboard", methods=["GET", "POST"])
-@auth.login_required
 @require_role("viewer")
 def dashboard():
     c = dashboard_c()
@@ -596,7 +650,6 @@ def dashboard():
 
 
 @app.route("/logs", methods=["GET", "POST"])
-@auth.login_required
 @require_role("viewer")
 def log():
     instance = request.args.get("instance")
@@ -607,7 +660,6 @@ def log():
 
 
 @app.route("/players", methods=["GET", "POST"])
-@auth.login_required
 @require_role("viewer")
 def players():
     c = players_c(request.args.get("filter"), request.args.get("page"), request.args.get("per_page"))
@@ -615,7 +667,6 @@ def players():
 
 
 @app.route("/stats", methods=["GET", "POST"])
-@auth.login_required
 @require_role("viewer")
 def stats():
     c = stats_c(request.args.get("instance"))
@@ -623,7 +674,6 @@ def stats():
 
 
 @app.route("/instance", methods=["GET", "POST"])
-@auth.login_required
 @require_role("viewer")
 def instance():
     c = instance_c(request.args.get("instance"))
@@ -631,7 +681,6 @@ def instance():
 
 
 @app.route("/instance/<instance_name>/command", methods=["POST"])
-@auth.login_required
 @require_role("admin")
 def instance_command(instance_name):
     data = request.get_json() or {}
@@ -662,7 +711,6 @@ def instance_command(instance_name):
 
 
 @app.route("/instance/<instance_name>/command_async", methods=["POST"])
-@auth.login_required
 @require_role("admin")
 def instance_command_async(instance_name):
     data = request.get_json() or {}
@@ -707,7 +755,6 @@ def instance_command_async(instance_name):
 
 
 @app.route("/chat", methods=["GET", "POST"])
-@auth.login_required
 @require_role("viewer")
 def chat():
     instance = request.args.get("instance")
@@ -716,7 +763,6 @@ def chat():
 
 
 @app.route("/mod", methods=["GET"])
-@auth.login_required
 @require_role("mod")
 def mod():
     instance = request.args.get("instance")
@@ -725,7 +771,6 @@ def mod():
 
 
 @app.route("/mod/map", methods=["POST"])
-@auth.login_required
 @require_role("mod")
 def mod_map():
     data = request.get_json() or {}
@@ -736,7 +781,6 @@ def mod_map():
 
 
 @app.route("/mod/mode", methods=["POST"])
-@auth.login_required
 @require_role("mod")
 def mod_mode():
     data = request.get_json() or {}
@@ -747,7 +791,6 @@ def mod_mode():
 
 
 @app.route("/mod/kick", methods=["POST"])
-@auth.login_required
 @require_role("mod")
 def mod_kick():
     data = request.get_json() or {}
@@ -758,7 +801,6 @@ def mod_kick():
 
 
 @app.route("/mod/ban", methods=["POST"])
-@auth.login_required
 @require_role("mod")
 def mod_ban():
     data = request.get_json() or {}
@@ -769,7 +811,6 @@ def mod_ban():
 
 
 @app.route("/mod/unban", methods=["POST"])
-@auth.login_required
 @require_role("mod")
 def mod_unban():
     data = request.get_json() or {}
@@ -780,7 +821,6 @@ def mod_unban():
 
 
 @app.route("/mod/tell", methods=["POST"])
-@auth.login_required
 @require_role("mod")
 def mod_tell():
     data = request.get_json() or {}
@@ -791,7 +831,6 @@ def mod_tell():
 
 
 @app.route("/rcon", methods=["GET"])
-@auth.login_required
 @require_role("mod")
 def rcon():
     instance = request.args.get("instance")
@@ -800,7 +839,6 @@ def rcon():
 
 
 @app.route("/rcon/send", methods=["POST"])
-@auth.login_required
 @require_role("mod")
 def rcon_send():
     data = request.get_json() or {}
@@ -815,7 +853,6 @@ def rcon_send():
 
 
 @app.route("/config", methods=["GET"])
-@auth.login_required
 @require_role("admin")
 def config():
     instance = request.args.get("instance")
@@ -824,7 +861,6 @@ def config():
 
 
 @app.route("/config/save", methods=["POST"])
-@auth.login_required
 @require_role("admin")
 def config_save():
     data = request.get_json() or {}
@@ -835,7 +871,6 @@ def config_save():
 
 
 @app.route("/api/instances/summary", methods=["GET"])
-@auth.login_required
 @require_role("viewer")
 def api_instances_summary():
     c = dashboard_c()
@@ -843,7 +878,6 @@ def api_instances_summary():
 
 
 @app.route("/api/audit", methods=["GET"])
-@auth.login_required
 @require_role("admin")
 def api_audit():
     conn = db().connect()
@@ -854,7 +888,6 @@ def api_audit():
 
 
 @app.route("/api/check_server/<instance_name>", methods=["GET"])
-@auth.login_required
 @require_role("viewer")
 def check_server_status(instance_name):
     """Check if server is running by attempting UDP connection."""
@@ -883,7 +916,6 @@ def check_server_status(instance_name):
 
 
 @app.route("/api/instance_status/<instance_name>", methods=["GET"])
-@auth.login_required
 @require_role("viewer")
 def status_api(instance_name):
     from mbiiez.instance import instance as MBInstance

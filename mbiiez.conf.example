@@ -25,5 +25,4 @@ username = admin
 password = admin
 auth_enabled = true
 users_file = web_users.json
-auth_enabled = false
 
