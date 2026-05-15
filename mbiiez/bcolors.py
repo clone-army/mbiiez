@@ -49,14 +49,14 @@ class bcolors:
         import re
 
         color_map = {
-            '0': 'black',
-            '1': 'red',
-            '2': 'green',
-            '3': 'yellow',
-            '4': 'blue',
-            '5': 'cyan',
-            '6': 'magenta',
-            '7': 'white',
+            '0': '#000000',
+            '1': '#ff4d4d',
+            '2': '#00ff00',
+            '3': '#ffff00',
+            '4': '#3366ff',
+            '5': '#00ffff',
+            '6': '#ff55ff',
+            '7': '#ffffff',
             '9': '',
         }
 

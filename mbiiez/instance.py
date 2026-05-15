@@ -150,6 +150,20 @@ class instance:
             except Exception as e:
                 self.log_handler.log("Failed to remove legacy file {}: {}".format(entry.path, str(e)))
 
+    def _build_launch_context(self, mode, cmd, working_directory, server_config_path, env=None):
+        context = {
+            "mode": mode,
+            "cmd": cmd,
+            "working_directory": working_directory,
+            "server_config_path": server_config_path,
+            "instance": self.name,
+        }
+
+        if env and 'LD_PRELOAD' in env:
+            context["ld_preload"] = env['LD_PRELOAD']
+
+        return context
+
     def services_internal(self):
         """ Internal Services we wish to start on an instance start """
 
@@ -507,6 +521,14 @@ class instance:
         # Generate our configs
         self.conf.generate_server_config()
         self.cleanup_legacy_root_files()
+
+        launch_context = self._build_launch_context(
+            mode="service",
+            cmd=self.start_cmd or "",
+            working_directory=self.get_homepath(),
+            server_config_path=self.config['server']['server_config_path'],
+        )
+        self.event_handler.run_event("before_launch_server", launch_context)
         
         # Can Instance Can Start?
         if(os.path.exists(self.config['server']['server_config_path'])): 
@@ -537,7 +559,6 @@ class instance:
             self.log_handler.log("OpenJK user paths resolved: openjk_link={}, ja_link={}".format(openjk_link, ja_link))
         
                            
-            self.event_handler.run_event("before_launch_server")
             self.process_handler.launch_services()
      
       
@@ -599,17 +620,6 @@ class instance:
         print("ja_link: {}".format(ja_link))
         print()
 
-        # Build the command (without --quiet so we see output)
-        cmd = "{} +set dedicated 2 +set net_port {} +set fs_game {} +set fs_homepath {} +set fs_basepath {}{} +exec {}".format(
-            engine_path,
-            self.config['server']['port'],
-            self.get_game(),
-            self.get_homepath(),
-            settings.locations.game_path,
-            self.get_startup_cvar_args(),
-            self.config['server']['server_config_path']
-        )
-        
         # Check for anytime_spin plugin - prepend LD_PRELOAD to trick the game into thinking it's Sunday
         env = os.environ.copy()
         anytime_spin_enabled = False
@@ -621,6 +631,26 @@ class instance:
                 print(bcolors.GREEN + "Anytime Spin: ENABLED (using fake Sunday)" + bcolors.ENDC)
             else:
                 print(bcolors.RED + "Anytime Spin: WARNING - {} not found".format(fake_sunday_lib) + bcolors.ENDC)
+
+        # Build the command (without --quiet so we see output)
+        cmd = "{} +set dedicated 2 +set net_port {} +set fs_game {} +set fs_homepath {} +set fs_basepath {}{} +exec {}".format(
+            engine_path,
+            self.config['server']['port'],
+            self.get_game(),
+            self.get_homepath(),
+            settings.locations.game_path,
+            self.get_startup_cvar_args(),
+            self.config['server']['server_config_path']
+        )
+
+        launch_context = self._build_launch_context(
+            mode="debug",
+            cmd=cmd,
+            working_directory=self.config['server']['home_path'],
+            server_config_path=self.config['server']['server_config_path'],
+            env=env,
+        )
+        self.event_handler.run_event("before_debug_launch_server", launch_context)
         
         print(bcolors.CYAN + "=" * 60 + bcolors.ENDC)
         print(bcolors.CYAN + "DEBUG MODE - Engine output will be shown below" + bcolors.ENDC)
@@ -660,6 +690,9 @@ class instance:
                 print(line, end='')
             
             process.wait()
+
+            launch_context["returncode"] = process.returncode
+            self.event_handler.run_event("after_debug_launch_server", launch_context)
             
             print()
             print(bcolors.CYAN + "=" * 60 + bcolors.ENDC)

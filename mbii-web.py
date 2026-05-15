@@ -13,7 +13,6 @@ from mbiiez.db import db
 
 # Web Tools
 from mbiiez.web.tools import tools
-from mbiiez.web.tools import trace_dashboard_load
 
 # Controllers
 from mbiiez.web.controllers.chat import controller as chat_c
@@ -382,29 +381,10 @@ def enforce_auth_and_role():
 
 @app.context_processor
 def include_instances_and_auth():
-    dashboard_requested = request.path == "/dashboard"
-    context_start = time.perf_counter() if dashboard_requested else None
-    if dashboard_requested:
-        trace_dashboard_load("context processor start")
-
     users = _load_users() if settings.web_service.auth_enabled else {}
-    if dashboard_requested:
-        trace_dashboard_load(
-            "context processor users loaded",
-            "count={}".format(len(users)),
-            (time.perf_counter() - context_start) * 1000,
-        )
-
-    instances = _list_instances_cached()
-    if dashboard_requested:
-        trace_dashboard_load(
-            "context processor instances loaded",
-            "count={}".format(len(instances)),
-            (time.perf_counter() - context_start) * 1000,
-        )
 
     return dict(
-        instances=instances,
+        instances=_list_instances_cached(),
         current_user=_current_user(),
         current_role=_current_role(),
         can_mod=_role_allows(_current_role(), "mod"),
@@ -657,19 +637,8 @@ def home():
 @app.route("/dashboard", methods=["GET", "POST"])
 @require_role("viewer")
 def dashboard():
-    route_start = time.perf_counter()
-    trace_dashboard_load("dashboard route start")
     c = dashboard_c()
-    trace_dashboard_load(
-        "dashboard route controller complete",
-        elapsed_ms=(time.perf_counter() - route_start) * 1000,
-    )
-    rendered = dashboard_v(c).render()
-    trace_dashboard_load(
-        "dashboard route render complete",
-        elapsed_ms=(time.perf_counter() - route_start) * 1000,
-    )
-    return rendered
+    return dashboard_v(c).render()
 
 
 @app.route("/logs", methods=["GET", "POST"])
