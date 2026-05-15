@@ -359,7 +359,8 @@ RTM change immediately: {rtm_change_immediately}
     def generate_maps_files(self):
         """Generate the maps.txt and secondary_maps.txt files from JSON configuration"""
         # Primary maps
-        primary_maps = list(self.config.get('primary_maps', []))
+        rtv_config = self.config.get('rtv', {})
+        primary_maps = list(rtv_config.get('primary_maps', self.config.get('primary_maps', [])))
         
         # Add active holiday maps
         holiday_maps = self.get_active_holiday_maps()
@@ -373,7 +374,7 @@ RTM change immediately: {rtm_change_immediately}
                 f.write(f"{map_name}\n")
         
         # Secondary maps
-        secondary_maps = self.config.get('secondary_maps', [])
+        secondary_maps = rtv_config.get('secondary_maps', self.config.get('secondary_maps', []))
         with open(self.secondary_maps_path, 'w') as f:
             for map_name in secondary_maps:
                 f.write(f"{map_name}\n")
