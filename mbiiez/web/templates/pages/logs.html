@@ -51,11 +51,26 @@
 </div>
 <script>
 let logInterval = null;
+function getSelectedInstance() {
+  return new URLSearchParams(window.location.search).get('instance') || '';
+}
+
 function loadLogs() {
   const tag = document.getElementById('log-tag').value;
   const limit = document.getElementById('log-limit').value;
   const search = document.getElementById('log-search').value;
-  fetch(`/logs/data?tag=${encodeURIComponent(tag)}&limit=${encodeURIComponent(limit)}&search=${encodeURIComponent(search)}`)
+  const instance = getSelectedInstance();
+  const params = new URLSearchParams({
+    tag,
+    limit,
+    search,
+  });
+
+  if (instance) {
+    params.set('instance', instance);
+  }
+
+  fetch(`/logs/data?${params.toString()}`)
     .then(r => r.json())
     .then(data => {
       const tbody = document.querySelector('#logs-table tbody');

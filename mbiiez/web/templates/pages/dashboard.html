@@ -9,7 +9,7 @@
 		<div class="card">
 			<div class="card-body">
 				<div class="text-muted">Instances</div>
-				<div class="h2 mb-0">{{ view_bag.summary.total }}</div>
+				<div class="h2 mb-0" id="dashboard-total">{{ view_bag.summary.total }}</div>
 			</div>
 		</div>
 	</div>
@@ -17,7 +17,7 @@
 		<div class="card">
 			<div class="card-body">
 				<div class="text-muted">Running</div>
-				<div class="h2 mb-0 text-success">{{ view_bag.summary.running }}</div>
+				<div class="h2 mb-0 text-success" id="dashboard-running">--</div>
 			</div>
 		</div>
 	</div>
@@ -25,8 +25,18 @@
 		<div class="card">
 			<div class="card-body">
 				<div class="text-muted">Online Players</div>
-				<div class="h2 mb-0 text-primary">{{ view_bag.summary.players }}</div>
+				<div class="h2 mb-0 text-primary" id="dashboard-players">--</div>
 			</div>
+		</div>
+	</div>
+</div>
+
+<div class="card mb-4" id="dashboard-loader">
+	<div class="card-body d-flex align-items-center gap-3">
+		<div class="spinner-border text-primary" role="status" aria-hidden="true"></div>
+		<div>
+			<div class="fw-semibold">Loading instance details</div>
+			<div class="text-muted" id="dashboard-loader-text">Preparing cards...</div>
 		</div>
 	</div>
 </div>
@@ -34,23 +44,19 @@
 <div class="row">
 	{% for item in view_bag.instances %}
 	<div class="col-lg-6 mb-4">
-		<div class="card h-100">
+		<div class="card h-100 instance-card" data-instance="{{ item.name }}">
 			<div class="card-body">
 				<div class="d-flex justify-content-between align-items-center mb-2">
-					<h5 class="card-title mb-0" style="white-space:pre;">{{ item.server_name_html|safe }}</h5>
-					{% if item.running %}
-						<span class="badge bg-success">Running</span>
-					{% else %}
-						<span class="badge bg-danger">Stopped</span>
-					{% endif %}
+					<h5 class="card-title mb-0" style="white-space:pre;" id="instance-title-{{ loop.index }}">{{ item.name }}</h5>
+					<span class="badge bg-secondary" id="instance-status-{{ loop.index }}">Loading...</span>
 				</div>
 
 				<div class="row small mb-3">
 					<div class="col-6"><strong>Instance:</strong> {{ item.name }}</div>
-					<div class="col-6"><strong>Players:</strong> {{ item.players_count }}</div>
-					<div class="col-6"><strong>Map:</strong> <span style="white-space:pre;">{{ item.map|safe }}</span></div>
-					<div class="col-6"><strong>Mode:</strong> <span style="white-space:pre;">{{ item.mode|safe }}</span></div>
-					<div class="col-12"><strong>Uptime:</strong> {{ item.uptime }}</div>
+					<div class="col-6"><strong>Players:</strong> <span id="instance-players-{{ loop.index }}">...</span></div>
+					<div class="col-6"><strong>Map:</strong> <span style="white-space:pre;" id="instance-map-{{ loop.index }}">...</span></div>
+					<div class="col-6"><strong>Mode:</strong> <span style="white-space:pre;" id="instance-mode-{{ loop.index }}">...</span></div>
+					<div class="col-12"><strong>Uptime:</strong> <span id="instance-uptime-{{ loop.index }}">...</span></div>
 				</div>
 
 				<div class="d-flex flex-wrap gap-2">
@@ -96,4 +102,77 @@ async function issueCommand(instance, cmd) {
 }
 </script>
 {% endif %}
+
+<script>
+const dashboardCards = Array.from(document.querySelectorAll('.instance-card'));
+let dashboardRunningCount = 0;
+let dashboardPlayerCount = 0;
+let dashboardLoadedCount = 0;
+
+function updateDashboardTotals() {
+	document.getElementById('dashboard-running').textContent = dashboardLoadedCount > 0 ? String(dashboardRunningCount) : '--';
+	document.getElementById('dashboard-players').textContent = dashboardLoadedCount > 0 ? String(dashboardPlayerCount) : '--';
+}
+
+function setCardValue(instanceIndex, field, value) {
+	const element = document.getElementById(`instance-${field}-${instanceIndex}`);
+	if (element) {
+		element.textContent = value;
+	}
+}
+
+async function hydrateDashboardCard(card, instanceIndex) {
+	const instanceName = card.dataset.instance;
+	const statusBadge = document.getElementById(`instance-status-${instanceIndex}`);
+
+	try {
+		const response = await fetch(`/api/instance_status/${encodeURIComponent(instanceName)}`);
+		const data = await response.json();
+
+		if (!response.ok || data.error) {
+			throw new Error(data.error || 'Failed to load status');
+		}
+
+		document.getElementById(`instance-title-${instanceIndex}`).textContent = data.server_name || instanceName;
+		statusBadge.className = `badge ${data.running ? 'bg-success' : 'bg-danger'}`;
+		statusBadge.textContent = data.running ? 'Running' : 'Stopped';
+		setCardValue(instanceIndex, 'players', data.players_count ?? 0);
+		setCardValue(instanceIndex, 'map', data.map || '');
+		setCardValue(instanceIndex, 'mode', data.mode || '');
+		setCardValue(instanceIndex, 'uptime', data.uptime || '');
+
+		if (data.running) {
+			dashboardRunningCount += 1;
+		}
+		dashboardPlayerCount += Number(data.players_count || 0);
+	} catch (error) {
+		statusBadge.className = 'badge bg-warning text-dark';
+		statusBadge.textContent = 'Unavailable';
+		setCardValue(instanceIndex, 'players', 'N/A');
+		setCardValue(instanceIndex, 'map', 'N/A');
+		setCardValue(instanceIndex, 'mode', 'N/A');
+		setCardValue(instanceIndex, 'uptime', 'N/A');
+	} finally {
+		dashboardLoadedCount += 1;
+		updateDashboardTotals();
+	}
+}
+
+async function loadDashboardInstancesSequentially() {
+	const loader = document.getElementById('dashboard-loader');
+	const loaderText = document.getElementById('dashboard-loader-text');
+	const total = dashboardCards.length;
+
+	updateDashboardTotals();
+
+	for (let index = 0; index < dashboardCards.length; index += 1) {
+		loaderText.textContent = `Loading ${index + 1} of ${total}...`;
+		await hydrateDashboardCard(dashboardCards[index], index + 1);
+	}
+
+	loader.remove();
+}
+
+window.addEventListener('load', loadDashboardInstancesSequentially);
+</script>
 {% endblock %}
