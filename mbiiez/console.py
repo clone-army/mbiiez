@@ -11,6 +11,7 @@ class console:
         self.password = rcon_password
         self.prefix_rcon = bytes([0xff, 0xff, 0xff, 0xff]) + b'rcon '
         self.prefix_console = bytes([0xff, 0xff, 0xff, 0xff])
+        self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
     def rcon(self, command, quiet = False):
         cmd = f"{self.password} {command}".encode()
@@ -23,27 +24,14 @@ class console:
         return self.send(query)
 
     def send(self, query):
-        # Create a fresh socket for every request so there is no state
-        # bleed (non-blocking flag, stale buffer) from previous calls.
-        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sock.settimeout(2)
+        self.socket.connect((self.ip, self.port))
+        self.socket.send(query)
+        self.socket.settimeout(4)
         try:
-            sock.connect((self.ip, self.port))
-            sock.send(query)
-
-            total_data = []
-            while True:
-                try:
-                    data = sock.recv(4096)
-                    if not data:
-                        break
-                    total_data.append(data.decode("utf-8", "ignore"))
-                except socket.timeout:
-                    break
-        finally:
-            sock.close()
-
-        return ''.join(total_data)
+            data = self.socket.recv(4096)
+            return data.decode("utf-8", "ignore")
+        except socket.timeout:
+            return None
 
 
     # Send SAY as Server
@@ -58,6 +46,8 @@ class console:
     
         if(value == None): # GET a CVAR Value
             response = self.rcon(key, True)
+            if not response:
+                return None
             try:
                 #OpenJK
                 if("cvar" in response.lower()):
