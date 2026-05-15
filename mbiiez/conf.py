@@ -35,14 +35,13 @@ class conf:
 
                 instance_home_path = os.path.join(self.homepath_base, self.name)
                 instance_game_path = os.path.join(instance_home_path, self.game_name)
-
                 data['server']['home_path'] = instance_home_path
                     
                 data['server']['rtvrtm_config_file'] = "{}-rtvrtm.cfg".format(self.name)
                 data['server']['rtvrtm_config_path'] = os.path.join(instance_home_path, data['server']['rtvrtm_config_file'])
                 
                 data['server']['server_config_file'] = "{}-server.cfg".format(self.name) 
-                data['server']['server_config_path'] = os.path.join(instance_home_path, data['server']['server_config_file'])
+                data['server']['server_config_path'] = os.path.join(instance_game_path, data['server']['server_config_file'])
                 
                 data['server']['primary_maplist_file'] = "{}-primary.txt".format(self.name) 
                 data['server']['primary_maplist_path'] = os.path.join(instance_home_path, data['server']['primary_maplist_file'])  
@@ -51,7 +50,7 @@ class conf:
                 data['server']['secondary_maplist_path'] = os.path.join(instance_home_path, data['server']['secondary_maplist_file']) 
                 
                 data['server']['log_file'] = "{}-games.log".format(self.name)  
-                data['server']['log_path'] = "{}/{}".format(instance_game_path, data['server']['log_file'])
+                data['server']['log_path'] = os.path.join(instance_home_path, data['server']['log_file'])
                     
                 data['server']['pid_file'] = "{}/pids/{}.pid".format(self.script_path, self.name)  
                 
@@ -230,7 +229,14 @@ class conf:
             f.write(data)
             f.close()
 
-            # Remove the old compatibility shim if it was created by an earlier version.
+            # Remove stale root configs and the old compatibility shim if they were created by earlier versions.
+            root_cfg_path = os.path.join(self.config['server']['home_path'], self.config['server']['server_config_file'])
+            if os.path.exists(root_cfg_path):
+                try:
+                    os.remove(root_cfg_path)
+                except Exception:
+                    pass
+
             legacy_cfg_path = os.path.join(self.config['server']['home_path'], self.game_name, "openjk_server.cfg")
             if os.path.exists(legacy_cfg_path):
                 try:
