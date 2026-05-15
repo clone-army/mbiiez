@@ -178,7 +178,7 @@ class instance:
             homepath,
             settings.locations.game_path,
             self.get_startup_cvar_args(),
-            self.config['server']['server_config_path']
+            self.config['server']['server_config_exec_path']
         )
 
         # Check for anytime_spin plugin - prepend LD_PRELOAD to trick the game into thinking it's Sunday
@@ -648,7 +648,7 @@ class instance:
             self.get_homepath(),
             settings.locations.game_path,
             self.get_startup_cvar_args(),
-            self.config['server']['server_config_path']
+            self.config['server']['server_config_exec_path']
         )
 
         launch_context = self._build_launch_context(

@@ -42,6 +42,7 @@ class conf:
                 
                 data['server']['server_config_file'] = "{}-server.cfg".format(self.name) 
                 data['server']['server_config_path'] = os.path.join(instance_game_path, data['server']['server_config_file'])
+                data['server']['server_config_exec_path'] = os.path.join(self.game_name, data['server']['server_config_file'])
                 
                 data['server']['primary_maplist_file'] = "{}-primary.txt".format(self.name) 
                 data['server']['primary_maplist_path'] = os.path.join(instance_home_path, data['server']['primary_maplist_file'])  
