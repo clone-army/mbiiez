@@ -217,6 +217,15 @@ class plugin:
                             cmd,
                         )
                     )
+                    if hasattr(self.rtvrtm_plugin_instance, 'cfg_path'):
+                        rtvrtm_script = os.path.join(os.path.dirname(__file__), 'rtvrtm_original.py')
+                        self.instance.log_handler.log(
+                            "RTVRTM: Command: {} {} -c {}".format(
+                                sys.executable,
+                                rtvrtm_script,
+                                self.rtvrtm_plugin_instance.cfg_path,
+                            )
+                        )
         except Exception as e:
             if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
                 self.instance.log_handler.log(f"RTVRTM: Error in before_dedicated_server_launch: {e}")
