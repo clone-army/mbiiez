@@ -25,18 +25,27 @@
                                 <li>
                                     <a href="/chat?instance={{ instance|lower }}" class="{% if request.path.startswith('/chat') and is_active_instance %}active{% endif %}"><i class="fas fa-comments"></i> Chat</a>
                                 </li>
+                                {% if can_admin %}
                                 <li>
                                     <a href="/config?instance={{ instance|lower }}" class="{% if request.path.startswith('/config') and is_active_instance %}active{% endif %}"><i class="fas fa-cog"></i> Config</a>
                                 </li>
+                                {% endif %}
+                                {% if can_mod %}
                                 <li>
                                     <a href="/rcon?instance={{ instance|lower }}" class="{% if request.path.startswith('/rcon') and is_active_instance %}active{% endif %}"><i class="fas fa-terminal"></i> RCON</a>
                                 </li>
                                 <li><a href="/mod?instance={{ instance|lower }}"><i class="fas fa-wrench"></i> Mod</a></li>
+                                {% endif %}
                             </ul>
                         </li>
                         {% endfor %}
                     </ul>
                 </li>
+                {% if can_admin %}
+                <li>
+                    <a href="/admin/users"><i class="fas fa-users-cog"></i> Admin Users</a>
+                </li>
+                {% endif %}
                 {# Comment out all other menu items for now #}
                 {#
                 <li>

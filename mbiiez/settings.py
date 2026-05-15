@@ -31,6 +31,12 @@ class database:
         database = os.path.join(globals.script_path, 'mbiiez.db')
 
 class web_service:
-    port = globals.config.get('web_service', 'port')
-    username = globals.config.get('web_service', 'username') 
-    password = globals.config.get('web_service', 'password')
+    port = int(globals.config.get('web_service', 'port', fallback='8080'))
+    username = globals.config.get('web_service', 'username', fallback='admin')
+    password = globals.config.get('web_service', 'password', fallback='admin')
+    auth_enabled = globals.config.getboolean('web_service', 'auth_enabled', fallback=True)
+    users_file = globals.config.get(
+        'web_service',
+        'users_file',
+        fallback=os.path.join(globals.script_path, 'web_users.json')
+    )

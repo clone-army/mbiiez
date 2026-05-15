@@ -195,10 +195,10 @@ run_step "Installing openjkded command" \
    chmod +x /usr/bin/openjkded.i386"
 
 
-# ─── Symlink OpenJK into root’s local share ───────────────────────────────
-run_step "Symlinking /opt/openjk to /root/.local/share/openjk" \
-  "mkdir -p /root/.local/share && \
-   ln -sfn \"${BASE}\" /root/.local/share/openjk"
+# ─── Symlink OpenJK into current user's local share ───────────────────────
+run_step "Symlinking /opt/openjk to \$HOME/.local/share/openjk" \
+  "mkdir -p \"$HOME/.local/share\" && \
+   ln -sfn \"${BASE}\" \"$HOME/.local/share/openjk\""
 
 # ─── Install mbii CLI command ─────────────────────────────────────────────
 run_step "Installing mbii CLI command" \

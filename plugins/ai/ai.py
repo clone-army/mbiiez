@@ -7,6 +7,7 @@ import os
 import json
 import time
 import re
+import threading
 import requests
 
 
@@ -72,11 +73,11 @@ class plugin:
                 self.instance.log_handler.log(f"AI Assistant: Server name: {getattr(self.instance, 'name', 'Unknown Server')}")
                 self.instance.log_handler.log("AI Assistant: Registration completed successfully!")
 
-            self.instance.event_handler.register_event("player_chat_command", self.player_chat_command)
+            self.instance.event_handler.register_event("player_chat_command", self.player_chat_command_async)
             
             # Register death commentary event if enabled
             if self.death_commentary:
-                self.instance.event_handler.register_event("player_killed", self.player_killed)
+                self.instance.event_handler.register_event("player_killed", self.player_killed_async)
 
         except Exception as e:
             if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
@@ -99,6 +100,14 @@ class plugin:
         game_context = self.load_game_context()
         
         return base_instruction + "\n\n" + game_context
+
+    def player_chat_command_async(self, data):
+        thread = threading.Thread(target=self.player_chat_command, args=(data,), daemon=True)
+        thread.start()
+
+    def player_killed_async(self, data):
+        thread = threading.Thread(target=self.player_killed, args=(data,), daemon=True)
+        thread.start()
     
     def load_game_context(self):
         """Load game context from external file"""

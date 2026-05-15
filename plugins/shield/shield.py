@@ -2,6 +2,7 @@ import random
 import datetime
 import requests
 import time
+import threading
 
 from mbiiez.client import client
 
@@ -19,7 +20,11 @@ class plugin:
         self.config = self.instance.config['plugins']['shield']
 
     def register(self):
-        self.instance.event_handler.register_event("player_connected", self.vpn_check)
+        self.instance.event_handler.register_event("player_connected", self.vpn_check_async)
+
+    def vpn_check_async(self, args):
+        thread = threading.Thread(target=self.vpn_check, args=(args,), daemon=True)
+        thread.start()
 
     def vpn_check(self, args):
     

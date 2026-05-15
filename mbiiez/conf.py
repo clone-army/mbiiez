@@ -14,6 +14,8 @@ class conf:
         self.name = name
         self.mbii_path = settings.locations.mbii_path
         self.script_path = settings.locations.script_path
+        self.homepath_base = settings.locations.homepath_base
+        self.game_name = settings.dedicated.game
         self.config_path = "{}/configs".format(settings.locations.script_path)
         self.get_config()
     
@@ -30,8 +32,11 @@ class conf:
                 data = json.load(config_data)
             
                 data['server']['name'] = self.name
-                
-                data['server']['home_path'] = '/root/.local/share/openjk'
+
+                instance_home_path = os.path.join(self.homepath_base, self.name)
+                instance_game_path = os.path.join(instance_home_path, self.game_name)
+
+                data['server']['home_path'] = instance_home_path
                     
                 data['server']['rtvrtm_config_file'] = "{}-rtvrtm.cfg".format(self.name)
                 data['server']['rtvrtm_config_path'] = "{}/{}".format(self.mbii_path, data['server']['rtvrtm_config_file'])
@@ -46,7 +51,7 @@ class conf:
                 data['server']['secondary_maplist_path'] = "{}/{}".format(self.mbii_path, data['server']['secondary_maplist_file']) 
                 
                 data['server']['log_file'] = "{}-games.log".format(self.name)  
-                data['server']['log_path'] = "{}/{}".format(self.mbii_path, data['server']['log_file'])
+                data['server']['log_path'] = "{}/{}".format(instance_game_path, data['server']['log_file'])
                     
                 data['server']['pid_file'] = "{}/pids/{}.pid".format(self.script_path, self.name)  
                 

@@ -15,10 +15,10 @@ import inspect
 class process_handler:
 
     instance = None
-    services = []
     
     def __init__(self, instance):
         self.instance = instance
+        self.services = []
                
     def register_service(self, name, func, priority = 99, awaiter = None):
         """ 

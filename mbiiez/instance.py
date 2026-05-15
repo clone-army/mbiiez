@@ -470,15 +470,20 @@ class instance:
             os.system("chmod +x {}/{}".format("/usr/bin", self.config['server']['engine']))  
               
             # Sym Links
-            if(os.path.exists("/root/.local/share/openjk")):
-                if(not os.path.islink("/root/.local/share/openjk")):
-                    shutil.rmtree("/root/.local/share/openjk")       
-                    os.symlink(settings.locations.game_path, "/root/.local/share/openjk")
-            
-            if(os.path.exists("/root/.ja")):
-                if(not os.path.islink("/root/.ja")):
-                    shutil.rmtree("/root/.ja")       
-                    os.symlink(settings.locations.game_path, "/root/.ja")  
+            openjk_link = os.path.expanduser("~/.local/share/openjk")
+            ja_link = os.path.expanduser("~/.ja")
+
+            if(os.path.exists(openjk_link)):
+                if(not os.path.islink(openjk_link)):
+                    shutil.rmtree(openjk_link)
+                    os.symlink(settings.locations.game_path, openjk_link)
+
+            if(os.path.exists(ja_link)):
+                if(not os.path.islink(ja_link)):
+                    shutil.rmtree(ja_link)
+                    os.symlink(settings.locations.game_path, ja_link)
+
+            self.log_handler.log("OpenJK user paths resolved: openjk_link={}, ja_link={}".format(openjk_link, ja_link))
         
                            
             self.event_handler.run_event("before_launch_server")
@@ -524,15 +529,23 @@ class instance:
         os.system("chmod +x {}".format(engine_path))  
           
         # Sym Links
-        if(os.path.exists("/root/.local/share/openjk")):
-            if(not os.path.islink("/root/.local/share/openjk")):
-                shutil.rmtree("/root/.local/share/openjk")       
-                os.symlink(settings.locations.game_path, "/root/.local/share/openjk")
-        
-        if(os.path.exists("/root/.ja")):
-            if(not os.path.islink("/root/.ja")):
-                shutil.rmtree("/root/.ja")       
-                os.symlink(settings.locations.game_path, "/root/.ja")  
+        openjk_link = os.path.expanduser("~/.local/share/openjk")
+        ja_link = os.path.expanduser("~/.ja")
+
+        if(os.path.exists(openjk_link)):
+            if(not os.path.islink(openjk_link)):
+                shutil.rmtree(openjk_link)
+                os.symlink(settings.locations.game_path, openjk_link)
+
+        if(os.path.exists(ja_link)):
+            if(not os.path.islink(ja_link)):
+                shutil.rmtree(ja_link)
+                os.symlink(settings.locations.game_path, ja_link)
+
+        print(bcolors.YELLOW + "User Paths:" + bcolors.ENDC)
+        print("openjk_link: {}".format(openjk_link))
+        print("ja_link: {}".format(ja_link))
+        print()
 
         # Build the command (without --quiet so we see output)
         cmd = "{} +set dedicated 2 +set net_port {} +set fs_game {} +set fs_homepath {} +set fs_basepath {}{} +exec {}".format(

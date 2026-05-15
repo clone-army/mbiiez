@@ -1,4 +1,99 @@
 {% extends 'base.html' %}
 {% block content %}
-<!-- Dashboard intentionally left blank -->
+<div class="page-header mb-3">
+	<h3 class="page-title">Operations Dashboard</h3>
+</div>
+
+<div class="row mb-4">
+	<div class="col-md-4 mb-3">
+		<div class="card">
+			<div class="card-body">
+				<div class="text-muted">Instances</div>
+				<div class="h2 mb-0">{{ view_bag.summary.total }}</div>
+			</div>
+		</div>
+	</div>
+	<div class="col-md-4 mb-3">
+		<div class="card">
+			<div class="card-body">
+				<div class="text-muted">Running</div>
+				<div class="h2 mb-0 text-success">{{ view_bag.summary.running }}</div>
+			</div>
+		</div>
+	</div>
+	<div class="col-md-4 mb-3">
+		<div class="card">
+			<div class="card-body">
+				<div class="text-muted">Online Players</div>
+				<div class="h2 mb-0 text-primary">{{ view_bag.summary.players }}</div>
+			</div>
+		</div>
+	</div>
+</div>
+
+<div class="row">
+	{% for item in view_bag.instances %}
+	<div class="col-lg-6 mb-4">
+		<div class="card h-100">
+			<div class="card-body">
+				<div class="d-flex justify-content-between align-items-center mb-2">
+					<h5 class="card-title mb-0" style="white-space:pre;">{{ item.server_name_html|safe }}</h5>
+					{% if item.running %}
+						<span class="badge bg-success">Running</span>
+					{% else %}
+						<span class="badge bg-danger">Stopped</span>
+					{% endif %}
+				</div>
+
+				<div class="row small mb-3">
+					<div class="col-6"><strong>Instance:</strong> {{ item.name }}</div>
+					<div class="col-6"><strong>Players:</strong> {{ item.players_count }}</div>
+					<div class="col-6"><strong>Map:</strong> <span style="white-space:pre;">{{ item.map|safe }}</span></div>
+					<div class="col-6"><strong>Mode:</strong> <span style="white-space:pre;">{{ item.mode|safe }}</span></div>
+					<div class="col-12"><strong>Uptime:</strong> {{ item.uptime }}</div>
+				</div>
+
+				<div class="d-flex flex-wrap gap-2">
+					<a href="/instance?instance={{ item.name }}" class="btn btn-outline-primary btn-sm">Status</a>
+					<a href="/logs?instance={{ item.name }}" class="btn btn-outline-secondary btn-sm">Logs</a>
+					{% if can_mod %}
+					<a href="/mod?instance={{ item.name }}" class="btn btn-outline-warning btn-sm">Mod</a>
+					<a href="/rcon?instance={{ item.name }}" class="btn btn-outline-dark btn-sm">RCON</a>
+					{% endif %}
+					{% if can_admin %}
+					<button class="btn btn-success btn-sm" onclick="issueCommand('{{ item.name }}','start')">Start</button>
+					<button class="btn btn-warning btn-sm" onclick="issueCommand('{{ item.name }}','stop')">Stop</button>
+					<button class="btn btn-primary btn-sm" onclick="issueCommand('{{ item.name }}','restart')">Restart</button>
+					{% endif %}
+				</div>
+			</div>
+		</div>
+	</div>
+	{% endfor %}
+</div>
+
+{% if can_admin %}
+<script>
+async function issueCommand(instance, cmd) {
+	const endpoint = (cmd === 'start' || cmd === 'restart')
+		? `/instance/${instance}/command_async`
+		: `/instance/${instance}/command`;
+
+	const response = await fetch(endpoint, {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ command: cmd })
+	});
+
+	const data = await response.json();
+	if (!response.ok || data.error) {
+		alert(data.error || 'Command failed');
+		return;
+	}
+
+	alert(data.output || `${cmd} requested for ${instance}`);
+	setTimeout(() => location.reload(), 1500);
+}
+</script>
+{% endif %}
 {% endblock %}

@@ -11,16 +11,68 @@
 </div>
 <div class="card mb-4">
   <div class="card-body">
+    <div class="mb-2">
+      <label class="form-label">Quick Commands</label>
+      <div class="d-flex flex-wrap gap-2 mb-2">
+        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setCmd('status')">status</button>
+        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setCmd('listplayers')">listplayers</button>
+        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setCmd('map_restart 0')">map_restart 0</button>
+        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setCmd('g_gametype')">g_gametype</button>
+      </div>
+    </div>
     <form id="rcon-form" class="mb-3" onsubmit="return false;">
       <div class="input-group">
         <input type="text" id="rcon-input" class="form-control" placeholder="Enter RCON command...">
         <button type="submit" class="btn btn-primary">Send</button>
       </div>
     </form>
-    <div id="rcon-response" class="bg-light p-2 border rounded" style="min-height:60px;"></div>
+    <div id="rcon-response" class="bg-light p-2 border rounded font-monospace" style="min-height:60px; white-space:pre-wrap;"></div>
+    <hr>
+    <h6>Recent Commands</h6>
+    <ul id="cmd-history" class="list-group"></ul>
   </div>
 </div>
 <script>
+const HISTORY_KEY = 'mbiiez:rcon:{{ view_bag.instance }}';
+
+function setCmd(value) {
+  document.getElementById('rcon-input').value = value;
+}
+
+function getHistory() {
+  try {
+    return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+  } catch (e) {
+    return [];
+  }
+}
+
+function saveHistory(cmd) {
+  const history = getHistory().filter(x => x !== cmd);
+  history.unshift(cmd);
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(0, 20)));
+  renderHistory();
+}
+
+function renderHistory() {
+  const list = document.getElementById('cmd-history');
+  const history = getHistory();
+  list.innerHTML = '';
+
+  if (!history.length) {
+    list.innerHTML = '<li class="list-group-item text-muted">No recent commands.</li>';
+    return;
+  }
+
+  history.forEach((cmd) => {
+    const item = document.createElement('li');
+    item.className = 'list-group-item d-flex justify-content-between align-items-center';
+    item.innerHTML = `<span class="font-monospace">${cmd}</span><button type="button" class="btn btn-sm btn-outline-primary">Use</button>`;
+    item.querySelector('button').addEventListener('click', () => setCmd(cmd));
+    list.appendChild(item);
+  });
+}
+
 document.getElementById('rcon-form').addEventListener('submit', function(e) {
   e.preventDefault();
   const cmd = document.getElementById('rcon-input').value.trim();
@@ -35,10 +87,13 @@ document.getElementById('rcon-form').addEventListener('submit', function(e) {
     const resp = document.getElementById('rcon-response');
     if (data.success) {
       resp.innerText = data.response;
+      saveHistory(cmd);
     } else {
-      resp.innerHTML = '<span class="text-danger">' + data.error + '</span>';
+      resp.innerHTML = '<span class="text-danger">' + (data.error || 'Command failed') + '</span>';
     }
   });
 });
+
+renderHistory();
 </script>
 {% endblock %}
