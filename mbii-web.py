@@ -125,21 +125,10 @@ def _load_users():
         if username:
             users[username] = {"password": password, "role": role}
 
-    if settings.web_service.username and settings.web_service.password:
-        # Keep legacy credentials as admin if not explicitly declared in users file.
-        if settings.web_service.username not in users:
-            users[settings.web_service.username] = {
-                "password": settings.web_service.password,
-                "role": "admin",
-            }
-
     return users
 
 
 def _setup_required():
-    if not settings.web_service.auth_enabled:
-        return False
-
     users_file = settings.web_service.users_file
     if not users_file:
         return True
@@ -411,6 +400,8 @@ def health():
             "status": "ok",
             "auth_enabled": settings.web_service.auth_enabled,
             "setup_required": _setup_required(),
+            "users_file": settings.web_service.users_file,
+            "users_file_exists": bool(settings.web_service.users_file and os.path.exists(settings.web_service.users_file)),
         }
     )
 

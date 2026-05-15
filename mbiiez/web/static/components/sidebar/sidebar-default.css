@@ -19,9 +19,22 @@
 }
 
 #sidebar .sidebar-header {
-    padding: .4rem 1rem;
+    padding: .6rem 1rem;
     border-bottom: 1px solid rgba(101, 109, 119, .16);
-    max-height: 55px;
+    min-height: 112px;
+    max-height: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#sidebar .sidebar-header .app-logo {
+    display: block;
+    width: 100%;
+    max-width: 200px;
+    max-height: 100px;
+    height: auto;
+    object-fit: contain;
 }
 
 #sidebar ul.components {
@@ -77,5 +90,15 @@ a[aria-expanded="true"] {
 @media (max-width: 768px) {
     #sidebarCollapse span {
         display: none;
+    }
+
+    #sidebar .sidebar-header {
+        min-height: 96px;
+        padding: .5rem .75rem;
+    }
+
+    #sidebar .sidebar-header .app-logo {
+        max-width: 180px;
+        max-height: 90px;
     }
 }
