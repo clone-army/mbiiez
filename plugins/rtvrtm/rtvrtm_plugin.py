@@ -66,8 +66,8 @@ class RTVRTMPlugin:
             # Create file names with instance prefix
             instance_name = self.instance.name
             cfg_filename = f"{instance_name}_rtvrtm.cfg"
-            maps_filename = f"{instance_name}_maps.txt"
-            secondary_maps_filename = f"{instance_name}_secondary_maps.txt"
+            maps_filename = "maps.txt"
+            secondary_maps_filename = "secondary_maps.txt"
             
             # Full paths
             self.cfg_path = os.path.join(mbii_folder, cfg_filename)
@@ -93,10 +93,10 @@ class RTVRTMPlugin:
         
         # Get automatic values from MBIIEZ instance
         instance_name = self.instance.name
-        mbii_folder = os.path.dirname(self.instance.config['server']['server_config_path'])
+        mbii_folder = self.instance.conf.mbii_path
         port = self.instance.config['server']['port']
         rcon_password = self.instance.config['security']['rcon_password']
-        log_file = os.path.join(mbii_folder, self.instance.config['server']['log_file'])
+        log_file = self.instance.config['server']['log_path']
 
         if not os.path.exists(log_file):
             open(log_file, 'a').close()
