@@ -77,6 +77,6 @@ class console:
             response = self.rcon("set " + key + "=" + str(value))             
             
     def cvar_clean(self, text):
-        return re.sub("\^[1-9]","",text)
+        return re.sub(r"\^[1-9]","",text)
    
  
