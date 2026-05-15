@@ -178,13 +178,15 @@ class process_handler:
         Is a process running by its name
         """  
         # Screen-based check for the game engine — more reliable than stale PIDs.
+        # screen -ls uses tabs between columns, so we do a plain Python substring
+        # check rather than relying on whitespace in a grep pattern.
         if name in ("OpenJK", "Dedicated Server"):
             screen_name = "mb2_{}".format(self.instance.name)
             result = subprocess.run(
-                "screen -ls | grep -q '.{} '".format(screen_name),
-                shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+                ["screen", "-ls"],
+                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL
             )
-            return result.returncode == 0
+            return screen_name in result.stdout.decode("utf-8", errors="replace")
 
         pr = db().select("processes",{"instance": self.instance.name, "name": name})
      
