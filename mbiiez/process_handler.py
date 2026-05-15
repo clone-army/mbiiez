@@ -34,6 +34,18 @@ class process_handler:
         services = sorted(self.services, key=lambda k: k['priority'])
         
         for service in services:
+
+            existing = db().select("processes", {"instance": self.instance.name, "name": service['name']})
+            if(existing):
+                still_running = False
+                for row in existing:
+                    if self.process_status_pid(row['pid']):
+                        still_running = True
+                        break
+
+                if still_running:
+                    self.instance.log_handler.log("Service already running: " + service['name'])
+                    continue
         
             if(service['awaiter'] and callable(service['awaiter'])):
                 service['awaiter']();
@@ -156,7 +168,8 @@ class process_handler:
         """           
         pr = db().select("processes",{"instance": self.instance.name, "name": name})
         for p in pr:
-            return p['pid']
+            if self.process_status_pid(p['pid']):
+                return p['pid']
         return 0
 
     def process_status_name(self, name):
@@ -165,15 +178,12 @@ class process_handler:
         """  
         
         pr = db().select("processes",{"instance": self.instance.name, "name": name})
-     
-        if(len(pr) == 0):
-            return False
-        else:
-            for p in pr:
-                if(self.process_status_pid(p['pid'])):
-                    return True
-                else:
-                    return False
+
+        for p in pr:
+            if(self.process_status_pid(p['pid'])):
+                return True
+
+        return False
        
     def process_status_pid(self, pid):
         """ 
@@ -191,17 +201,18 @@ class process_handler:
         Stops all processes for this instance
         """  
         pr = db().select("processes",{"instance": self.instance.name})
+        seen_names = set()
 
         for p in pr:          
-            if(self.process_status_pid(p['pid'])):           
-                if(self.stop_process_pid(p['pid'])):
-                    # Extra DB not really needed but best to be safe
-                    db().delete("processes", p['id'])
-                    print("[" + bcolors.GREEN + "Yes" + bcolors.ENDC +  "] Stopped {}".format(str(p['name'])))
-                else:
-                    print("[" + bcolors.RED + "No" + bcolors.ENDC +  "] Stopped {}".format(str(p['name']))) 
+            if(p['name'] in seen_names):
+                continue
+
+            seen_names.add(p['name'])
+
+            if(self.stop_process_name(p['name'])):
+                print("[" + bcolors.GREEN + "Yes" + bcolors.ENDC +  "] Stopped {}".format(str(p['name'])))
             else:
-                db().delete("processes", p['id'])
+                print("[" + bcolors.RED + "No" + bcolors.ENDC +  "] Stopped {}".format(str(p['name']))) 
 
         # The above is quite good for keeping track of processes, ultimately it does not work....
         # This is the brute force... burn it all, command
@@ -217,18 +228,20 @@ class process_handler:
         Stops all process by its name
         """         
         pr = db().select("processes",{"instance": self.instance.name, "name": name})
-        db().execute("delete from processes where instance = \"{}\" and name = \"{}\"".format(self.instance.name, name))
-        
         self.services = [s for s in self.services if s["name"] != name]
         
         if(len(pr) == 0): # Without its pid we cant do anything here
             return False
         else:
+            stopped_any = False
             for p in pr:
                 if(self.process_status_pid(p['pid'])):
-                    return self.stop_process_pid(p['pid'])
-                else:
-                    return False
+                    if(self.stop_process_pid(p['pid'])):
+                        stopped_any = True
+
+                db().delete("processes", p['id'])
+
+            return stopped_any
             
     def stop_process_pid(self, pid):
         """ 
