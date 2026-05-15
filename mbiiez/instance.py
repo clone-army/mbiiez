@@ -535,11 +535,12 @@ class instance:
                 os.symlink(settings.locations.game_path, "/root/.ja")  
 
         # Build the command (without --quiet so we see output)
-        cmd = "{} +set dedicated 2 +set net_port {} +set fs_game {} +set fs_homepath {}{} +exec {}".format(
+        cmd = "{} +set dedicated 2 +set net_port {} +set fs_game {} +set fs_homepath {} +set fs_basepath {}{} +exec {}".format(
             engine_path,
             self.config['server']['port'],
             self.get_game(),
             self.get_homepath(),
+            settings.locations.base_path,
             self.get_startup_cvar_args(),
             self.config['server']['server_config_file']
         )
