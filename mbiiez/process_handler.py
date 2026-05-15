@@ -180,7 +180,7 @@ class process_handler:
         # Screen-based check for the game engine — more reliable than stale PIDs.
         if name in ("OpenJK", "Dedicated Server"):
             screen_name = "mb2_{}".format(self.instance.name)
-            return os.system(r"screen -ls | grep -q '\.{}$'".format(screen_name)) == 0
+            return os.system("screen -ls | grep -q '\\.{} '".format(screen_name)) == 0
 
         pr = db().select("processes",{"instance": self.instance.name, "name": name})
      
