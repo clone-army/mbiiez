@@ -51,8 +51,10 @@ class conf:
                 data['server']['secondary_maplist_file'] = "{}-secondary.txt".format(self.name) 
                 data['server']['secondary_maplist_path'] = os.path.join(instance_home_path, data['server']['secondary_maplist_file']) 
                 
-                data['server']['log_file'] = "{}-games.log".format(self.name)  
-                data['server']['log_path'] = os.path.join(instance_home_path, data['server']['log_file'])
+                data['server']['log_file'] = "{}-games.log".format(self.name)
+                # OpenJK writes g_log relative to fs_homepath/fs_game, so the real
+                # log lives inside the MBII subfolder of the instance homepath.
+                data['server']['log_path'] = os.path.join(instance_game_path, data['server']['log_file'])
                     
                 data['server']['pid_file'] = "{}/pids/{}.pid".format(self.script_path, self.name)  
                 

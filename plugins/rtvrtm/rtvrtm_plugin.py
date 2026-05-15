@@ -98,6 +98,11 @@ class RTVRTMPlugin:
         rcon_password = self.instance.config['security']['rcon_password']
         log_file = self.instance.config['server']['log_path']
 
+        # Ensure the directory and the log file itself exist; RTVRTM aborts
+        # at startup if the Log: path doesn't resolve to an existing file.
+        log_dir = os.path.dirname(log_file)
+        if log_dir:
+            os.makedirs(log_dir, exist_ok=True)
         if not os.path.exists(log_file):
             open(log_file, 'a').close()
         
