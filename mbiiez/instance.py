@@ -762,11 +762,13 @@ class instance:
             # Use player['name'] for web, not player['player']
             "players": self.players(),
             "players_count": self.players_count(),
-            # Only include minimal info for services to avoid recursion
+            # Only include minimal info for services to avoid recursion.
+            # Use process_status_name so screen-launched processes (OpenJK) are
+            # checked via 'screen -ls' rather than a stale Popen PID.
             "services": [
                 {
                     "name": row["name"],
-                    "running": self.process_handler.process_status_pid(row["pid"])
+                    "running": self.process_handler.process_status_name(row["name"])
                 }
                 for row in db().select("processes", {"instance": self.name})
             ],
