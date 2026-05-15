@@ -578,6 +578,20 @@ table.dataTable>tbody>tr.child ul.dtr-details {
     --bs-table-color: #d7deea;
 }
 
+.table-light {
+    --bs-table-color: #d7deea;
+    --bs-table-bg: #151b24;
+    --bs-table-border-color: #243041;
+    --bs-table-striped-bg: #1a2230;
+    --bs-table-striped-color: #d7deea;
+    --bs-table-active-bg: #1f2a3a;
+    --bs-table-active-color: #ffffff;
+    --bs-table-hover-bg: #1f2a3a;
+    --bs-table-hover-color: #ffffff;
+    color: var(--bs-table-color);
+    border-color: var(--bs-table-border-color);
+}
+
 .table-striped>tbody>tr:nth-of-type(odd)>* {
     --bs-table-accent-bg: #151b24;
 }
