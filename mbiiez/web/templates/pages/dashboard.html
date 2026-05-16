@@ -81,7 +81,8 @@
 </div>
 
 {% if can_admin %}
-<div class="d-flex gap-2 mb-4 justify-content-end">
+<div class="d-flex gap-2 mb-4 justify-content-end align-items-center">
+	<span id="update-status" class="small text-muted me-1"></span>
 	<button class="btn btn-outline-warning btn-sm" onclick="webRestart()">Restart Web</button>
 	<button class="btn btn-outline-info btn-sm" id="btn-update" onclick="webUpdate()">Update</button>
 </div>
@@ -99,23 +100,34 @@ async function webRestart() {
 	setTimeout(() => location.reload(), 8000);
 }
 
+function setUpdateStatus(msg, cssClass, autoClear) {
+	const el = document.getElementById('update-status');
+	el.textContent = msg;
+	el.className = 'small me-1 ' + (cssClass || 'text-muted');
+	if (autoClear) setTimeout(() => { el.textContent = ''; el.className = 'small text-muted me-1'; }, autoClear);
+}
+
 async function webUpdate() {
 	const btn = document.getElementById('btn-update');
 	btn.disabled = true;
-	btn.textContent = 'Updating...';
+	btn.textContent = 'Checking...';
+	setUpdateStatus('Contacting server...', 'text-muted');
 	try {
 		const resp = await fetch('/api/web/update', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
 		const data = await resp.json();
 		if (!data.success) {
-			alert('Update failed:\n' + (data.error || 'Unknown error'));
+			setUpdateStatus('Update failed: ' + (data.error || 'Unknown error'), 'text-danger', 8000);
 			return;
 		}
 		if (data.changed) {
-			alert('Update applied:\n' + data.output + '\n\nRestarting web service...');
+			setUpdateStatus('Update installed — restarting in 8s...', 'text-success');
+			btn.textContent = 'Update';
 			setTimeout(() => location.reload(), 8000);
 		} else {
-			alert('Already up to date.\n' + data.output);
+			setUpdateStatus('No updates found.', 'text-muted', 6000);
 		}
+	} catch(e) {
+		setUpdateStatus('Error: ' + e.message, 'text-danger', 8000);
 	} finally {
 		btn.disabled = false;
 		btn.textContent = 'Update';
