@@ -53,19 +53,43 @@ class plugin:
     ''' use register event to have your given method notified when the event occurs '''
     def register(self):
         self.instance.process_handler.register_service("Auto Map Rotation Service", self.auto_map_changes)
-        
-      # Auto Map Changes Thread       
-    def auto_map_changes(self):             
-    
-        time.sleep(60)
-    
-        while(True):
-            time.sleep(self.config['rotate_minutes'] * 60)
-            if(self.instance.is_empty()):
-                self.instance.rcon("vstr nextmap")
-                self.instance.log_handler.log("Changing Map..")
-            else:
-                self.instance.log_handler.log("NOT Changing Map..")               
 
-        return
+    # Auto Map Changes Thread
+    def auto_map_changes(self):
+        # Support both key names; fall back to 30 minutes if neither is set.
+        interval = (
+            self.config.get('rotate_minutes')
+            or self.config.get('rotation_minutes')
+            or 30
+        )
+        interval_secs = interval * 60
+
+        self.instance.log_handler.log(
+            "Auto Map Rotation: started, interval {} min (will rotate only when server is empty).".format(interval)
+        )
+
+        while True:
+            time.sleep(interval_secs)
+
+            try:
+                empty = self.instance.is_empty()
+            except Exception:
+                # Can't reach RCON — assume occupied; skip this cycle.
+                self.instance.log_handler.log(
+                    "Auto Map Rotation: RCON unavailable, skipping rotation."
+                )
+                continue
+
+            if empty:
+                self.instance.log_handler.log("Auto Map Rotation: server empty, rotating map.")
+                try:
+                    self.instance.rcon("vstr nextmap")
+                except Exception as e:
+                    self.instance.log_handler.log(
+                        "Auto Map Rotation: failed to send vstr nextmap — {}.".format(e)
+                    )
+            else:
+                self.instance.log_handler.log(
+                    "Auto Map Rotation: server occupied, skipping rotation."
+                )
        
