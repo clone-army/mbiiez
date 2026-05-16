@@ -46,6 +46,8 @@ app = Flask(
     template_folder="mbiiez/web/templates",
 )
 app.config["TEMPLATES_AUTO_RELOAD"] = True
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 app.secret_key = os.environ.get("MBIIEZ_WEB_SECRET_KEY", "mbiiez-change-this-secret")
 
 
@@ -475,8 +477,10 @@ def login():
 
 @app.route("/logout", methods=["GET", "POST"])
 def logout():
-    _clear_session_auth()
-    return redirect("/login", code=302)
+    session.clear()
+    response = redirect("/login", code=302)
+    response.delete_cookie(app.session_cookie_name)
+    return response
 
 
 @app.route("/admin/users", methods=["GET"])
