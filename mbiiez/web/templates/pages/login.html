@@ -7,7 +7,7 @@
   <link href="/assets/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet">
   <style>
     body {
-      background: radial-gradient(circle at 20% 20%, #e9f2fa 0%, #eef3f8 45%, #dde6ef 100%);
+      background: #0f1117;
       min-height: 100vh;
       display: flex;
       align-items: center;
@@ -16,17 +16,27 @@
     .login-card {
       width: 100%;
       max-width: 460px;
-      border: 0;
+      border: 1px solid #2a2d35;
       border-radius: 14px;
-      box-shadow: 0 16px 38px rgba(20, 34, 56, 0.16);
+      background: #1a1d24;
+      box-shadow: 0 16px 48px rgba(0, 0, 0, 0.6);
     }
-    .brand {
-      font-weight: 700;
-      letter-spacing: 0.3px;
-      color: #0f355c;
+    .login-card .form-control {
+      background: #0f1117;
+      border-color: #2a2d35;
+      color: #e8eaf0;
+    }
+    .login-card .form-control:focus {
+      background: #0f1117;
+      border-color: #4e8ef7;
+      color: #e8eaf0;
+      box-shadow: 0 0 0 0.2rem rgba(78, 142, 247, 0.25);
+    }
+    .login-card .form-label {
+      color: #a0a8b8;
     }
     .hint {
-      color: #5f6e7e;
+      color: #6b7385;
       font-size: 0.95rem;
     }
   </style>
@@ -34,8 +44,10 @@
 <body>
   <div class="card login-card">
     <div class="card-body p-4 p-md-5">
-      <div class="mb-3">
-        <h3 class="brand mb-1">MBIIEZ Control Panel</h3>
+      <div class="text-center mb-4">
+        <img src="/assets/img/bootstraper-logo.png" alt="MBIIEZ" style="max-height: 64px; max-width: 220px; object-fit: contain;">
+      </div>
+      <div class="mb-3 text-center">
         <p class="hint mb-0">Sign in with your panel account.</p>
       </div>
 
