@@ -34,7 +34,7 @@ class web_service:
     port = int(globals.config.get('web_service', 'port', fallback='8080'))
     username = globals.config.get('web_service', 'username', fallback='admin')
     password = globals.config.get('web_service', 'password', fallback='admin')
-    auth_enabled = globals.config.getboolean('web_service', 'auth_enabled', fallback=True)
+    auth_enabled = True  # Authentication is always required.
     users_file = globals.config.get(
         'web_service',
         'users_file',
