@@ -11,7 +11,6 @@ class console:
         self.password = rcon_password
         self.prefix_rcon = bytes([0xff, 0xff, 0xff, 0xff]) + b'rcon '
         self.prefix_console = bytes([0xff, 0xff, 0xff, 0xff])
-        self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
     def rcon(self, command, quiet = False):
         cmd = f"{self.password} {command}".encode()
@@ -24,14 +23,30 @@ class console:
         return self.send(query)
 
     def send(self, query):
-        self.socket.connect((self.ip, self.port))
-        self.socket.send(query)
-        self.socket.settimeout(4)
+        # Fresh socket per call avoids stale-buffer bleed between cvar lookups,
+        # and a short per-recv timeout drains multi-datagram responses fully.
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.settimeout(2)
         try:
-            data = self.socket.recv(4096)
-            return data.decode("utf-8", "ignore")
-        except socket.timeout:
-            return None
+            sock.connect((self.ip, self.port))
+            sock.send(query)
+
+            total_data = []
+            while True:
+                try:
+                    data = sock.recv(4096)
+                except socket.timeout:
+                    break
+                if not data:
+                    break
+                total_data.append(data.decode("utf-8", "ignore"))
+                # After the first datagram, shorten the wait so we drain
+                # any follow-up packets quickly without stalling 2s every call.
+                sock.settimeout(0.3)
+        finally:
+            sock.close()
+
+        return ''.join(total_data) if total_data else None
 
 
     # Send SAY as Server
