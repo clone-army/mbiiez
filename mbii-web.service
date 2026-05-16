@@ -8,6 +8,7 @@ WorkingDirectory=WORKING_DIRECTORY
 ExecStart=/usr/bin/python3 -u mbii-web.py
 Restart=always
 ExecReload=/bin/kill -HUP $MAINPID
+KillMode=process
 
 [Install]
 WantedBy=multi-user.target
