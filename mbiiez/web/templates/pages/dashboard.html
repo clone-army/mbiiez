@@ -81,7 +81,47 @@
 </div>
 
 {% if can_admin %}
+<div class="d-flex gap-2 mb-4 justify-content-end">
+	<button class="btn btn-outline-warning btn-sm" onclick="webRestart()">Restart Web</button>
+	<button class="btn btn-outline-info btn-sm" id="btn-update" onclick="webUpdate()">Update</button>
+</div>
+{% endif %}
+
+{% if can_admin %}
 <script>
+async function webRestart() {
+	if (!confirm('Restart the web service? You will be disconnected briefly.')) return;
+	await fetch('/api/web/restart', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+	const notice = document.createElement('div');
+	notice.className = 'alert alert-warning mt-2';
+	notice.textContent = 'Web service restarting — reconnecting in 8 seconds...';
+	document.body.prepend(notice);
+	setTimeout(() => location.reload(), 8000);
+}
+
+async function webUpdate() {
+	const btn = document.getElementById('btn-update');
+	btn.disabled = true;
+	btn.textContent = 'Updating...';
+	try {
+		const resp = await fetch('/api/web/update', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+		const data = await resp.json();
+		if (!data.success) {
+			alert('Update failed:\n' + (data.error || 'Unknown error'));
+			return;
+		}
+		if (data.changed) {
+			alert('Update applied:\n' + data.output + '\n\nRestarting web service...');
+			setTimeout(() => location.reload(), 8000);
+		} else {
+			alert('Already up to date.\n' + data.output);
+		}
+	} finally {
+		btn.disabled = false;
+		btn.textContent = 'Update';
+	}
+}
+
 async function issueCommand(instance, cmd) {
 	const endpoint = (cmd === 'start' || cmd === 'restart')
 		? `/instance/${instance}/command_async`

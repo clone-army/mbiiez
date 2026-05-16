@@ -938,5 +938,54 @@ app.register_blueprint(logs_api)
 app.register_blueprint(chat_api)
 
 
+@app.route("/api/web/restart", methods=["POST"])
+@require_role("admin")
+def web_restart():
+    """Restart the mbii-web systemd service."""
+    _audit("web_restart", details="requested by {}".format(_current_user()))
+    try:
+        subprocess.Popen(
+            ["systemctl", "restart", "mbii-web"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        return jsonify({"success": True, "message": "Web service restart initiated."})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/web/update", methods=["POST"])
+@require_role("admin")
+def web_update():
+    """git pull the mbiiez repo; restart the web service only if files changed."""
+    _audit("web_update", details="requested by {}".format(_current_user()))
+    repo_dir = os.path.dirname(os.path.abspath(__file__))
+    try:
+        result = subprocess.run(
+            ["git", "pull"],
+            cwd=repo_dir,
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+        output = (result.stdout or "").strip()
+        changed = result.returncode == 0 and "Already up to date." not in output
+        if changed:
+            subprocess.Popen(
+                ["systemctl", "restart", "mbii-web"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+        return jsonify({
+            "success": result.returncode == 0,
+            "output": output,
+            "changed": changed,
+            "restarted": changed,
+            "error": (result.stderr or "").strip() if result.returncode != 0 else None,
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
 if __name__ == "__main__":
     app.run(debug=False, host="0.0.0.0", port=settings.web_service.port, use_reloader=False)
