@@ -186,7 +186,13 @@ class process_handler:
                 ["screen", "-ls"],
                 stdout=subprocess.PIPE, stderr=subprocess.DEVNULL
             )
-            return screen_name in result.stdout.decode("utf-8", errors="replace")
+            output = result.stdout.decode("utf-8", errors="replace")
+            # A dead screen still shows the name but has "(Dead" on the same line.
+            # Only count it as running if the name appears on a line without "(Dead".
+            for line in output.splitlines():
+                if screen_name in line and "(Dead" not in line:
+                    return True
+            return False
 
         pr = db().select("processes",{"instance": self.instance.name, "name": name})
      
@@ -235,6 +241,7 @@ class process_handler:
             os.system("pkill -9 -f 'exec {}' >/dev/null 2>&1".format(cfg_file))
         os.system("screen -S {} -X quit >/dev/null 2>&1".format(screen_name))
         os.system("pkill -9 -f 'screen.*{}' >/dev/null 2>&1".format(screen_name))
+        os.system("screen -wipe >/dev/null 2>&1")
 
         print((bcolors.RED + "Instance {} stopped." + bcolors.ENDC).format(self.instance.name))
 
