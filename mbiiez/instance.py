@@ -191,7 +191,14 @@ class instance:
                 self.log_handler.log("Anytime Spin: WARNING - {} not found".format(fake_sunday_lib))
 
         screen_name = "mb2_{}".format(self.name)
-        cmd = "screen -dmS {} {}".format(screen_name, inner_cmd)
+        # Wrap in bash with output redirected to a log file. screen's pty buffer is
+        # finite; if the engine writes faster than it's drained, its writes block and
+        # the main loop stalls, which causes UDP packets (including RCON) to pile up
+        # in the kernel receive queue and the server appears unresponsive.
+        engine_log = "/var/log/{}-engine.log".format(self.name.lower())
+        cmd = "screen -dmS {} bash -c \"{} >> {} 2>&1\"".format(
+            screen_name, inner_cmd, engine_log
+        )
         self.start_cmd = cmd
 
         print()  
