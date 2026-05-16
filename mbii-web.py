@@ -479,7 +479,7 @@ def login():
 def logout():
     session.clear()
     response = redirect("/login", code=302)
-    response.delete_cookie(app.session_cookie_name)
+    response.delete_cookie(app.config.get("SESSION_COOKIE_NAME", "session"))
     return response
 
 
