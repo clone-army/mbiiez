@@ -222,8 +222,17 @@ class process_handler:
             else:
                 db().delete("processes", p['id'])
 
-        # Stop the named screen session for this instance's engine — port-safe, targets only this instance.
+        # Stop the engine — port-safe, targets only this instance.
+        # 1) Kill whoever owns this instance's UDP port (the engine itself).
+        # 2) Wipe the screen wrapper(s) and any bash glue around it.
         screen_name = "mb2_{}".format(self.instance.name)
+        port = self.instance.config['server'].get('port')
+        if port:
+            os.system("fuser -k -n udp {} >/dev/null 2>&1".format(port))
+        # Belt-and-braces: also match the server config file in case engine survives the port kill.
+        cfg_file = self.instance.config['server'].get('server_config_file')
+        if cfg_file:
+            os.system("pkill -9 -f 'exec {}' >/dev/null 2>&1".format(cfg_file))
         os.system("screen -S {} -X quit >/dev/null 2>&1".format(screen_name))
         os.system("pkill -9 -f 'screen.*{}' >/dev/null 2>&1".format(screen_name))
 
@@ -239,9 +248,12 @@ class process_handler:
         self.services = [s for s in self.services if s["name"] != name]
         
         if(len(pr) == 0):
-            # Fallback for the engine: stop by screen session name
+            # Fallback for the engine: stop by UDP port owner + screen session name
             if name in ("OpenJK", "Dedicated Server"):
                 screen_name = "mb2_{}".format(self.instance.name)
+                port = self.instance.config['server'].get('port')
+                if port:
+                    os.system("fuser -k -n udp {} >/dev/null 2>&1".format(port))
                 os.system("pkill -9 -f 'screen.*{}' >/dev/null 2>&1".format(screen_name))
                 os.system("screen -S {} -X quit >/dev/null 2>&1".format(screen_name))
             return False
