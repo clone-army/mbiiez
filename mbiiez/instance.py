@@ -753,6 +753,23 @@ class instance:
         Return all status information as a dictionary for programmatic use.
         """
         server_name_raw = self.config['server']['host_name']
+        # RCON-dependent fields — safe defaults when engine is starting up or RCON is unavailable.
+        try:
+            _mode = self.mode(None)
+        except Exception:
+            _mode = "Loading"
+        try:
+            _map = self.map(None)
+        except Exception:
+            _map = "Loading"
+        try:
+            _players = self.players()
+        except Exception:
+            _players = []
+        try:
+            _players_count = self.players_count()
+        except Exception:
+            _players_count = 0
         info = {
             "instance_name": self.name,
             "server_name": server_name_raw,
@@ -762,22 +779,23 @@ class instance:
             "engine": self.config['server']['engine'],
             "port": self.config['server']['port'],
             "full_address": f"{self.get_external_ip()}:{self.config['server']['port']}",
-            "mode": self.mode(None),
-            "map": self.map(None),
+            "mode": _mode,
+            "map": _map,
             "plugins": self.plugins_registered,
             "uptime": self.uptime(),
-            # Use player['name'] for web, not player['player']
-            "players": self.players(),
-            "players_count": self.players_count(),
+            "players": _players,
+            "players_count": _players_count,
             # Only include minimal info for services to avoid recursion.
             # Use process_status_name so screen-launched processes (OpenJK) are
             # checked via 'screen -ls' rather than a stale Popen PID.
             "services": [
                 {
-                    "name": row["name"],
-                    "running": self.process_handler.process_status_name(row["name"])
+                    "name": name,
+                    "running": self.process_handler.process_status_name(name)
                 }
-                for row in db().select("processes", {"instance": self.name})
+                for name in dict.fromkeys(
+                    row["name"] for row in db().select("processes", {"instance": self.name})
+                )
             ],
             "server_running": self.server_running(),
         }
@@ -853,7 +871,11 @@ class instance:
     def stop(self, force = False):
     
         if(self.server_running()):   
-            players = self.players()
+            try:
+                players = self.players()
+            except Exception:
+                # Engine wedged / RCON dead — just stop.
+                players = []
             confirm = 'n'
             
             # Check if we're being called from a web interface context
