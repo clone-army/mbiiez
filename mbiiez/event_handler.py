@@ -96,7 +96,61 @@ class event_handler:
                     
         except Exception as e:
             self.instance.log_handler.log("Critical error in scheduled restarter: {}".format(str(e)))
-            self.instance.exception_handler.log(e)    
+            self.instance.exception_handler.log(e)
+
+    # Watches the engine's screen session and relaunches it if it dies (e.g. an MBII engine
+    # segfault). The engine is registered with supervised=False since it runs inside a
+    # screen session rather than a Python-managed subprocess, so process_handler's own
+    # crash/retry loop never sees it. Without this, a crash sat unrecovered until either
+    # update.sh's 10-minute cron happened to also have an update pending, or a human
+    # manually restarted it via the CLI/web UI.
+    def crash_watchdog(self):
+        try:
+            check_interval = self.instance.config['server'].get('crash_watchdog_interval_seconds', 15)
+
+            if not isinstance(check_interval, (int, float)) or check_interval <= 0:
+                self.instance.log_handler.log("Crash watchdog disabled (crash_watchdog_interval_seconds <= 0).")
+                return
+
+            self.instance.log_handler.log("Crash watchdog started, checking engine every {}s".format(check_interval))
+
+            # Back off if the engine keeps crashing immediately after each restart,
+            # rather than hammering it in a tight fork loop.
+            BACKOFF_THRESHOLD = 5
+            BACKOFF_WINDOW_SECONDS = 300
+            BACKOFF_SLEEP_SECONDS = 300
+            recent_restarts = []
+
+            while(True):
+                time.sleep(check_interval)
+
+                if self.instance.process_handler.process_status_name("OpenJK"):
+                    continue
+
+                now = time.time()
+                recent_restarts = [t for t in recent_restarts if now - t < BACKOFF_WINDOW_SECONDS]
+
+                if len(recent_restarts) >= BACKOFF_THRESHOLD:
+                    self.instance.log_handler.log(
+                        "Crash watchdog: engine has crashed {} times in the last {}s - backing off for {}s "
+                        "before trying again (needs manual attention).".format(
+                            len(recent_restarts), BACKOFF_WINDOW_SECONDS, BACKOFF_SLEEP_SECONDS))
+                    time.sleep(BACKOFF_SLEEP_SECONDS)
+                    continue
+
+                self.instance.log_handler.log("Crash watchdog: engine is not running - relaunching.")
+                recent_restarts.append(now)
+
+                try:
+                    # launch_services() skips any service already running, so this only
+                    # (re)starts the dead engine and leaves Log Watcher etc. untouched.
+                    self.instance.process_handler.launch_services()
+                except Exception as e:
+                    self.instance.exception_handler.log(e)
+
+        except Exception as e:
+            self.instance.log_handler.log("Critical error in crash watchdog: {}".format(str(e)))
+            self.instance.exception_handler.log(e)
         
 
     # Internal Events

@@ -50,6 +50,7 @@ class instance:
 
         self.start_cmd = None
         self.startup_cvars = {}
+        self.plugin_cvars = {}
 
         # Generate Config for this instance 
         self.conf = conf(self.name, settings)       
@@ -74,7 +75,10 @@ class instance:
 
         # Load plugins before services so they can register launch-time CVARs.
         self.plugin_handler = plugin_handler(self)
-        
+
+        # Auto-apply any cvars declared in each plugin's JSON config block.
+        self._apply_plugin_cvars()
+
         # Load Internal Services
         self.services_internal()
 
@@ -211,7 +215,10 @@ class instance:
         ''' Restarter Service '''
         self.process_handler.register_service("Scheduled Restarter", self.event_handler.restarter)
 
-            
+        ''' Crash Watchdog Service - relaunches the engine if its screen session dies unexpectedly '''
+        self.process_handler.register_service("Crash Watchdog", self.event_handler.crash_watchdog)
+
+
     def events_internal(self):
         ''' Events we wish to run internal methods on '''
         self.event_handler.register_event("player_chat_command", self.event_handler.player_chat_command)
@@ -261,6 +268,18 @@ class instance:
 
     def register_startup_cvar(self, key, value):
         self.startup_cvars[str(key)] = str(value)
+
+    def register_plugin_cvar(self, key, value):
+        """Register a CVar to be written into the generated server config."""
+        self.plugin_cvars[str(key)] = str(value)
+
+    def _apply_plugin_cvars(self):
+        """Auto-register any cvars declared under a plugin's 'cvars' config key."""
+        for plugin_config in self.plugins.values():
+            if not isinstance(plugin_config, dict):
+                continue
+            for key, value in plugin_config.get('cvars', {}).items():
+                self.register_plugin_cvar(key, value)
 
     def get_startup_cvar_args(self):
         if(not self.startup_cvars):
@@ -534,7 +553,7 @@ class instance:
    
         # Generate our configs
         self.ensure_homepath()
-        self.conf.generate_server_config()
+        self.conf.generate_server_config(plugin_cvars=self.plugin_cvars)
         self.cleanup_legacy_root_files()
 
         launch_context = self._build_launch_context(
@@ -598,9 +617,9 @@ class instance:
    
         # Generate our configs
         self.ensure_homepath()
-        self.conf.generate_server_config()
+        self.conf.generate_server_config(plugin_cvars=self.plugin_cvars)
         self.cleanup_legacy_root_files()
-        
+
         # Can Instance Can Start?
         if not os.path.exists(self.config['server']['server_config_path']):
             print(bcolors.FAIL + "[Error] " + bcolors.ENDC + "Unable to Load a SERVER config at " + self.config['server']['server_config_path'])
