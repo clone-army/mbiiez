@@ -81,7 +81,59 @@
 </div>
 
 {% if can_admin %}
+<div class="d-flex gap-2 mb-4 justify-content-end align-items-center">
+	<span id="update-status" class="small text-muted me-1"></span>
+	<button class="btn btn-outline-warning btn-sm" onclick="webRestart()">Restart Web</button>
+	<button class="btn btn-outline-info btn-sm" id="btn-update" onclick="webUpdate()">Update</button>
+</div>
+{% endif %}
+
+{% if can_admin %}
 <script>
+async function webRestart() {
+	if (!confirm('Restart the web service? You will be disconnected briefly.')) return;
+	await fetch('/api/web/restart', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+	const notice = document.createElement('div');
+	notice.className = 'alert alert-warning mt-2';
+	notice.textContent = 'Web service restarting — reconnecting in 8 seconds...';
+	document.body.prepend(notice);
+	setTimeout(() => location.reload(), 8000);
+}
+
+function setUpdateStatus(msg, cssClass, autoClear) {
+	const el = document.getElementById('update-status');
+	el.textContent = msg;
+	el.className = 'small me-1 ' + (cssClass || 'text-muted');
+	if (autoClear) setTimeout(() => { el.textContent = ''; el.className = 'small text-muted me-1'; }, autoClear);
+}
+
+async function webUpdate() {
+	const btn = document.getElementById('btn-update');
+	btn.disabled = true;
+	btn.textContent = 'Checking...';
+	setUpdateStatus('Contacting server...', 'text-muted');
+	try {
+		const resp = await fetch('/api/web/update', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+		const data = await resp.json();
+		if (!data.success) {
+			setUpdateStatus('Update failed: ' + (data.error || 'Unknown error'), 'text-danger', 8000);
+			return;
+		}
+		if (data.changed) {
+			setUpdateStatus('Update installed — restarting in 8s...', 'text-success');
+			btn.textContent = 'Update';
+			setTimeout(() => location.reload(), 8000);
+		} else {
+			setUpdateStatus('No updates found.', 'text-muted', 6000);
+		}
+	} catch(e) {
+		setUpdateStatus('Error: ' + e.message, 'text-danger', 8000);
+	} finally {
+		btn.disabled = false;
+		btn.textContent = 'Update';
+	}
+}
+
 async function issueCommand(instance, cmd) {
 	const endpoint = (cmd === 'start' || cmd === 'restart')
 		? `/instance/${instance}/command_async`

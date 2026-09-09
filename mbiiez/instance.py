@@ -50,6 +50,7 @@ class instance:
 
         self.start_cmd = None
         self.startup_cvars = {}
+        self.plugin_cvars = {}
 
         # Generate Config for this instance 
         self.conf = conf(self.name, settings)       
@@ -73,8 +74,11 @@ class instance:
         self.console = console(self.config['security']['rcon_password'], str(self.config['server']['port']))
 
         # Load plugins before services so they can register launch-time CVARs.
-        self.plugin_hander = plugin_handler(self)
-        
+        self.plugin_handler = plugin_handler(self)
+
+        # Auto-apply any cvars declared in each plugin's JSON config block.
+        self._apply_plugin_cvars()
+
         # Load Internal Services
         self.services_internal()
 
@@ -170,8 +174,8 @@ class instance:
         # Ensure the homepath exists
         homepath = self.ensure_homepath()
 
-        # Runs the Dedicated OpenJK Server
-        cmd = "{} --quiet +set dedicated 2 +set net_port {} +set fs_game {} +set fs_homepath {} +set fs_basepath {}{} +exec {}".format(
+        # Runs the Dedicated OpenJK Server inside a named screen session for isolated process management
+        inner_cmd = "{} --quiet +set dedicated 2 +set net_port {} +set fs_game {} +set fs_homepath {} +set fs_basepath {}{} +exec {}".format(
             self.config['server']['engine'],
             self.config['server']['port'],
             self.get_game(),
@@ -181,21 +185,29 @@ class instance:
             self.config['server']['server_config_exec_path']
         )
 
-        # Check for anytime_spin plugin - prepend LD_PRELOAD to trick the game into thinking it's Sunday
+        # Check for anytime_spin plugin - use env(1) inside the screen session for LD_PRELOAD
         if self.has_plugin('anytime_spin'):
             fake_sunday_lib = os.path.join(settings.locations.plugins_path, 'anytime_spin', 'fake_sunday_32.so')
             if os.path.exists(fake_sunday_lib):
-                cmd = "LD_PRELOAD={} {}".format(fake_sunday_lib, cmd)
+                inner_cmd = "env LD_PRELOAD={} {}".format(fake_sunday_lib, inner_cmd)
                 self.log_handler.log("Anytime Spin: Using LD_PRELOAD for fake Sunday")
             else:
                 self.log_handler.log("Anytime Spin: WARNING - {} not found".format(fake_sunday_lib))
 
+        screen_name = "mb2_{}".format(self.name)
+        # Wrap in bash with output redirected to a log file. screen's pty buffer is
+        # finite; if the engine writes faster than it's drained, its writes block and
+        # the main loop stalls, which causes UDP packets (including RCON) to pile up
+        # in the kernel receive queue and the server appears unresponsive.
+        engine_log = "/var/log/{}-engine.log".format(self.name.lower())
+        cmd = "screen -dmS {} bash -c \"{} >> {} 2>&1\"".format(
+            screen_name, inner_cmd, engine_log
+        )
         self.start_cmd = cmd
-        
-        #print(bcolors.CYAN + cmd  + bcolors.ENDC )  
+
         print()  
       
-        self.process_handler.register_service("OpenJK", cmd, 1) 
+        self.process_handler.register_service("OpenJK", cmd, 1, supervised=False)
         
         ''' Log Watcher Service ''' 
         self.process_handler.register_service("Log Watcher", self.log_handler.log_watcher)
@@ -203,7 +215,10 @@ class instance:
         ''' Restarter Service '''
         self.process_handler.register_service("Scheduled Restarter", self.event_handler.restarter)
 
-            
+        ''' Crash Watchdog Service - relaunches the engine if its screen session dies unexpectedly '''
+        self.process_handler.register_service("Crash Watchdog", self.event_handler.crash_watchdog)
+
+
     def events_internal(self):
         ''' Events we wish to run internal methods on '''
         self.event_handler.register_event("player_chat_command", self.event_handler.player_chat_command)
@@ -253,6 +268,18 @@ class instance:
 
     def register_startup_cvar(self, key, value):
         self.startup_cvars[str(key)] = str(value)
+
+    def register_plugin_cvar(self, key, value):
+        """Register a CVar to be written into the generated server config."""
+        self.plugin_cvars[str(key)] = str(value)
+
+    def _apply_plugin_cvars(self):
+        """Auto-register any cvars declared under a plugin's 'cvars' config key."""
+        for plugin_config in self.plugins.values():
+            if not isinstance(plugin_config, dict):
+                continue
+            for key, value in plugin_config.get('cvars', {}).items():
+                self.register_plugin_cvar(key, value)
 
     def get_startup_cvar_args(self):
         if(not self.startup_cvars):
@@ -526,7 +553,7 @@ class instance:
    
         # Generate our configs
         self.ensure_homepath()
-        self.conf.generate_server_config()
+        self.conf.generate_server_config(plugin_cvars=self.plugin_cvars)
         self.cleanup_legacy_root_files()
 
         launch_context = self._build_launch_context(
@@ -590,9 +617,9 @@ class instance:
    
         # Generate our configs
         self.ensure_homepath()
-        self.conf.generate_server_config()
+        self.conf.generate_server_config(plugin_cvars=self.plugin_cvars)
         self.cleanup_legacy_root_files()
-        
+
         # Can Instance Can Start?
         if not os.path.exists(self.config['server']['server_config_path']):
             print(bcolors.FAIL + "[Error] " + bcolors.ENDC + "Unable to Load a SERVER config at " + self.config['server']['server_config_path'])
@@ -745,6 +772,23 @@ class instance:
         Return all status information as a dictionary for programmatic use.
         """
         server_name_raw = self.config['server']['host_name']
+        # RCON-dependent fields — safe defaults when engine is starting up or RCON is unavailable.
+        try:
+            _mode = self.mode(None)
+        except Exception:
+            _mode = "Loading"
+        try:
+            _map = self.map(None)
+        except Exception:
+            _map = "Loading"
+        try:
+            _players = self.players()
+        except Exception:
+            _players = []
+        try:
+            _players_count = self.players_count()
+        except Exception:
+            _players_count = 0
         info = {
             "instance_name": self.name,
             "server_name": server_name_raw,
@@ -754,20 +798,23 @@ class instance:
             "engine": self.config['server']['engine'],
             "port": self.config['server']['port'],
             "full_address": f"{self.get_external_ip()}:{self.config['server']['port']}",
-            "mode": self.mode(None),
-            "map": self.map(None),
+            "mode": _mode,
+            "map": _map,
             "plugins": self.plugins_registered,
             "uptime": self.uptime(),
-            # Use player['name'] for web, not player['player']
-            "players": self.players(),
-            "players_count": self.players_count(),
-            # Only include minimal info for services to avoid recursion
+            "players": _players,
+            "players_count": _players_count,
+            # Only include minimal info for services to avoid recursion.
+            # Use process_status_name so screen-launched processes (OpenJK) are
+            # checked via 'screen -ls' rather than a stale Popen PID.
             "services": [
                 {
-                    "name": row["name"],
-                    "running": self.process_handler.process_status_pid(row["pid"])
+                    "name": name,
+                    "running": self.process_handler.process_status_name(name)
                 }
-                for row in db().select("processes", {"instance": self.name})
+                for name in dict.fromkeys(
+                    row["name"] for row in db().select("processes", {"instance": self.name})
+                )
             ],
             "server_running": self.server_running(),
         }
@@ -843,7 +890,11 @@ class instance:
     def stop(self, force = False):
     
         if(self.server_running()):   
-            players = self.players()
+            try:
+                players = self.players()
+            except Exception:
+                # Engine wedged / RCON dead — just stop.
+                players = []
             confirm = 'n'
             
             # Check if we're being called from a web interface context

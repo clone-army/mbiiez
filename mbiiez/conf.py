@@ -67,8 +67,8 @@ class conf:
         
         return self.config
 
-    # Generate a server.cfg from JSON config   
-    def generate_server_config(self):
+    # Generate a server.cfg from JSON config
+    def generate_server_config(self, plugin_cvars=None):
         config_dir = os.path.dirname(self.config['server']['server_config_path'])
         if config_dir and not os.path.exists(config_dir):
             os.makedirs(config_dir, exist_ok=True)
@@ -227,7 +227,12 @@ class conf:
                 data = data + "\n"
                 for x in self.config['custom'].keys():
                     data = data + "\n" + "seta " + x + ' "' + str(self.config['custom'][x]) + '"'
-            
+
+            if plugin_cvars:
+                data = data + "\n"
+                for key, value in plugin_cvars.items():
+                    data = data + "\n" + "seta " + key + ' "' + str(value) + '"'
+
             # Save to MBII Folder
             f = open(self.config['server']['server_config_path'], "w")
             f.write(data)

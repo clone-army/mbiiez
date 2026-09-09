@@ -20,11 +20,11 @@ class process_handler:
         self.instance = instance
         self.services = []
                
-    def register_service(self, name, func, priority = 99, awaiter = None):
+    def register_service(self, name, func, priority = 99, awaiter = None, supervised = True):
         """ 
             Register a function as a service. Runs as a fork with PIDs stored in database
         """
-        self.services.append({"name": name, "func": func, "priority": priority, "awaiter": awaiter})
+        self.services.append({"name": name, "func": func, "priority": priority, "awaiter": awaiter, "supervised": supervised})
 
     def launch_services(self):
         """ 
@@ -35,27 +35,20 @@ class process_handler:
         
         for service in services:
 
-            existing = db().select("processes", {"instance": self.instance.name, "name": service['name']})
-            if(existing):
-                still_running = False
-                for row in existing:
-                    if self.process_status_pid(row['pid']):
-                        still_running = True
-                        break
-
-                if still_running:
-                    self.instance.log_handler.log("Service already running: " + service['name'])
-                    continue
+            # process_status_name handles screen-based check for OpenJK
+            if self.process_status_name(service['name']):
+                self.instance.log_handler.log("Service already running: " + service['name'])
+                continue
         
             if(service['awaiter'] and callable(service['awaiter'])):
-                service['awaiter']();
+                service['awaiter']()
         
             self.instance.log_handler.log("Starting Service: " + service['name'])
             print("[" + bcolors.OK + "Yes" + bcolors.ENDC + "] Launching " + service['name'])   
-            self.start(service['func'], service['name'], self.instance.name)
+            self.start(service['func'], service['name'], self.instance.name, service.get('supervised', True))
             time.sleep(1)
             
-    def start(self, func, name, instance):
+    def start(self, func, name, instance, supervised=True):
         """ 
             Start a given func (or shell command), with name for instance 
         """  
@@ -103,6 +96,15 @@ class process_handler:
 
             # Used to clear the file, these output looks are not for persistant logging
             open(std_out_file, 'w').close()
+
+            if not supervised:
+                # Fire & Forget — screen -dmS returns immediately; status tracked via screen session name.
+                process = subprocess.Popen(shlex.split(func), shell=False,
+                                           stdin=subprocess.DEVNULL,
+                                           stdout=subprocess.DEVNULL,
+                                           stderr=subprocess.DEVNULL)
+                db().insert("processes", {"name": name, "pid": process.pid, "instance": instance})
+                return
 
             pid = os.fork()
             if(pid == 0):
@@ -175,17 +177,31 @@ class process_handler:
         """ 
         Is a process running by its name
         """  
-        
+        # Screen-based check for the game engine — more reliable than stale PIDs.
+        # screen -ls uses tabs between columns, so we do a plain Python substring
+        # check rather than relying on whitespace in a grep pattern.
+        if name in ("OpenJK", "Dedicated Server"):
+            screen_name = "mb2_{}".format(self.instance.name)
+            result = subprocess.run(
+                ["screen", "-ls"],
+                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL
+            )
+            output = result.stdout.decode("utf-8", errors="replace")
+            # A dead screen still shows the name but has "(Dead" on the same line.
+            # Only count it as running if the name appears on a line without "(Dead".
+            for line in output.splitlines():
+                if screen_name in line and "(Dead" not in line:
+                    return True
+            return False
+
         pr = db().select("processes",{"instance": self.instance.name, "name": name})
      
-        if(len(pr) == 0):
+        if len(pr) == 0:
             return False
-        else:
-            for p in pr:
-                if(self.process_status_pid(p['pid'])):
-                    return True
-                else:
-                    return False
+        for p in pr:
+            if self.process_status_pid(p['pid']):
+                return True
+        return False
        
     def process_status_pid(self, pid):
         """ 
@@ -204,24 +220,30 @@ class process_handler:
         """  
         pr = db().select("processes",{"instance": self.instance.name})
 
+        # Stop Python background forks (Log Watcher, Restarters, etc.)
         for p in pr:          
             if(self.process_status_pid(p['pid'])):           
-                if(self.stop_process_pid(p['pid'])):
-                    # Extra DB not really needed but best to be safe
-                    db().delete("processes", p['id'])
-                    print("[" + bcolors.GREEN + "Yes" + bcolors.ENDC +  "] Stopped {}".format(str(p['name'])))
-                else:
-                    print("[" + bcolors.RED + "No" + bcolors.ENDC +  "] Stopped {}".format(str(p['name']))) 
+                self.stop_process_pid(p['pid'])
+                print("[" + bcolors.GREEN + "Yes" + bcolors.ENDC +  "] Stopped {}".format(str(p['name'])))
             else:
                 db().delete("processes", p['id'])
 
-        # The above is quite good for keeping track of processes, ultimately it does not work....
-        # This is the brute force... burn it all, command
-        
-        #self.services.clear()
-        
-        cmd = "ps aux | grep -ie " + self.instance.name + "- | awk '{print $2}' | xargs kill -15 >/dev/null 2>&1"
-        os.system(cmd)                 
+        # Stop the engine — port-safe, targets only this instance.
+        # 1) Kill whoever owns this instance's UDP port (the engine itself).
+        # 2) Wipe the screen wrapper(s) and any bash glue around it.
+        screen_name = "mb2_{}".format(self.instance.name)
+        port = self.instance.config['server'].get('port')
+        if port:
+            os.system("fuser -k -n udp {} >/dev/null 2>&1".format(port))
+        # Belt-and-braces: also match the server config file in case engine survives the port kill.
+        cfg_file = self.instance.config['server'].get('server_config_file')
+        if cfg_file:
+            os.system("pkill -9 -f 'exec {}' >/dev/null 2>&1".format(cfg_file))
+        os.system("screen -S {} -X quit >/dev/null 2>&1".format(screen_name))
+        os.system("pkill -9 -f 'screen.*{}' >/dev/null 2>&1".format(screen_name))
+        os.system("screen -wipe >/dev/null 2>&1")
+
+        print((bcolors.RED + "Instance {} stopped." + bcolors.ENDC).format(self.instance.name))
 
 
     def stop_process_name(self, name):
@@ -232,7 +254,15 @@ class process_handler:
         db().execute("delete from processes where instance = \"{}\" and name = \"{}\"".format(self.instance.name, name))
         self.services = [s for s in self.services if s["name"] != name]
         
-        if(len(pr) == 0): # Without its pid we cant do anything here
+        if(len(pr) == 0):
+            # Fallback for the engine: stop by UDP port owner + screen session name
+            if name in ("OpenJK", "Dedicated Server"):
+                screen_name = "mb2_{}".format(self.instance.name)
+                port = self.instance.config['server'].get('port')
+                if port:
+                    os.system("fuser -k -n udp {} >/dev/null 2>&1".format(port))
+                os.system("pkill -9 -f 'screen.*{}' >/dev/null 2>&1".format(screen_name))
+                os.system("screen -S {} -X quit >/dev/null 2>&1".format(screen_name))
             return False
         else:
             for p in pr:

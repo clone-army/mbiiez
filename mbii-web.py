@@ -46,6 +46,8 @@ app = Flask(
     template_folder="mbiiez/web/templates",
 )
 app.config["TEMPLATES_AUTO_RELOAD"] = True
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 app.secret_key = os.environ.get("MBIIEZ_WEB_SECRET_KEY", "mbiiez-change-this-secret")
 
 
@@ -475,8 +477,10 @@ def login():
 
 @app.route("/logout", methods=["GET", "POST"])
 def logout():
-    _clear_session_auth()
-    return redirect("/login", code=302)
+    session.clear()
+    response = redirect("/login", code=302)
+    response.delete_cookie(app.config.get("SESSION_COOKIE_NAME", "session"))
+    return response
 
 
 @app.route("/admin/users", methods=["GET"])
@@ -711,33 +715,23 @@ def instance_command_async(instance_name):
         return {"error": "Unknown command."}, 400
 
     actual_cmd = cmd
-
     if actual_cmd in ["stop", "restart"]:
-        cli_cmd = ["mbii", "-i", instance_name, actual_cmd, "--force"]
+        mbii_args = ["mbii", "-i", instance_name, actual_cmd, "--force"]
     else:
-        cli_cmd = ["mbii", "-i", instance_name, actual_cmd]
+        mbii_args = ["mbii", "-i", instance_name, actual_cmd]
+
+    # Use systemd-run --scope to launch in a new transient cgroup so the spawned
+    # processes survive a web service restart/stop (double-fork alone is not enough
+    # under modern systemd with cgroup v2 tracking).
+    cli_cmd = ["systemd-run", "--scope", "--"] + mbii_args
 
     try:
-        def detached_process():
-            pid = os.fork()
-            if pid > 0:
-                return
-
-            os.setsid()
-
-            pid = os.fork()
-            if pid > 0:
-                os._exit(0)
-
-            with open(os.devnull, "r") as devnull_in:
-                with open(os.devnull, "w") as devnull_out:
-                    os.dup2(devnull_in.fileno(), 0)
-                    os.dup2(devnull_out.fileno(), 1)
-                    os.dup2(devnull_out.fileno(), 2)
-
-            os.execvp(cli_cmd[0], cli_cmd)
-
-        detached_process()
+        subprocess.Popen(
+            cli_cmd,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            stdin=subprocess.DEVNULL,
+        )
         _audit("instance_command_async", instance_name, f"cmd={actual_cmd}")
         return {"output": f"Instance {instance_name} {cmd} initiated.", "async": True}
 
@@ -936,6 +930,55 @@ def status_api(instance_name):
 
 app.register_blueprint(logs_api)
 app.register_blueprint(chat_api)
+
+
+@app.route("/api/web/restart", methods=["POST"])
+@require_role("admin")
+def web_restart():
+    """Restart the mbii-web systemd service."""
+    _audit("web_restart", details="requested by {}".format(_current_user()))
+    try:
+        subprocess.Popen(
+            ["systemctl", "restart", "mbii-web"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        return jsonify({"success": True, "message": "Web service restart initiated."})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/web/update", methods=["POST"])
+@require_role("admin")
+def web_update():
+    """git pull the mbiiez repo; restart the web service only if files changed."""
+    _audit("web_update", details="requested by {}".format(_current_user()))
+    repo_dir = os.path.dirname(os.path.abspath(__file__))
+    try:
+        result = subprocess.run(
+            ["git", "pull"],
+            cwd=repo_dir,
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+        output = (result.stdout or "").strip()
+        changed = result.returncode == 0 and "Already up to date." not in output
+        if changed:
+            subprocess.Popen(
+                ["systemctl", "restart", "mbii-web"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+        return jsonify({
+            "success": result.returncode == 0,
+            "output": output,
+            "changed": changed,
+            "restarted": changed,
+            "error": (result.stderr or "").strip() if result.returncode != 0 else None,
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
 
 
 if __name__ == "__main__":

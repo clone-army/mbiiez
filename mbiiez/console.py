@@ -1,8 +1,7 @@
 import time
 import six
 import re
-import socket 
-import select 
+import socket
 
 class console:
 
@@ -11,8 +10,7 @@ class console:
         self.port = int(server_port)
         self.password = rcon_password
         self.prefix_rcon = bytes([0xff, 0xff, 0xff, 0xff]) + b'rcon '
-        self.prefix_console = bytes([0xff, 0xff, 0xff, 0xff])        
-        self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.prefix_console = bytes([0xff, 0xff, 0xff, 0xff])
 
     def rcon(self, command, quiet = False):
         cmd = f"{self.password} {command}".encode()
@@ -25,23 +23,30 @@ class console:
         return self.send(query)
 
     def send(self, query):
-        self.socket.connect((self.ip, self.port))
-        self.socket.send(query)
-        self.socket.setblocking(0)  # Set the socket to non-blocking
+        # Fresh socket per call avoids stale-buffer bleed between cvar lookups,
+        # and a short per-recv timeout drains multi-datagram responses fully.
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.settimeout(2)
+        try:
+            sock.connect((self.ip, self.port))
+            sock.send(query)
 
-        total_data = []
-        while True:
-            ready = select.select([self.socket], [], [], 1)  # Adjust the timeout as needed
-            if ready[0]:  # Data is ready to be read
-                data = self.socket.recv(4096)
+            total_data = []
+            while True:
+                try:
+                    data = sock.recv(4096)
+                except socket.timeout:
+                    break
                 if not data:
-                    break  # No more data to read
+                    break
                 total_data.append(data.decode("utf-8", "ignore"))
-            else:
-                # No data ready to be read, and timeout occurred
-                break
+                # After the first datagram, shorten the wait so we drain
+                # any follow-up packets quickly without stalling 2s every call.
+                sock.settimeout(0.3)
+        finally:
+            sock.close()
 
-        return ''.join(total_data)
+        return ''.join(total_data) if total_data else None
 
 
     # Send SAY as Server
@@ -56,6 +61,8 @@ class console:
     
         if(value == None): # GET a CVAR Value
             response = self.rcon(key, True)
+            if not response:
+                return None
             try:
                 #OpenJK
                 if("cvar" in response.lower()):
@@ -75,6 +82,6 @@ class console:
             response = self.rcon("set " + key + "=" + str(value))             
             
     def cvar_clean(self, text):
-        return re.sub("\^[1-9]","",text)
+        return re.sub(r"\^[1-9]","",text)
    
  
