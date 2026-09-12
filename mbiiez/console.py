@@ -79,7 +79,12 @@ class console:
             return result
         
         else: #SET a CVAR Value
-            response = self.rcon("set " + key + "=" + str(value))             
+            # This engine's "set" console command wants space-separated
+            # tokens ("set key value"), not "key=value" - the latter gets
+            # parsed as a single malformed cvar name and silently does
+            # nothing (confirmed live: "set g_gungame=1" -> "Cvar
+            # g_gungame=1 does not exist", leaving the real cvar untouched).
+            response = self.rcon('set ' + key + ' "' + str(value) + '"')
             
     def cvar_clean(self, text):
         return re.sub(r"\^[1-9]","",text)

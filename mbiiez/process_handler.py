@@ -243,6 +243,13 @@ class process_handler:
         os.system("pkill -9 -f 'screen.*{}' >/dev/null 2>&1".format(screen_name))
         os.system("screen -wipe >/dev/null 2>&1")
 
+        # The RTVRTM plugin's "RTVRTM Service" DB entry is only the fork wrapper's PID —
+        # the real watcher (rtvrtm_original.py) is a grandchild it spawns via subprocess.Popen,
+        # so SIGKILL-ing the wrapper above never reaches it and it's left running as an orphan.
+        # Kill it directly, scoped to this instance's own rtvrtm cfg file so other instances'
+        # watchers are untouched.
+        os.system("pkill -9 -f 'rtvrtm_original.py.*{}_rtvrtm.cfg' >/dev/null 2>&1".format(self.instance.name))
+
         print((bcolors.RED + "Instance {} stopped." + bcolors.ENDC).format(self.instance.name))
 
 

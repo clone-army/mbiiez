@@ -180,15 +180,20 @@ class conf:
             data = data.replace("[admin_10_config]",str(self.config['smod']['admin_10']['config']))
 
             # Maps
-            data = data.replace("[map_1]",self.config['map_rotation_order'][0])
-            data = data.replace("[map_2]",self.config['map_rotation_order'][1])
-            data = data.replace("[map_3]",self.config['map_rotation_order'][2])
-            data = data.replace("[map_4]",self.config['map_rotation_order'][3])
-            data = data.replace("[map_5]",self.config['map_rotation_order'][4])
-            data = data.replace("[map_6]",self.config['map_rotation_order'][5])
-            data = data.replace("[map_7]",self.config['map_rotation_order'][6])
-            data = data.replace("[map_8]",self.config['map_rotation_order'][7])
-            data = data.replace("[map_9]",self.config['map_rotation_order'][8])
+            # Builds a vstr chain sized to however many maps are configured, instead of
+            # assuming a fixed 9 slots (a mismatch here used to crash server start with
+            # an IndexError whenever an instance's rotation wasn't exactly 9 maps long).
+            maps = self.config['map_rotation_order']
+            if not maps:
+                raise ValueError("map_rotation_order must contain at least one map for instance '{}'".format(self.name))
+
+            rotation_lines = []
+            for i, map_name in enumerate(maps):
+                slot = i + 1
+                next_slot = (i + 1) % len(maps) + 1
+                rotation_lines.append('set d{} "map {};set nextmap vstr d{}"'.format(slot, map_name, next_slot))
+
+            data = data.replace("[map_rotation]", "\n".join(rotation_lines))
             
             # 0 = Open mode, 1 = Semi-Authentic, 2 = Full-Authentic, 3 = Duel, 4 = Legends
             

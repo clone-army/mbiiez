@@ -101,14 +101,6 @@ seta g_filterban "1"
 seta g_spin "[enable_spin]"
 seta g_SpinCooldown "[spin_cooldown]"                           
 
-set d1 "map [map_1];set nextmap vstr d2"
-set d2 "map [map_2];set nextmap vstr d3"
-set d3 "map [map_3];set nextmap vstr d4"
-set d4 "map [map_4];set nextmap vstr d5"
-set d5 "map [map_5];set nextmap vstr d6"
-set d6 "map [map_6];set nextmap vstr d7"
-set d7 "map [map_7];set nextmap vstr d8"
-set d8 "map [map_8];set nextmap vstr d9"
-set d9 "map [map_9];set nextmap vstr d1"
+[map_rotation]
 
-vstr d1  
+vstr d1
