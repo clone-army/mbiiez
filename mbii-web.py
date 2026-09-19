@@ -8,7 +8,7 @@ from functools import wraps
 from flask import Flask, abort, g, jsonify, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from mbiiez import settings
+from mbiiez import settings, plugin_loader
 from mbiiez.db import db
 
 # Web Tools
@@ -26,6 +26,8 @@ from mbiiez.web.controllers.mod import controller as mod_c
 from mbiiez.web.controllers.players import controller as players_c
 from mbiiez.web.controllers.rcon import controller as rcon_c
 from mbiiez.web.controllers.stats import controller as stats_c
+from mbiiez.web.controllers.plugin_page import controller as plugin_page_c
+from mbiiez.web.controllers.plugin_page import load_instance_config as plugin_page_load_instance_config
 
 # Views
 from mbiiez.web.views.chat import view as chat_v
@@ -37,6 +39,7 @@ from mbiiez.web.views.mod import view as mod_v
 from mbiiez.web.views.players import view as players_v
 from mbiiez.web.views.rcon import view as rcon_v
 from mbiiez.web.views.stats import view as stats_v
+from mbiiez.web.views.plugin_page import view as plugin_page_v
 
 
 app = Flask(
@@ -257,6 +260,9 @@ def _required_role_for_path(path, method):
     if path.startswith("/admin"):
         return "admin"
 
+    if path.startswith("/plugin/"):
+        return "admin"
+
     if any(path.startswith(prefix) for prefix in admin_prefixes):
         if path in ["/config", "/config/save"]:
             return "admin"
@@ -305,6 +311,37 @@ def _list_instances_cached():
     _instance_list_cache["items"] = items
     _instance_list_cache["expires"] = now + INSTANCE_LIST_CACHE_SECONDS
     return items
+
+
+_plugin_menu_cache = {"expires": 0.0, "menus": {}}
+
+
+def _plugin_menus_cached():
+    """{instance_name: [menu_entry, ...]} for every instance's currently
+    enabled plugins that declare a web_menu(). Cached briefly since this
+    runs on every page render via the context processor below."""
+    now = time.time()
+    if now < _plugin_menu_cache["expires"]:
+        return _plugin_menu_cache["menus"]
+
+    menus = {}
+    for instance_name in _list_instances_cached():
+        try:
+            instance_config = plugin_page_load_instance_config(instance_name)
+        except Exception:
+            instance_config = None
+
+        entries = []
+        if instance_config:
+            for plugin_name in (instance_config.get("plugins", {}) or {}).keys():
+                entry = plugin_loader.call_web_menu(plugin_name, instance_name, instance_config)
+                if entry:
+                    entries.append(entry)
+        menus[instance_name] = entries
+
+    _plugin_menu_cache["menus"] = menus
+    _plugin_menu_cache["expires"] = now + INSTANCE_LIST_CACHE_SECONDS
+    return menus
 
 
 def _audit(action, instance_name=None, details=""):
@@ -393,6 +430,7 @@ def include_instances_and_auth():
         can_admin=_role_allows(_current_role(), "admin"),
         setup_required=_setup_required(),
         users_count=len(users),
+        plugin_menus=_plugin_menus_cached() if _role_allows(_current_role(), "admin") else {},
     )
 
 
@@ -844,6 +882,23 @@ def config():
     instance = request.args.get("instance")
     c = config_c(instance)
     return config_v(c).render()
+
+
+@app.route("/plugin/<instance_name>/<slug>", methods=["GET"])
+@require_role("admin")
+def plugin_page(instance_name, slug):
+    c = plugin_page_c(instance_name, slug)
+    return plugin_page_v(c).render()
+
+
+@app.route("/plugin/<instance_name>/<slug>/action/<action_name>", methods=["POST"])
+@require_role("admin")
+def plugin_action(instance_name, slug, action_name):
+    data = request.get_json(silent=True) or {}
+    success, message = plugin_page_c.run_action(instance_name, slug, action_name, data)
+    if success:
+        _audit("plugin_action", instance_name, f"slug={slug};action={action_name}")
+    return jsonify({"success": success, "message": message})
 
 
 @app.route("/config/save", methods=["POST"])

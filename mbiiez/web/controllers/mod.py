@@ -1,6 +1,7 @@
 from flask import request, jsonify
 from mbiiez.instance import instance as MBInstance
 from mbiiez.bcolors import bcolors
+from mbiiez.web import maps_catalog
 import re
 
 class controller:
@@ -8,11 +9,13 @@ class controller:
 
     def __init__(self, instance=None):
         self.controller_bag['instance'] = instance
+        self.controller_bag['maps_catalog'] = maps_catalog.get_maps()
         if instance:
             inst = MBInstance(instance)
             status = inst.status()
             bc = bcolors()
             # Render color tags for map and mode
+            status['map_raw'] = str(status.get('map', ''))
             status['map'] = bc.html_color_convert(str(status.get('map', '')))
             status['mode_html'] = bc.html_color_convert(str(status.get('mode', '')))
             self.controller_bag['status'] = status

@@ -20,7 +20,12 @@
         <h5 class="card-title">Change Map</h5>
         <div>Current Map: <span id="current-map">{{ view_bag.status.map|safe }}</span></div>
         <div class="input-group mt-2">
-          <input type="text" id="map-input" class="form-control" placeholder="Enter new map name...">
+          <select id="map-input" class="form-select">
+            <option value="" disabled {% if view_bag.status.map_raw not in view_bag.maps_catalog %}selected{% endif %}>Select a map...</option>
+            {% for m in view_bag.maps_catalog %}
+            <option value="{{ m }}" {% if m == view_bag.status.map_raw %}selected{% endif %}>{{ m }}</option>
+            {% endfor %}
+          </select>
           <button class="btn btn-primary" id="change-map">Change</button>
         </div>
         <div id="map-status" class="mt-2"></div>

@@ -40,8 +40,11 @@ class plugin:
             name: (50 if name in self.gungame_restrict_classes else 0) for name in self.class_order
         })
 
-        if(self.instance.has_plugin("auto_message")):
-            self.instance.config['plugins']['auto_message']['messages'].append("Gun Game is {} for this server.".format("enabled" if self.gungame_enabled else "disabled"))
+        if(self.instance.has_plugin("auto_message") and self.gungame_enabled):
+            self.instance.config['plugins']['auto_message']['messages'].append(
+                "^5Gun Game is enabled! Everyone starts on the same weapon and moves "
+                "up a ladder one step per kill - most kills wins."
+            )
 
     def _build_classlimits_string(self, limits):
         parts = []

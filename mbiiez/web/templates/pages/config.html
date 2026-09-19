@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% import 'partials/form-field.html' as formfield %}
 {% block content %}
 <div class="page-header">
   <h3 class="page-title">Config - {{ view_bag.instance }}</h3>
@@ -9,47 +10,467 @@
     </ol>
   </nav>
 </div>
-<div class="card mb-4">
-  <div class="card-body">
+
+{% if view_bag.load_error %}
+<div class="alert alert-warning">
+  This instance's config file is not valid JSON right now ({{ view_bag.load_error }}) - the friendly Form view can't
+  render until it's fixed. Use the Raw JSON tab below to correct it.
+</div>
+{% endif %}
+
+<datalist id="maps-datalist">
+  {% for m in view_bag.maps_catalog %}
+  <option value="{{ m }}"></option>
+  {% endfor %}
+</datalist>
+
+<ul class="nav nav-tabs" id="config-tabs" role="tablist">
+  <li class="nav-item" role="presentation">
+    <button class="nav-link active" id="form-tab-btn" data-bs-toggle="tab" data-bs-target="#form-tab" type="button" role="tab">Form</button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link" id="raw-tab-btn" data-bs-toggle="tab" data-bs-target="#raw-tab" type="button" role="tab">Raw JSON</button>
+  </li>
+</ul>
+
+<div class="tab-content border border-top-0 p-3 mb-4">
+
+  <div class="tab-pane fade show active" id="form-tab" role="tabpanel">
+    <div id="form-status" class="mb-2"></div>
+
+    {% for section in view_bag.sections %}
+    <div class="card mb-3">
+      <div class="card-body">
+        <h5 class="card-title">{{ section.label }}</h5>
+        {{ formfield.render_node(section) }}
+      </div>
+    </div>
+    {% endfor %}
+
+    <div class="card mb-3">
+      <div class="card-body">
+        <h5 class="card-title">Plugins</h5>
+        {% for card in view_bag.plugin_cards %}
+        <div class="border rounded p-2 mb-2">
+          <div class="form-check form-switch">
+            <input type="checkbox" class="form-check-input plugin-toggle" role="switch"
+                   data-plugin-toggle="{{ card.name }}" {% if card.enabled %}checked{% endif %}>
+            <label class="form-check-label fw-semibold">{{ card.label }}</label>
+            {% if card.author %}<span class="text-muted small ms-2">by {{ card.author }}</span>{% endif %}
+          </div>
+          <div class="ps-4 pt-1 plugin-options" data-plugin-options="{{ card.name }}" {% if not card.enabled %}style="display:none"{% endif %}>
+            {% if card.options.children %}
+              {% for child in card.options.children %}
+                {{ formfield.render_node(child) }}
+              {% endfor %}
+            {% else %}
+              <div class="text-muted small">No options for this plugin.</div>
+            {% endif %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <button id="form-save" class="btn btn-primary" {% if view_bag.load_error or not view_bag.config_content %}disabled{% endif %}>Save</button>
+  </div>
+
+  <div class="tab-pane fade" id="raw-tab" role="tabpanel">
     <div id="config-status" class="mb-2"></div>
     <textarea id="config-editor" class="form-control" rows="20" style="font-family:monospace;">{{ view_bag.config_content }}</textarea>
     <button id="save-config" class="btn btn-primary mt-2" disabled>Save</button>
   </div>
+
 </div>
+
+<div class="modal fade" id="smodRightsModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Pick smod rights</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-2">
+          <div class="small text-muted mb-1">Presets:</div>
+          <div class="btn-group btn-group-sm flex-wrap" role="group">
+            <button type="button" class="btn btn-outline-secondary smod-preset-btn" data-preset="0">None</button>
+            <button type="button" class="btn btn-outline-secondary smod-preset-btn" data-preset="49409">Moderator</button>
+            <button type="button" class="btn btn-outline-secondary smod-preset-btn" data-preset="4288">Ban Manager</button>
+            <button type="button" class="btn btn-outline-secondary smod-preset-btn" data-preset="574">Map Control</button>
+            <button type="button" class="btn btn-outline-secondary smod-preset-btn" data-preset="65535">Full Admin</button>
+          </div>
+        </div>
+        <div id="smod-rights-list"></div>
+        <div class="d-flex justify-content-between align-items-center mt-2 pt-2 border-top">
+          <button type="button" class="btn btn-sm btn-outline-secondary" id="smod-rights-toggle-all">All / none</button>
+          <div>Value: <strong id="smod-rights-value">0</strong></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="smod-rights-apply">Apply</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="application/json" id="original-config-json">{{ view_bag.config_content|safe }}</script>
+
 <script>
-const editor = document.getElementById('config-editor');
-const saveBtn = document.getElementById('save-config');
-const statusDiv = document.getElementById('config-status');
-let valid = false;
-function validateJson() {
-  try {
-    JSON.parse(editor.value);
-    statusDiv.innerHTML = '<span class="badge bg-success">Valid JSON</span>';
-    saveBtn.disabled = false;
-    valid = true;
-  } catch (e) {
-    statusDiv.innerHTML = '<span class="badge bg-danger">Invalid JSON</span>';
-    saveBtn.disabled = true;
-    valid = false;
-  }
-}
-editor.addEventListener('input', validateJson);
-validateJson();
-saveBtn.addEventListener('click', function() {
-  if (!valid) return;
-  fetch(`/config/save`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ instance: '{{ view_bag.instance }}', content: editor.value })
-  })
-  .then(r => r.json())
-  .then(data => {
-    if (data.success) {
-      statusDiv.innerHTML = '<span class="badge bg-success">Saved!</span>';
-    } else {
-      statusDiv.innerHTML = '<span class="badge bg-danger">' + data.error + '</span>';
-    }
+(function () {
+  const INSTANCE_NAME = {{ view_bag.instance|tojson }};
+  const ALL_PLUGIN_NAMES = {{ view_bag.plugin_cards | map(attribute='name') | list | tojson }};
+
+  let dirty = false;
+  function markDirty() { dirty = true; }
+
+  document.querySelectorAll('#config-tabs button').forEach(function (btn) {
+    btn.addEventListener('hide.bs.tab', function (e) {
+      if (dirty) {
+        if (!confirm('You have unsaved changes on this tab. Switching tabs will not carry them over. Continue?')) {
+          e.preventDefault();
+        } else {
+          dirty = false;
+        }
+      }
+    });
   });
-});
+
+  document.querySelectorAll('#form-tab input, #form-tab select, #form-tab textarea').forEach(function (el) {
+    el.addEventListener('input', markDirty);
+    el.addEventListener('change', markDirty);
+  });
+
+  // --- Raw JSON tab (existing behaviour, unchanged) ---
+  const editor = document.getElementById('config-editor');
+  const saveBtn = document.getElementById('save-config');
+  const statusDiv = document.getElementById('config-status');
+  let rawValid = false;
+  function validateJson() {
+    try {
+      JSON.parse(editor.value);
+      statusDiv.innerHTML = '<span class="badge bg-success">Valid JSON</span>';
+      saveBtn.disabled = false;
+      rawValid = true;
+    } catch (e) {
+      statusDiv.innerHTML = '<span class="badge bg-danger">Invalid JSON</span>';
+      saveBtn.disabled = true;
+      rawValid = false;
+    }
+  }
+  editor.addEventListener('input', function () { markDirty(); validateJson(); });
+  validateJson();
+  saveBtn.addEventListener('click', function () {
+    if (!rawValid) return;
+    fetch('/config/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ instance: INSTANCE_NAME, content: editor.value })
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (data.success) {
+          statusDiv.innerHTML = '<span class="badge bg-success">Saved! Reload the page to see it reflected in the Form tab.</span>';
+          dirty = false;
+        } else {
+          statusDiv.innerHTML = '<span class="badge bg-danger">' + data.error + '</span>';
+        }
+      });
+  });
+
+  // --- Form tab ---
+  function setPath(obj, dottedPath, value) {
+    const parts = dottedPath.split('.');
+    let cur = obj;
+    for (let i = 0; i < parts.length - 1; i++) {
+      const p = parts[i];
+      if (typeof cur[p] !== 'object' || cur[p] === null) cur[p] = {};
+      cur = cur[p];
+    }
+    cur[parts[parts.length - 1]] = value;
+  }
+
+  // Chip list widgets (plain lists + the friendly maps picker)
+  const chipState = {};
+
+  function renderChips(widget) {
+    const path = widget.dataset.chipPath;
+    const container = widget.querySelector('.chip-container');
+    container.innerHTML = '';
+    const values = chipState[path];
+    const reorderable = widget.dataset.kind === 'maplist' && path === 'game.map_rotation_order';
+
+    values.forEach(function (val, idx) {
+      const chip = document.createElement('span');
+      chip.className = 'badge text-bg-secondary d-inline-flex align-items-center gap-1 p-2';
+
+      const label = document.createElement('span');
+      label.textContent = val;
+      chip.appendChild(label);
+
+      if (reorderable) {
+        const up = document.createElement('button');
+        up.type = 'button';
+        up.className = 'btn btn-sm btn-link p-0 text-white';
+        up.title = 'Move up';
+        up.textContent = '↑';
+        up.onclick = function () {
+          if (idx > 0) {
+            const tmp = values[idx - 1];
+            values[idx - 1] = values[idx];
+            values[idx] = tmp;
+            renderChips(widget);
+            markDirty();
+          }
+        };
+        chip.appendChild(up);
+
+        const down = document.createElement('button');
+        down.type = 'button';
+        down.className = 'btn btn-sm btn-link p-0 text-white';
+        down.title = 'Move down';
+        down.textContent = '↓';
+        down.onclick = function () {
+          if (idx < values.length - 1) {
+            const tmp = values[idx + 1];
+            values[idx + 1] = values[idx];
+            values[idx] = tmp;
+            renderChips(widget);
+            markDirty();
+          }
+        };
+        chip.appendChild(down);
+      }
+
+      const rm = document.createElement('button');
+      rm.type = 'button';
+      rm.className = 'btn-close btn-close-white';
+      rm.style.fontSize = '0.6rem';
+      rm.title = 'Remove';
+      rm.onclick = function () {
+        values.splice(idx, 1);
+        renderChips(widget);
+        markDirty();
+      };
+      chip.appendChild(rm);
+
+      container.appendChild(chip);
+    });
+  }
+
+  document.querySelectorAll('.chip-list-widget').forEach(function (widget) {
+    const path = widget.dataset.chipPath;
+    const initialScript = widget.parentElement.querySelector('.chip-initial-values');
+    chipState[path] = JSON.parse(initialScript.textContent);
+    renderChips(widget);
+
+    const addInput = widget.querySelector('.chip-add-input');
+    const addBtn = widget.querySelector('.chip-add-btn');
+    function doAdd() {
+      const val = addInput.value.trim();
+      if (!val) return;
+      chipState[path].push(val);
+      addInput.value = '';
+      renderChips(widget);
+      markDirty();
+    }
+    addBtn.addEventListener('click', doAdd);
+    addInput.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        doAdd();
+      }
+    });
+  });
+
+  // Plugin enable/disable toggles show/hide their options panel
+  document.querySelectorAll('.plugin-toggle').forEach(function (cb) {
+    cb.addEventListener('change', function () {
+      const panel = document.querySelector('[data-plugin-options="' + cb.dataset.pluginToggle + '"]');
+      if (panel) panel.style.display = cb.checked ? '' : 'none';
+      markDirty();
+    });
+  });
+
+  // --- smod rights picker ---
+  // Ported from https://puppytine.github.io/ (mbsmod.js, public domain) -
+  // same 16 flags/bit positions, reimplemented here so it works offline
+  // and matches this page's Bootstrap modal instead of a popup window.
+  var SMOD_RIGHTS = [
+    "kick", "nextmap", "map", "maprestart", "gametype", "mbmode", "ban",
+    "tempban, removetempban, tempbanlist", "forceteam", "vstr",
+    "campaign, campaignfile", "poll", "removeban", "shuffle", "mute", "settk"
+  ];
+
+  var smodTargetInput = null;
+  var smodModalEl = document.getElementById('smodRightsModal');
+  var smodModal = smodModalEl ? new bootstrap.Modal(smodModalEl) : null;
+  var smodListEl = document.getElementById('smod-rights-list');
+  var smodValueEl = document.getElementById('smod-rights-value');
+
+  function smodBuildList() {
+    if (!smodListEl) return;
+    SMOD_RIGHTS.forEach(function (label, i) {
+      var row = document.createElement('div');
+      row.className = 'form-check';
+      var cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.className = 'form-check-input smod-right-box';
+      cb.dataset.bit = i;
+      cb.id = 'smod-right-' + i;
+      var lbl = document.createElement('label');
+      lbl.className = 'form-check-label';
+      lbl.htmlFor = cb.id;
+      lbl.textContent = '(' + (1 << i) + ') ' + label;
+      row.appendChild(cb);
+      row.appendChild(lbl);
+      smodListEl.appendChild(row);
+      cb.addEventListener('change', smodRecalc);
+    });
+  }
+  smodBuildList();
+
+  function smodRecalc() {
+    var v = 0;
+    document.querySelectorAll('.smod-right-box').forEach(function (cb) {
+      if (cb.checked) v += (1 << Number(cb.dataset.bit));
+    });
+    smodValueEl.textContent = v;
+    return v;
+  }
+
+  function smodSetChecks(value) {
+    var v = Number(value) || 0;
+    document.querySelectorAll('.smod-right-box').forEach(function (cb) {
+      cb.checked = !!((1 << Number(cb.dataset.bit)) & v);
+    });
+    smodRecalc();
+  }
+
+  function smodDescribe(value) {
+    var v = Number(value) || 0;
+    if (v === 0) return 'no rights granted';
+    var granted = [];
+    SMOD_RIGHTS.forEach(function (label, i) {
+      if ((1 << i) & v) granted.push(label);
+    });
+    return granted.length ? 'Grants: ' + granted.join(', ') : 'no rights granted';
+  }
+
+  function smodUpdateSummary(field) {
+    var input = field.querySelector('input[type=number]');
+    var summary = field.querySelector('.smod-bitmask-summary');
+    if (input && summary) summary.textContent = smodDescribe(input.value);
+  }
+
+  document.querySelectorAll('.smod-bitmask-field').forEach(smodUpdateSummary);
+
+  document.querySelectorAll('.smod-bitmask-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var field = btn.closest('.smod-bitmask-field');
+      smodTargetInput = field.querySelector('input[type=number]');
+      smodSetChecks(smodTargetInput.value);
+      smodModal.show();
+    });
+  });
+
+  var smodToggleAllBtn = document.getElementById('smod-rights-toggle-all');
+  if (smodToggleAllBtn) {
+    smodToggleAllBtn.addEventListener('click', function () {
+      var boxes = document.querySelectorAll('.smod-right-box');
+      var allChecked = Array.prototype.every.call(boxes, function (cb) { return cb.checked; });
+      boxes.forEach(function (cb) { cb.checked = !allChecked; });
+      smodRecalc();
+    });
+  }
+
+  document.querySelectorAll('.smod-preset-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      smodSetChecks(Number(btn.dataset.preset));
+    });
+  });
+
+  var smodApplyBtn = document.getElementById('smod-rights-apply');
+  if (smodApplyBtn) {
+    smodApplyBtn.addEventListener('click', function () {
+      if (!smodTargetInput) return;
+      smodTargetInput.value = smodRecalc();
+      smodTargetInput.dispatchEvent(new Event('input', {bubbles: true}));
+      smodUpdateSummary(smodTargetInput.closest('.smod-bitmask-field'));
+      smodModal.hide();
+    });
+  }
+
+  function buildConfigFromForm() {
+    const original = document.getElementById('original-config-json').textContent;
+    const cfg = JSON.parse(original);
+
+    document.querySelectorAll('#form-tab [data-path]').forEach(function (el) {
+      const path = el.dataset.path;
+      const type = el.dataset.type;
+      let value;
+      if (type === 'checkbox') {
+        value = el.checked;
+        if (el.dataset.boolAs === 'int01') value = value ? 1 : 0;
+      } else if (type === 'number') {
+        value = el.value === '' ? 0 : parseFloat(el.value);
+      } else if (type === 'raw') {
+        try {
+          value = JSON.parse(el.value);
+        } catch (e) {
+          alert('One of the raw-JSON fields (' + path + ') is not valid JSON and was left unchanged.');
+          value = null;
+        }
+        if (value === null) return;
+      } else {
+        value = el.value;
+      }
+      setPath(cfg, path, value);
+    });
+
+    Object.keys(chipState).forEach(function (path) {
+      setPath(cfg, path, chipState[path].slice());
+    });
+
+    const enabledPlugins = {};
+    document.querySelectorAll('.plugin-toggle').forEach(function (cb) {
+      enabledPlugins[cb.dataset.pluginToggle] = cb.checked;
+    });
+    cfg.plugins = cfg.plugins || {};
+    ALL_PLUGIN_NAMES.forEach(function (name) {
+      if (enabledPlugins[name]) {
+        if (!Object.prototype.hasOwnProperty.call(cfg.plugins, name)) {
+          cfg.plugins[name] = {};
+        }
+      } else {
+        delete cfg.plugins[name];
+      }
+    });
+
+    return cfg;
+  }
+
+  document.getElementById('form-save').addEventListener('click', function () {
+    const cfg = buildConfigFromForm();
+    fetch('/config/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ instance: INSTANCE_NAME, content: JSON.stringify(cfg, null, 2) })
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        const statusDiv = document.getElementById('form-status');
+        if (data.success) {
+          statusDiv.innerHTML = '<span class="badge bg-success">Saved! Restart the instance for engine-level changes to take effect.</span>';
+          document.getElementById('original-config-json').textContent = JSON.stringify(cfg, null, 2);
+          editor.value = JSON.stringify(cfg, null, 2);
+          dirty = false;
+        } else {
+          statusDiv.innerHTML = '<span class="badge bg-danger">' + data.error + '</span>';
+        }
+      });
+  });
+})();
 </script>
 {% endblock %}

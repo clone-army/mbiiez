@@ -1,0 +1,76 @@
+{% macro render_node(node) %}
+{% if node.kind == 'group' %}
+  <details class="mb-2 border rounded p-2" open>
+    <summary class="fw-semibold" style="cursor:pointer;">{{ node.label }}</summary>
+    <div class="ps-3 pt-2">
+      {% if node.children %}
+        {% for child in node.children %}
+          {{ render_node(child) }}
+        {% endfor %}
+      {% else %}
+        <div class="text-muted small">No options.</div>
+      {% endif %}
+    </div>
+  </details>
+{% elif node.kind == 'text' %}
+  <div class="mb-2">
+    <label class="form-label small mb-0">{{ node.label }}</label>
+    <input type="text" class="form-control form-control-sm" data-path="{{ node.path }}" data-type="text" value="{{ node.value }}">
+  </div>
+{% elif node.kind == 'textarea' %}
+  <div class="mb-2">
+    <label class="form-label small mb-0">{{ node.label }}</label>
+    <textarea class="form-control form-control-sm" rows="3" data-path="{{ node.path }}" data-type="text">{{ node.value }}</textarea>
+  </div>
+{% elif node.kind == 'password' %}
+  <div class="mb-2">
+    <label class="form-label small mb-0">{{ node.label }}</label>
+    <input type="password" class="form-control form-control-sm" data-path="{{ node.path }}" data-type="text" value="{{ node.value }}" autocomplete="new-password">
+  </div>
+{% elif node.kind == 'number' %}
+  <div class="mb-2">
+    <label class="form-label small mb-0">{{ node.label }}</label>
+    <input type="number" step="any" class="form-control form-control-sm" data-path="{{ node.path }}" data-type="number" value="{{ node.value }}">
+  </div>
+{% elif node.kind == 'smod_bitmask' %}
+  <div class="mb-2 smod-bitmask-field">
+    <label class="form-label small mb-0">{{ node.label }}</label>
+    <div class="input-group input-group-sm">
+      <input type="number" step="1" class="form-control form-control-sm" data-path="{{ node.path }}" data-type="number" value="{{ node.value }}">
+      <button type="button" class="btn btn-outline-secondary smod-bitmask-btn">Pick rights...</button>
+    </div>
+    <div class="smod-bitmask-summary text-muted small mt-1"></div>
+  </div>
+{% elif node.kind == 'select' %}
+  <div class="mb-2">
+    <label class="form-label small mb-0">{{ node.label }}</label>
+    <select class="form-select form-select-sm" data-path="{{ node.path }}" data-type="text">
+      {% for opt in node.options %}
+      <option value="{{ opt }}" {% if opt == node.value %}selected{% endif %}>{{ opt|capitalize }}</option>
+      {% endfor %}
+    </select>
+  </div>
+{% elif node.kind == 'checkbox' %}
+  <div class="form-check form-switch mb-2">
+    <input type="checkbox" class="form-check-input" role="switch" data-path="{{ node.path }}" data-type="checkbox" data-bool-as="{{ node.bool_as }}" {% if node.value %}checked{% endif %}>
+    <label class="form-check-label small">{{ node.label }}</label>
+  </div>
+{% elif node.kind in ('list', 'maplist') %}
+  <div class="mb-2">
+    <label class="form-label small mb-0">{{ node.label }}</label>
+    <div class="chip-list-widget" data-chip-path="{{ node.path }}" data-kind="{{ node.kind }}">
+      <div class="chip-container d-flex flex-wrap gap-1 mb-1"></div>
+      <div class="input-group input-group-sm">
+        <input type="text" class="form-control chip-add-input" {% if node.kind == 'maplist' %}list="maps-datalist"{% endif %} placeholder="Add value...">
+        <button type="button" class="btn btn-outline-secondary chip-add-btn">Add</button>
+      </div>
+    </div>
+    <script type="application/json" class="chip-initial-values">{{ node.value|tojson }}</script>
+  </div>
+{% elif node.kind == 'raw' %}
+  <div class="mb-2">
+    <label class="form-label small mb-0">{{ node.label }} <span class="text-muted">(complex value - raw JSON)</span></label>
+    <textarea class="form-control form-control-sm font-monospace" rows="4" data-path="{{ node.path }}" data-type="raw">{{ node.value }}</textarea>
+  </div>
+{% endif %}
+{% endmacro %}

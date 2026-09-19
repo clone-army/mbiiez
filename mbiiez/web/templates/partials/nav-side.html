@@ -29,6 +29,11 @@
                                 <li>
                                     <a href="/config?instance={{ instance|lower }}" class="{% if request.path.startswith('/config') and is_active_instance %}active{% endif %}"><i class="fas fa-cog"></i> Config</a>
                                 </li>
+                                {% for menu_item in plugin_menus.get(instance, []) %}
+                                <li>
+                                    <a href="/plugin/{{ instance|lower }}/{{ menu_item.slug }}" class="{% if request.path == '/plugin/' + instance|lower + '/' + menu_item.slug %}active{% endif %}"><i class="fas {{ menu_item.icon|default('fa-puzzle-piece') }}"></i> {{ menu_item.label }}</a>
+                                </li>
+                                {% endfor %}
                                 {% endif %}
                                 {% if can_mod %}
                                 <li>
