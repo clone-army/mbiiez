@@ -22,6 +22,37 @@ def _label(key):
     return key.replace("_", " ").replace("-", " ").strip().title()
 
 
+def _infer_help(key):
+    """A short, plain-English hint for a number/text field whose bare key
+    name won't mean much to a non-technical admin - inferred from the key
+    itself (unit suffixes, "port", "rate") so it scales to any plugin's
+    config instead of needing a hand-maintained list per field. Returns
+    None (shown as no hint at all) when nothing confident applies."""
+    lower = key.lower()
+
+    if lower.endswith("_hours"):
+        return "In hours."
+    if lower.endswith("_minutes"):
+        return "In minutes."
+    if lower.endswith("_seconds") or lower.endswith("cooldown"):
+        return "In seconds."
+    if lower == "port" or lower.endswith("_port"):
+        return "Network port - changing this needs a restart, and must not collide with another instance's port."
+    if "rate" in lower:
+        return "Usually a percentage (0-100) unless the plugin says otherwise."
+    return None
+
+
+def _count_fields(node):
+    """How many actual leaf fields (not sub-groups) live under a group
+    node, recursively - used for the "N settings" hint on the config
+    page's collapsed section headers so an admin has some idea what's
+    inside before they open it."""
+    if node.get("kind") != "group":
+        return 1
+    return sum(_count_fields(child) for child in node.get("children", []))
+
+
 def _is_password_field(key):
     return "password" in key.lower()
 
@@ -56,6 +87,7 @@ def describe(value, key, ancestor_keys):
     if isinstance(value, dict):
         node["kind"] = "group"
         node["children"] = [describe(v, k, path_keys) for k, v in value.items()]
+        node["field_count"] = sum(_count_fields(child) for child in node["children"])
         return node
 
     if isinstance(value, list):
@@ -89,6 +121,7 @@ def describe(value, key, ancestor_keys):
     if isinstance(value, (int, float)):
         node["kind"] = "number"
         node["value"] = value
+        node["help"] = _infer_help(key)
         return node
 
     # Remaining case: string (or None, treated as an empty string).

@@ -61,9 +61,9 @@
         <h5 class="card-title">Players</h5>
         <ul class="list-group">
           {% for player in view_bag.players %}
-          <li class="list-group-item d-flex justify-content-between align-items-center">
+          <li class="list-group-item d-flex flex-column flex-sm-row justify-content-sm-between align-items-sm-center gap-2">
             <span>{{ player.name|safe }} <span class="text-muted small">({{ player.ip }})</span></span>
-            <span>
+            <span class="d-flex flex-wrap gap-2">
               <button class="btn btn-sm btn-danger" onclick="banPlayer('{{ player.ip }}')">Ban</button>
               <button class="btn btn-sm btn-warning" onclick="kickPlayer('{{ player.id }}')">Kick</button>
               <button class="btn btn-sm btn-info" onclick="showTellModal('{{ player.id }}', '{{ player.name|escape }}')">Tell</button>
@@ -81,7 +81,7 @@
         <h5 class="card-title">Banned IPs</h5>
         <ul class="list-group" id="bans-list">
           {% for ban in view_bag.bans %}
-          <li class="list-group-item d-flex justify-content-between align-items-center">
+          <li class="list-group-item d-flex flex-column flex-sm-row justify-content-sm-between align-items-sm-center gap-2">
             <span>{{ ban }}</span>
             <button class="btn btn-sm btn-success" onclick="unbanIp('{{ ban }}')">Unban</button>
           </li>

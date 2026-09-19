@@ -38,37 +38,82 @@
   <div class="tab-pane fade show active" id="form-tab" role="tabpanel">
     <div id="form-status" class="mb-2"></div>
 
-    {% for section in view_bag.sections %}
-    <div class="card mb-3">
-      <div class="card-body">
-        <h5 class="card-title">{{ section.label }}</h5>
-        {{ formfield.render_node(section) }}
-      </div>
-    </div>
-    {% endfor %}
+    {% if view_bag.sections %}
+    <p class="text-muted small mb-2">
+      {{ view_bag.sections|length + 1 }} sections below - each is collapsed until you click it, so this doesn't
+      read as one long list of fields. Only the first one is open to start.
+    </p>
+    {% endif %}
 
-    <div class="card mb-3">
-      <div class="card-body">
-        <h5 class="card-title">Plugins</h5>
-        {% for card in view_bag.plugin_cards %}
-        <div class="border rounded p-2 mb-2">
-          <div class="form-check form-switch">
-            <input type="checkbox" class="form-check-input plugin-toggle" role="switch"
-                   data-plugin-toggle="{{ card.name }}" {% if card.enabled %}checked{% endif %}>
-            <label class="form-check-label fw-semibold">{{ card.label }}</label>
-            {% if card.author %}<span class="text-muted small ms-2">by {{ card.author }}</span>{% endif %}
-          </div>
-          <div class="ps-4 pt-1 plugin-options" data-plugin-options="{{ card.name }}" {% if not card.enabled %}style="display:none"{% endif %}>
-            {% if card.options.children %}
-              {% for child in card.options.children %}
-                {{ formfield.render_node(child) }}
-              {% endfor %}
-            {% else %}
-              <div class="text-muted small">No options for this plugin.</div>
+    {% set section_hints = {
+      'server': 'Basic identity: the name shown in the server browser, network port, which engine binary to run.',
+      'game': 'Game mode, round/map limits, and the message players see on connect.',
+      'security': 'RCON and server passwords.',
+      'smod': 'Per-admin-slot passwords and command rights - use the Pick rights button on each rather than typing a number.',
+      'class_limits': 'Max players allowed to pick each class at once.',
+      'rtvrtm': 'Map/mode voting: rock-the-vote, nominations, and the map pool itself.',
+    } %}
+
+    <div class="accordion mb-3" id="config-sections-accordion">
+      {% for section in view_bag.sections %}
+      <div class="accordion-item">
+        <h2 class="accordion-header">
+          <button class="accordion-button {% if not loop.first %}collapsed{% endif %}" type="button"
+                  data-bs-toggle="collapse" data-bs-target="#config-section-{{ loop.index }}">
+            <span class="flex-grow-1 text-start">
+              <span class="fw-semibold">{{ section.label }}</span>
+              {% if section_hints.get(section.key) %}
+              <span class="text-muted small d-block d-sm-inline ms-sm-2">{{ section_hints[section.key] }}</span>
+              {% endif %}
+            </span>
+            {% if section.field_count is defined %}
+            <span class="badge bg-secondary fw-normal ms-2">{{ section.field_count }}</span>
             {% endif %}
+          </button>
+        </h2>
+        <div id="config-section-{{ loop.index }}" class="accordion-collapse collapse {% if loop.first %}show{% endif %}"
+             data-bs-parent="#config-sections-accordion">
+          <div class="accordion-body">
+            {{ formfield.render_node(section) }}
           </div>
         </div>
-        {% endfor %}
+      </div>
+      {% endfor %}
+
+      <div class="accordion-item">
+        <h2 class="accordion-header">
+          <button class="accordion-button collapsed" type="button"
+                  data-bs-toggle="collapse" data-bs-target="#config-section-plugins">
+            <span class="flex-grow-1 text-start">
+              <span class="fw-semibold">Plugins</span>
+              <span class="text-muted small d-block d-sm-inline ms-sm-2">Turn plugins on or off for this instance and edit their own settings.</span>
+            </span>
+            <span class="badge bg-secondary fw-normal ms-2">{{ view_bag.plugin_cards|length }}</span>
+          </button>
+        </h2>
+        <div id="config-section-plugins" class="accordion-collapse collapse" data-bs-parent="#config-sections-accordion">
+          <div class="accordion-body">
+            {% for card in view_bag.plugin_cards %}
+            <div class="border rounded p-2 mb-2">
+              <div class="form-check form-switch">
+                <input type="checkbox" class="form-check-input plugin-toggle" role="switch"
+                       data-plugin-toggle="{{ card.name }}" {% if card.enabled %}checked{% endif %}>
+                <label class="form-check-label fw-semibold">{{ card.label }}</label>
+                {% if card.author %}<span class="text-muted small ms-2">by {{ card.author }}</span>{% endif %}
+              </div>
+              <div class="ps-4 pt-1 plugin-options" data-plugin-options="{{ card.name }}" {% if not card.enabled %}style="display:none"{% endif %}>
+                {% if card.options.children %}
+                  {% for child in card.options.children %}
+                    {{ formfield.render_node(child) }}
+                  {% endfor %}
+                {% else %}
+                  <div class="text-muted small">No options for this plugin.</div>
+                {% endif %}
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
       </div>
     </div>
 

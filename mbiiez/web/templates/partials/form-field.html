@@ -1,7 +1,11 @@
 {% macro render_node(node) %}
 {% if node.kind == 'group' %}
-  <details class="mb-2 border rounded p-2" open>
-    <summary class="fw-semibold" style="cursor:pointer;">{{ node.label }}</summary>
+  {% set is_big = node.field_count is defined and node.field_count > 6 %}
+  <details class="mb-2 border rounded p-2" {% if not is_big %}open{% endif %}>
+    <summary class="fw-semibold" style="cursor:pointer;">
+      {{ node.label }}
+      {% if node.field_count is defined %}<span class="badge bg-secondary fw-normal ms-1">{{ node.field_count }}</span>{% endif %}
+    </summary>
     <div class="ps-3 pt-2">
       {% if node.children %}
         {% for child in node.children %}
@@ -16,6 +20,7 @@
   <div class="mb-2">
     <label class="form-label small mb-0">{{ node.label }}</label>
     <input type="text" class="form-control form-control-sm" data-path="{{ node.path }}" data-type="text" value="{{ node.value }}">
+    {% if node.help %}<div class="form-text">{{ node.help }}</div>{% endif %}
   </div>
 {% elif node.kind == 'textarea' %}
   <div class="mb-2">
@@ -31,11 +36,12 @@
   <div class="mb-2">
     <label class="form-label small mb-0">{{ node.label }}</label>
     <input type="number" step="any" class="form-control form-control-sm" data-path="{{ node.path }}" data-type="number" value="{{ node.value }}">
+    {% if node.help %}<div class="form-text">{{ node.help }}</div>{% endif %}
   </div>
 {% elif node.kind == 'smod_bitmask' %}
   <div class="mb-2 smod-bitmask-field">
     <label class="form-label small mb-0">{{ node.label }}</label>
-    <div class="input-group input-group-sm">
+    <div class="input-group input-group-sm stack-on-mobile">
       <input type="number" step="1" class="form-control form-control-sm" data-path="{{ node.path }}" data-type="number" value="{{ node.value }}">
       <button type="button" class="btn btn-outline-secondary smod-bitmask-btn">Pick rights...</button>
     </div>
@@ -60,7 +66,7 @@
     <label class="form-label small mb-0">{{ node.label }}</label>
     <div class="chip-list-widget" data-chip-path="{{ node.path }}" data-kind="{{ node.kind }}">
       <div class="chip-container d-flex flex-wrap gap-1 mb-1"></div>
-      <div class="input-group input-group-sm">
+      <div class="input-group input-group-sm stack-on-mobile">
         <input type="text" class="form-control chip-add-input" {% if node.kind == 'maplist' %}list="maps-datalist"{% endif %} placeholder="Add value...">
         <button type="button" class="btn btn-outline-secondary chip-add-btn">Add</button>
       </div>

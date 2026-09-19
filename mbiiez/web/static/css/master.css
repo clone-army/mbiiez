@@ -512,6 +512,31 @@ table.dataTable>tbody>tr.child ul.dtr-details {
     --bs-list-group-border-color: #243041;
 }
 
+/* Bootstrap 5's accordion is themed entirely through --bs-accordion-*
+   custom properties, none of which :root above touches, so left alone it
+   renders as a bright white box - used on the config page (see
+   pages/config.html) to collapse what used to be a long, fully-expanded
+   list of setting cards into one topic at a time. */
+.accordion {
+    --bs-accordion-bg: #111722;
+    --bs-accordion-border-color: #243041;
+    --bs-accordion-color: #d7deea;
+    --bs-accordion-btn-color: #d7deea;
+    --bs-accordion-btn-bg: #111722;
+    --bs-accordion-active-color: #7ab7ff;
+    --bs-accordion-active-bg: #151b24;
+    --bs-accordion-btn-focus-border-color: #1f6feb;
+    --bs-accordion-btn-focus-box-shadow: 0 0 0 .2rem rgba(31, 111, 235, .18);
+}
+
+/* The collapse-chevron is a dark-stroked SVG baked into the button's
+   background-image, invisible against a dark button - flipping it is the
+   standard trick to make a fixed-color icon dark-theme-safe without
+   needing to swap in a custom SVG data URI. */
+.accordion-button::after {
+    filter: invert(1) grayscale(1) brightness(1.8);
+}
+
 .list-group-item {
     background-color: var(--bs-list-group-bg);
     color: var(--bs-list-group-color);
@@ -1040,4 +1065,98 @@ table.dataTable>tbody>tr.child ul.dtr-details {
         -ms-flex-direction: row;
         flex-direction: row;
     }
+}
+
+/*------------------------------------------------------------------
+[15. Mobile sidebar drawer]
+
+The dark-theme override in sidebar-default.css pins the sidebar
+permanently open (margin-left: 0 !important on both #sidebar and
+#sidebar.active) with no way to close it, and nav-top.html doesn't even
+have the toggle button anymore - fine on a desktop monitor, but a fixed
+250px-wide sidebar permanently eating the screen on a phone leaves almost
+nothing for content. This turns it back into a closeable drawer, but only
+below the mobile breakpoint - desktop keeps the always-open behavior
+above untouched. Needs !important + to load after the rule it's
+overriding, for the same reason the "always visible" rule above does:
+same #sidebar specificity, so it's decided by source order.
+-------------------------------------------------------------------*/
+.content-wrapper {
+    margin: 32px 24px 24px 24px;
+}
+
+.mobile-sidebar-toggle {
+    display: none;
+}
+
+#sidebar-backdrop {
+    display: none;
+}
+
+@media (max-width: 768px) {
+    #sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        height: 100vh;
+        z-index: 1045;
+        margin-left: -250px !important;
+        box-shadow: 4px 0 20px rgba(0, 0, 0, .5);
+        overflow-y: auto;
+    }
+
+    #sidebar.mobile-open {
+        margin-left: 0 !important;
+    }
+
+    /* .8rem/1.5rem is fine for a mouse pointer but cramped for a thumb */
+    #sidebar ul li a {
+        padding: .9rem 1.25rem;
+    }
+
+    #sidebar-backdrop.show {
+        display: block;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, .55);
+        z-index: 1040;
+    }
+
+    .mobile-sidebar-toggle {
+        display: inline-flex !important;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .content-wrapper {
+        margin: 16px !important;
+    }
+
+    /* Bootstrap's .input-group is flex-nowrap by design (a text input
+       glued to a button) - fine at desktop width, but next to something
+       like the smod rights picker's "Pick rights..." button it can get
+       tight enough to wrap the button label mid-word on a narrow phone.
+       Stacking it is a plainer fix than trying to shrink either side. */
+    .stack-on-mobile.input-group {
+        flex-wrap: wrap;
+    }
+
+    .stack-on-mobile.input-group > * {
+        width: 100%;
+    }
+}
+
+@media (min-width: 769px) {
+    #sidebar-backdrop {
+        display: none !important;
+    }
+}
+
+/* A long, padded Quake3 color-coded server/map/mode name (common in this
+   engine) has literal runs of spaces the game relies on for alignment;
+   white-space:pre keeps that alignment but never wraps, so on a narrow
+   card it silently overflows the container instead of just wrapping. */
+.mb-preserve-space {
+    white-space: pre-wrap;
+    word-break: break-word;
 }

@@ -53,13 +53,13 @@
       {% if section.help %}<div class="text-muted small mb-2">{{ section.help }}</div>{% endif %}
       <form class="plugin-action-form row g-2 align-items-end" data-action="{{ section.action }}">
         {% for field in section.fields %}
-        <div class="col-auto">
+        <div class="col-12 col-sm-auto">
           <label class="form-label small mb-0">{{ field.label }}</label>
           <input type="{{ field.type|default('text') }}" step="any" class="form-control form-control-sm" name="{{ field.name }}" {% if field.required %}required{% endif %}>
         </div>
         {% endfor %}
-        <div class="col-auto">
-          <button type="submit" class="btn btn-sm btn-primary">{{ section.submit_label|default('Submit') }}</button>
+        <div class="col-12 col-sm-auto">
+          <button type="submit" class="btn btn-sm btn-primary w-100">{{ section.submit_label|default('Submit') }}</button>
         </div>
       </form>
       <div class="action-status mt-2"></div>

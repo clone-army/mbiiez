@@ -47,7 +47,7 @@
 		<div class="card h-100 instance-card" data-instance="{{ item.name }}">
 			<div class="card-body">
 				<div class="d-flex justify-content-between align-items-center mb-2">
-					<h5 class="card-title mb-0" style="white-space:pre;" id="instance-title-{{ loop.index }}">{{ item.server_name_html|safe if item.server_name_html else item.name }}</h5>
+					<h5 class="card-title mb-0 mb-preserve-space" id="instance-title-{{ loop.index }}">{{ item.server_name_html|safe if item.server_name_html else item.name }}</h5>
 					<span class="badge bg-secondary" id="instance-status-{{ loop.index }}">Loading...</span>
 				</div>
 
@@ -55,8 +55,8 @@
 					<div class="col-6"><strong>Instance:</strong> {{ item.name }}</div>
 					<div class="col-6"><strong>Port:</strong> <span id="instance-port-{{ loop.index }}">{{ item.port if item.port else '...' }}</span></div>
 					<div class="col-6"><strong>Players:</strong> <span id="instance-players-{{ loop.index }}">...</span></div>
-					<div class="col-6"><strong>Map:</strong> <span style="white-space:pre;" id="instance-map-{{ loop.index }}">...</span></div>
-					<div class="col-6"><strong>Mode:</strong> <span style="white-space:pre;" id="instance-mode-{{ loop.index }}">...</span></div>
+					<div class="col-6"><strong>Map:</strong> <span class="mb-preserve-space" id="instance-map-{{ loop.index }}">...</span></div>
+					<div class="col-6"><strong>Mode:</strong> <span class="mb-preserve-space" id="instance-mode-{{ loop.index }}">...</span></div>
 					<div class="col-12"><strong>Uptime:</strong> <span id="instance-uptime-{{ loop.index }}">...</span></div>
 				</div>
 

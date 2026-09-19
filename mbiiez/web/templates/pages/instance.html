@@ -16,11 +16,11 @@
       <div class="card-body">
         <h5 class="card-title">Server Info</h5>
         <ul class="list-group list-group-flush">
-          <li class="list-group-item"><strong>Name:</strong> <span style="white-space:pre;" class="fw-bold">{{ view_bag.status.server_name_html|safe }}</span></li>
-          <li class="list-group-item"><strong>Map:</strong> <span style="white-space:pre;">{{ view_bag.status.map_html|safe }}</span></li>
-          <li class="list-group-item"><strong>Mode:</strong> <span style="white-space:pre;">{{ view_bag.status.mode_html|safe }}</span></li>
-          <li class="list-group-item"><strong>Uptime:</strong> <span style="white-space:pre;">{{ view_bag.status.uptime }}</span></li>
-          <li class="list-group-item"><strong>Version:</strong> <span style="white-space:pre;">{{ view_bag.version }}</span></li>
+          <li class="list-group-item"><strong>Name:</strong> <span class="fw-bold mb-preserve-space">{{ view_bag.status.server_name_html|safe }}</span></li>
+          <li class="list-group-item"><strong>Map:</strong> <span class="mb-preserve-space">{{ view_bag.status.map_html|safe }}</span></li>
+          <li class="list-group-item"><strong>Mode:</strong> <span class="mb-preserve-space">{{ view_bag.status.mode_html|safe }}</span></li>
+          <li class="list-group-item"><strong>Uptime:</strong> <span class="mb-preserve-space">{{ view_bag.status.uptime }}</span></li>
+          <li class="list-group-item"><strong>Version:</strong> <span class="mb-preserve-space">{{ view_bag.version }}</span></li>
         </ul>
       </div>
     </div>
@@ -34,7 +34,7 @@
             <span class="badge bg-danger">Stopped</span>
           {% endif %}
         </p>
-        <div class="btn-group" role="group">
+        <div class="d-grid gap-2 d-sm-flex" role="group">
           <button class="btn {% if view_bag.engine_running %}btn-secondary disabled-btn{% else %}btn-success{% endif %}" {% if view_bag.engine_running %}disabled{% endif %} onclick="sendCommand('start')">Start</button>
           <button class="btn {% if not view_bag.engine_running %}btn-secondary disabled-btn{% else %}btn-warning{% endif %}" {% if not view_bag.engine_running %}disabled{% endif %} onclick="sendCommand('stop')">Stop</button>
           <button class="btn {% if not view_bag.engine_running %}btn-secondary disabled-btn{% else %}btn-primary{% endif %}" {% if not view_bag.engine_running %}disabled{% endif %} onclick="sendCommand('restart')">Restart</button>
@@ -94,7 +94,7 @@
           {% for player in view_bag.players %}
             <li class="list-group-item d-flex align-items-center justify-content-between">
               <div>
-                <span class="fw-bold" style="white-space:pre;">{{ player.player_html|safe }}</span><br>
+                <span class="fw-bold mb-preserve-space">{{ player.player_html|safe }}</span><br>
                 <span class="badge bg-primary">{{ player.ip }}</span>
               </div>
               <span class="badge bg-info">{{ player.id }}</span>
