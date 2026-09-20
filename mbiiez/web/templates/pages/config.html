@@ -74,7 +74,17 @@
         <div id="config-section-{{ loop.index }}" class="accordion-collapse collapse {% if loop.first %}show{% endif %}"
              data-bs-parent="#config-sections-accordion">
           <div class="accordion-body">
-            {{ formfield.render_node(section) }}
+            {# section itself is a 'group' node - rendering it with render_node()
+               would draw its own <details><summary>{{ label }}</summary> wrapper
+               a second time, right under the accordion header that already
+               shows the same label. Render its children directly instead. #}
+            {% if section.children %}
+              {% for child in section.children %}
+                {{ formfield.render_node(child) }}
+              {% endfor %}
+            {% else %}
+              <div class="text-muted small">No options.</div>
+            {% endif %}
           </div>
         </div>
       </div>

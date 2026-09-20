@@ -1126,6 +1126,16 @@ same #sidebar specificity, so it's decided by source order.
         display: inline-flex !important;
         align-items: center;
         justify-content: center;
+        /* #sidebar sits at z-index 1045 and, open, its header/logo lands
+           directly over this button's own screen position (top-left) -
+           without its own stacking context above that, the open sidebar
+           physically intercepts taps meant for this button, so it could
+           open but never close the same way again (confirmed via
+           Playwright: "<img class='app-logo'> ... intercepts pointer
+           events"). Backdrop click-to-close still works either way, but
+           tapping the hamburger a second time should too. */
+        position: relative;
+        z-index: 1050;
     }
 
     .content-wrapper {

@@ -7,6 +7,17 @@
 (function() {
     'use strict';
 
+    // All 3 <script> tags load in <head> with no defer, so this file runs
+    // while <head> is still being parsed - <body> (#sidebar, #body, the
+    // toggle button, all of it) doesn't exist yet at that point. Every
+    // $('#...') lookup below used to run directly at the top of the IIFE
+    // and silently match nothing, so none of the .on(...) bindings ever
+    // actually attached - not a new bug, just invisible before, since the
+    // old CSS bug kept the sidebar permanently open regardless of whether
+    // the JS did anything at all. $(fn) defers everything inside it until
+    // the DOM is actually ready.
+    $(function() {
+
     // Desktop "always open" comes from the unconditional #sidebar rule in
     // master.css alone now - no .active class needed on #sidebar itself.
     // (It used to be added here too, which is exactly what broke the
@@ -37,5 +48,7 @@
     $(window).on('resize', function() {
         if (window.innerWidth > 768) { closeMobileSidebar(); }
     });
+
+    }); // $(fn)
 })();
 
