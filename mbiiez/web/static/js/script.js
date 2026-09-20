@@ -7,10 +7,13 @@
 (function() {
     'use strict';
 
-    // Always keep sidebar open (desktop) - see master.css [15. Mobile
-    // sidebar drawer] for the mobile-only override that makes it
-    // closeable again below the 768px breakpoint.
-    $('#sidebar').addClass('active');
+    // Desktop "always open" comes from the unconditional #sidebar rule in
+    // master.css alone now - no .active class needed on #sidebar itself.
+    // (It used to be added here too, which is exactly what broke the
+    // mobile drawer: #sidebar.active has higher specificity than the
+    // plain #sidebar selector the mobile media query overrides, so as
+    // long as that class was present the sidebar could never close,
+    // regardless of what the mobile-open toggle below did.)
     $('#body').addClass('active');
 
     function closeMobileSidebar() {
