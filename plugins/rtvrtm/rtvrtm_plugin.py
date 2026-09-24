@@ -15,6 +15,8 @@ import traceback
 from pathlib import Path
 from datetime import date
 
+from mbiiez import holiday_maps as mbiiez_holiday_maps
+
 def Plugin(instance, config_path):
     """
     RTVRTM Plugin entry point for MBIIEZ
@@ -367,12 +369,21 @@ RTM change immediately: {rtm_change_immediately}
         rtv_config = self.config.get('rtv', {})
         primary_maps = list(rtv_config.get('primary_maps', self.config.get('primary_maps', [])))
         
-        # Add active holiday maps
+        # Active holiday maps go at the FRONT of the list, not the end -
+        # this file feeds the RTV nomination pool in order, so putting them
+        # first is what actually surfaces them while the holiday's on,
+        # rather than just quietly being present somewhere in the pool.
+        # Any of them already elsewhere in primary_maps gets moved up
+        # rather than left duplicated further down.
         holiday_maps = self.get_active_holiday_maps()
         if holiday_maps:
+            seen = set()
+            ordered_holiday_maps = []
             for map_name in holiday_maps:
-                if map_name not in primary_maps:
-                    primary_maps.append(map_name)
+                if map_name not in seen:
+                    seen.add(map_name)
+                    ordered_holiday_maps.append(map_name)
+            primary_maps = ordered_holiday_maps + [m for m in primary_maps if m not in seen]
         
         with open(self.maps_path, 'w') as f:
             for map_name in primary_maps:
@@ -385,52 +396,14 @@ RTM change immediately: {rtm_change_immediately}
                 f.write(f"{map_name}\n")
     
     def get_active_holiday_maps(self):
-        """Get maps for any currently active holidays from config"""
-        active_maps = []
-        holiday_config = self.config.get('holiday_maps', {})
-        
-        if not holiday_config:
-            return active_maps
-        
-        today = date.today()
-        
-        for holiday_name, holiday_data in holiday_config.items():
-            if self._is_holiday_active(today, holiday_data):
-                maps = holiday_data.get('maps', [])
-                active_maps.extend(maps)
-                self.log(f"RTVRTM: Added {len(maps)} holiday maps for {holiday_name}")
-        
+        """Get maps for any currently active holidays from config - see
+        mbiiez.holiday_maps for the actual date-range logic (shared with
+        the core map rotation in mbiiez/conf.py, so both agree on the
+        same wraparound rules)."""
+        active_maps = mbiiez_holiday_maps.get_active_maps(self.config.get('holiday_maps', {}))
+        if active_maps:
+            self.log(f"RTVRTM: {len(active_maps)} active holiday map(s): {', '.join(active_maps)}")
         return active_maps
-    
-    def _is_holiday_active(self, today, holiday_data):
-        """Check if a holiday is currently active based on date range"""
-        try:
-            start_month = holiday_data.get('start_month')
-            start_day = holiday_data.get('start_day')
-            end_month = holiday_data.get('end_month')
-            end_day = holiday_data.get('end_day')
-            
-            if not all([start_month, start_day, end_month, end_day]):
-                return False
-            
-            current_year = today.year
-            start_date = date(current_year, start_month, start_day)
-            end_date = date(current_year, end_month, end_day)
-            
-            # Handle year wraparound (e.g., Dec 1 - Jan 5)
-            if end_date < start_date:
-                # Holiday spans new year
-                if today >= start_date or today <= end_date:
-                    return True
-            else:
-                # Normal date range within same year
-                if start_date <= today <= end_date:
-                    return True
-            
-            return False
-        except Exception as e:
-            self.log(f"RTVRTM: Error checking holiday dates: {e}")
-            return False
     
     def start_rtvrtm(self):
         """Start the RTVRTM script in a separate thread"""

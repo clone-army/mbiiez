@@ -41,6 +41,24 @@ class plugin:
     plugin_author = "Louis Varley"
     plugin_url = ""
 
+    @staticmethod
+    def web_hide_default_card():
+        return True
+
+    @staticmethod
+    def web_config_sections(instance_name, instance_config):
+        return [
+            {
+                "label": "Auto Map Rotation",
+                "path": [],
+                "hint": "How often the server cycles to the next map on its own.",
+                "fields": [
+                    {"path": ["rotation_minutes"], "key": "rotation_minutes", "type": "number", "default": 30,
+                     "label": "Rotate Every (minutes)", "help": "0 or blank turns automatic rotation off. Only rotates while the server is empty."},
+                ],
+            },
+        ]
+
     instance = None
     plugin_config = None
     discord_bot = None

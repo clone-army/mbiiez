@@ -93,6 +93,57 @@ def get_plugin_meta(plugin_name):
     return meta
 
 
+def call_web_config_sections(plugin_name, instance_name, instance_config):
+    """Safely call a plugin's optional web_config_sections(instance_name,
+    instance_config) static hook. Lets a plugin promote named subtrees of
+    its own config to top-level sections on the Config page (e.g. "RTV",
+    "RTM") instead of everything living nested inside the generic
+    "Plugins" card - see controllers/config.py, which also excludes each
+    promoted subtree from that plugin's generic card so a field isn't
+    editable in two places at once.
+
+    Expected return shape: a list of {"label": str, "path": [key, ...]}
+    dicts, where `path` is relative to the plugin's own config dict
+    (instance_config['plugins'][plugin_name]) - e.g. {"path": ["rtv"]}
+    for instance_config['plugins']['rtvrtm']['rtv']. Returns [] if the
+    plugin doesn't implement the hook, or if it raises - a broken plugin
+    must never take down the Config page."""
+    module = load_plugin_module(plugin_name)
+    if module is None or not hasattr(module, "plugin"):
+        return []
+
+    hook = getattr(module.plugin, "web_config_sections", None)
+    if hook is None:
+        return []
+
+    try:
+        return hook(instance_name, instance_config) or []
+    except Exception:
+        return []
+
+
+def call_web_hide_default_card(plugin_name):
+    """Safely call a plugin's optional web_hide_default_card() static hook
+    (no args - it's a blanket per-plugin choice, not per-instance). A
+    plugin that fully describes its own config through
+    web_config_sections()/web_page() "config_form" sections returns True
+    here so the generic auto-rendered Plugins card doesn't also show
+    (and duplicate) the same fields. Returns False if the plugin doesn't
+    implement it, or if it raises."""
+    module = load_plugin_module(plugin_name)
+    if module is None or not hasattr(module, "plugin"):
+        return False
+
+    hook = getattr(module.plugin, "web_hide_default_card", None)
+    if hook is None:
+        return False
+
+    try:
+        return bool(hook())
+    except Exception:
+        return False
+
+
 def call_web_menu(plugin_name, instance_name, instance_config):
     """Safely call a plugin's optional web_menu(instance_name, instance_config)
     static hook. Returns None if the plugin doesn't implement it, or if it

@@ -2,6 +2,8 @@ import os
 import json
 import time
 
+from mbiiez.holiday_maps import get_active_maps
+
 class conf:
 
     name = None
@@ -183,7 +185,21 @@ class conf:
             # Builds a vstr chain sized to however many maps are configured, instead of
             # assuming a fixed 9 slots (a mismatch here used to crash server start with
             # an IndexError whenever an instance's rotation wasn't exactly 9 maps long).
-            maps = self.config['map_rotation_order']
+            maps = list(self.config['map_rotation_order'])
+
+            # Active holiday maps (mbiiez/holiday_maps.py) get appended to
+            # the end of the rotation for as long as the holiday's on -
+            # re-evaluated fresh every time this file is regenerated, i.e.
+            # on the instance's own restart_instance_every_hours cadence,
+            # so they come and go on schedule without anyone needing to
+            # hand-edit map_rotation_order. See rtvrtm_plugin.py's
+            # generate_maps_files() for the equivalent for RTV's own map
+            # pool (added to the front there, not the end).
+            holiday_maps_config = (self.config.get('plugins', {}) or {}).get('rtvrtm', {}).get('holiday_maps', {}) or {}
+            for map_name in get_active_maps(holiday_maps_config):
+                if map_name not in maps:
+                    maps.append(map_name)
+
             if not maps:
                 raise ValueError("map_rotation_order must contain at least one map for instance '{}'".format(self.name))
 

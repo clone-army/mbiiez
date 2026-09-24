@@ -12,6 +12,24 @@ class plugin:
     plugin_author = "Louis Varley"
     plugin_url = ""
 
+    @staticmethod
+    def web_hide_default_card():
+        return True
+
+    @staticmethod
+    def web_config_sections(instance_name, instance_config):
+        return [
+            {
+                "label": "VPN Shield",
+                "path": [],
+                "hint": "Blocks VPN/proxy connections via ipgeolocation.io.",
+                "fields": [
+                    {"path": ["ipgeolocation_apikey"], "key": "ipgeolocation_apikey", "type": "password",
+                     "label": "ipgeolocation.io API Key"},
+                ],
+            },
+        ]
+
     instance = None
     plugin_config = None
 

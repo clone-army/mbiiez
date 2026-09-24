@@ -7,6 +7,26 @@ class plugin:
     plugin_author = "Louis Varley"
     plugin_url = ""
 
+    @staticmethod
+    def web_hide_default_card():
+        return True
+
+    @staticmethod
+    def web_config_sections(instance_name, instance_config):
+        return [
+            {
+                "label": "Chaos Mode",
+                "path": [],
+                "fields": [
+                    {"path": ["enabled"], "key": "enabled", "type": "bool_select", "default": 1,
+                     "label": "Enable Chaos Mode"},
+                    {"path": ["cooldown"], "key": "cooldown", "type": "number", "default": 20,
+                     "label": "Cooldown (seconds)",
+                     "depends_on": {"path": ["enabled"], "equals": 1}},
+                ],
+            },
+        ]
+
     instance = None
     plugin_config = None
 

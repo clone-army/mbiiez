@@ -1,10 +1,15 @@
 {% macro render_node(node) %}
+{% set deps = (' data-depends-on=\'' ~ node.depends_on|tojson ~ '\'') if node.depends_on else '' %}
 {% if node.kind == 'group' %}
   {% set is_big = node.field_count is defined and node.field_count > 6 %}
-  <details class="mb-2 border rounded p-2" {% if not is_big %}open{% endif %}>
+  {% set is_smod_admin = node.path.startswith('smod.') and node.path.count('.') == 1 %}
+  <details class="mb-2 border rounded p-2" {% if not is_big %}open{% endif %}{{ deps|safe }}>
     <summary class="fw-semibold" style="cursor:pointer;">
       {{ node.label }}
       {% if node.field_count is defined %}<span class="badge bg-secondary fw-normal ms-1">{{ node.field_count }}</span>{% endif %}
+      {% if is_smod_admin %}
+      <button type="button" class="btn btn-sm btn-outline-secondary smod-sync-btn ms-2" data-admin-key="{{ node.key }}" title="Apply this admin's password/rights to other instances">&#8635; Sync to instances...</button>
+      {% endif %}
     </summary>
     <div class="ps-3 pt-2">
       {% if node.children %}
@@ -17,29 +22,50 @@
     </div>
   </details>
 {% elif node.kind == 'text' %}
-  <div class="mb-2">
+  <div class="mb-2"{{ deps|safe }}>
     <label class="form-label small mb-0">{{ node.label }}</label>
     <input type="text" class="form-control form-control-sm" data-path="{{ node.path }}" data-type="text" value="{{ node.value }}">
     {% if node.help %}<div class="form-text">{{ node.help }}</div>{% endif %}
   </div>
 {% elif node.kind == 'textarea' %}
-  <div class="mb-2">
+  <div class="mb-2"{{ deps|safe }}>
     <label class="form-label small mb-0">{{ node.label }}</label>
     <textarea class="form-control form-control-sm" rows="3" data-path="{{ node.path }}" data-type="text">{{ node.value }}</textarea>
   </div>
 {% elif node.kind == 'password' %}
-  <div class="mb-2">
+  <div class="mb-2"{{ deps|safe }}>
     <label class="form-label small mb-0">{{ node.label }}</label>
-    <input type="password" class="form-control form-control-sm" data-path="{{ node.path }}" data-type="text" value="{{ node.value }}" autocomplete="new-password">
+    <div class="input-group input-group-sm stack-on-mobile">
+      <input type="password" class="form-control form-control-sm" data-path="{{ node.path }}" data-type="text" value="{{ node.value }}" autocomplete="new-password">
+      <button type="button" class="btn btn-outline-secondary password-reveal-btn" aria-label="Show password">Show</button>
+    </div>
   </div>
 {% elif node.kind == 'number' %}
-  <div class="mb-2">
+  <div class="mb-2"{{ deps|safe }}>
     <label class="form-label small mb-0">{{ node.label }}</label>
     <input type="number" step="any" class="form-control form-control-sm" data-path="{{ node.path }}" data-type="number" value="{{ node.value }}">
     {% if node.help %}<div class="form-text">{{ node.help }}</div>{% endif %}
   </div>
+{% elif node.kind == 'percent' %}
+  <div class="mb-2"{{ deps|safe }}>
+    <label class="form-label small mb-0">{{ node.label }}</label>
+    <div class="input-group input-group-sm" style="max-width: 10rem;">
+      <input type="number" min="0" max="100" step="1" class="form-control form-control-sm" data-path="{{ node.path }}" data-type="number" value="{{ node.value }}">
+      <span class="input-group-text">%</span>
+    </div>
+    {% if node.help %}<div class="form-text">{{ node.help }}</div>{% endif %}
+  </div>
+{% elif node.kind == 'bool_select' %}
+  <div class="mb-2"{{ deps|safe }}>
+    <label class="form-label small mb-0">{{ node.label }}</label>
+    <select class="form-select form-select-sm" style="max-width: 12rem;" data-path="{{ node.path }}" data-type="bool_select" data-bool-as="{{ node.bool_as }}">
+      <option value="1" {% if node.value %}selected{% endif %}>{{ node.true_label }}</option>
+      <option value="0" {% if not node.value %}selected{% endif %}>{{ node.false_label }}</option>
+    </select>
+    {% if node.help %}<div class="form-text">{{ node.help }}</div>{% endif %}
+  </div>
 {% elif node.kind == 'smod_bitmask' %}
-  <div class="mb-2 smod-bitmask-field">
+  <div class="mb-2 smod-bitmask-field"{{ deps|safe }}>
     <label class="form-label small mb-0">{{ node.label }}</label>
     <div class="input-group input-group-sm stack-on-mobile">
       <input type="number" step="1" class="form-control form-control-sm" data-path="{{ node.path }}" data-type="number" value="{{ node.value }}">
@@ -48,7 +74,7 @@
     <div class="smod-bitmask-summary text-muted small mt-1"></div>
   </div>
 {% elif node.kind == 'select' %}
-  <div class="mb-2">
+  <div class="mb-2"{{ deps|safe }}>
     <label class="form-label small mb-0">{{ node.label }}</label>
     <select class="form-select form-select-sm" data-path="{{ node.path }}" data-type="text">
       {% for opt in node.options %}
@@ -56,15 +82,75 @@
       {% endfor %}
     </select>
   </div>
+{% elif node.kind == 'choice' %}
+  <div class="mb-2"{{ deps|safe }}>
+    <label class="form-label small mb-0">{{ node.label }}</label>
+    <select class="form-select form-select-sm" data-path="{{ node.path }}" data-type="{{ 'number' if node.numeric else 'text' }}">
+      {% for opt in node.options %}
+      <option value="{{ opt[0] }}" {% if opt[0] == node.value %}selected{% endif %}>{{ opt[1] }}</option>
+      {% endfor %}
+    </select>
+    {% if node.help %}<div class="form-text">{{ node.help }}</div>{% endif %}
+  </div>
+{% elif node.kind == 'composite' %}
+  {# Separate inputs for one space-separated value - config-form.js
+     (initCompositeFields) rebuilds the hidden input from them on every
+     change, and that hidden input is what actually gets saved. #}
+  <div class="mb-2 composite-field"{{ deps|safe }}>
+    <label class="form-label small mb-0">{{ node.label }}</label>
+    <input type="hidden" data-path="{{ node.path }}" data-type="text" value="{{ node.value }}">
+    <div class="row g-2">
+      {% for part in node.parts %}
+      <div class="col-12 col-sm composite-part-wrap"{% if part.show_when %} data-show-when='{{ part.show_when|tojson }}'{% endif %}>
+        <div class="form-text mt-0 mb-1">{{ part.label }}</div>
+        {% if part.kind == 'choice' %}
+        <select class="form-select form-select-sm composite-part">
+          {% for opt in part.options %}
+          <option value="{{ opt[0] }}" {% if opt[0] == part.value %}selected{% endif %}>{{ opt[1] }}</option>
+          {% endfor %}
+        </select>
+        {% elif part.kind == 'number' %}
+        <input type="number" step="1" {% if part.min is defined %}min="{{ part.min }}"{% endif %} class="form-control form-control-sm composite-part" value="{{ part.value }}" data-required="1">
+        {% else %}
+        <input type="text" class="form-control form-control-sm composite-part" value="{{ part.value }}" {% if part.placeholder %}placeholder="{{ part.placeholder }}"{% endif %}>
+        {% endif %}
+        {% if part.help %}<div class="form-text">{{ part.help }}</div>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% if node.help %}<div class="form-text">{{ node.help }}</div>{% endif %}
+    <div class="form-text">Saved as: <code class="composite-preview">{{ node.value }}</code></div>
+  </div>
+{% elif node.kind == 'rtm_modes' %}
+  {# Mode checkboxes -> RTVRTM's single RTM code (see RTM_MODE_CODES in
+     formify.py); config-form.js (initRtmModeFields) keeps the hidden
+     input in sync. #}
+  <div class="mb-2 rtm-modes-field"{{ deps|safe }}>
+    <label class="form-label small mb-0">{{ node.label }}</label>
+    <input type="hidden" data-path="{{ node.path }}" data-type="number" value="{{ node.value }}">
+    <script type="application/json" class="rtm-mode-codes">{{ node.codes|tojson }}</script>
+    <div class="d-flex flex-wrap gap-3">
+      {% for name in node.mode_names %}
+      <div class="form-check">
+        <input type="checkbox" class="form-check-input rtm-mode-box" id="{{ node.path }}-mode-{{ loop.index0 }}" value="{{ loop.index0 }}" {% if loop.index0 in node.selected %}checked{% endif %}>
+        <label class="form-check-label small" for="{{ node.path }}-mode-{{ loop.index0 }}">{{ name }}</label>
+      </div>
+      {% endfor %}
+    </div>
+    {% if node.help %}<div class="form-text">{{ node.help }}</div>{% endif %}
+    <div class="form-text rtm-modes-summary">
+      {% if node.unknown %}<span class="text-danger">Stored value {{ node.value }} isn't a known RTM code - tick the modes you want to replace it.</span>{% endif %}
+    </div>
+  </div>
 {% elif node.kind == 'checkbox' %}
-  <div class="form-check form-switch mb-2">
+  <div class="form-check form-switch mb-2"{{ deps|safe }}>
     <input type="checkbox" class="form-check-input" role="switch" data-path="{{ node.path }}" data-type="checkbox" data-bool-as="{{ node.bool_as }}" {% if node.value %}checked{% endif %}>
     <label class="form-check-label small">{{ node.label }}</label>
   </div>
 {% elif node.kind in ('list', 'maplist') %}
-  <div class="mb-2">
+  <div class="mb-2"{{ deps|safe }}>
     <label class="form-label small mb-0">{{ node.label }}</label>
-    <div class="chip-list-widget" data-chip-path="{{ node.path }}" data-kind="{{ node.kind }}">
+    <div class="chip-list-widget" data-chip-path="{{ node.path }}" data-kind="{{ node.kind }}" data-reorderable="{{ 'true' if node.reorderable else 'false' }}">
       <div class="chip-container d-flex flex-wrap gap-1 mb-1"></div>
       <div class="input-group input-group-sm stack-on-mobile">
         <input type="text" class="form-control chip-add-input" {% if node.kind == 'maplist' %}list="maps-datalist"{% endif %} placeholder="Add value...">
@@ -74,7 +160,7 @@
     <script type="application/json" class="chip-initial-values">{{ node.value|tojson }}</script>
   </div>
 {% elif node.kind == 'raw' %}
-  <div class="mb-2">
+  <div class="mb-2"{{ deps|safe }}>
     <label class="form-label small mb-0">{{ node.label }} <span class="text-muted">(complex value - raw JSON)</span></label>
     <textarea class="form-control form-control-sm font-monospace" rows="4" data-path="{{ node.path }}" data-type="raw">{{ node.value }}</textarea>
   </div>

@@ -94,7 +94,29 @@ body {
     display: flex;
     width: 100%;
     align-items: stretch;
-    overflow-x: hidden
+    /* clip, not hidden: overflow-x:hidden quietly makes .wrapper a scroll
+       container (overflow-y computes to auto), which breaks every
+       position:sticky inside it - they stick to .wrapper, which never
+       scrolls, instead of the window. hidden stays as the fallback for
+       browsers without clip. */
+    overflow-x: hidden;
+    overflow-x: clip;
+}
+
+/* Save bar that follows you down long settings pages (Config form,
+   plugin pages) so you can save as you go. */
+.sticky-save-bar {
+    position: sticky;
+    bottom: 0;
+    z-index: 3;
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    padding: .6rem 0;
+    margin-top: .5rem;
+    background-color: #111722;
+    border-top: 1px solid #243041;
+    box-shadow: 0 -.5rem 1rem rgba(0, 0, 0, .35);
 }
 
 #body {

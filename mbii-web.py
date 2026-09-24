@@ -28,6 +28,7 @@ from mbiiez.web.controllers.rcon import controller as rcon_c
 from mbiiez.web.controllers.stats import controller as stats_c
 from mbiiez.web.controllers.plugin_page import controller as plugin_page_c
 from mbiiez.web.controllers.plugin_page import load_instance_config as plugin_page_load_instance_config
+from mbiiez.web.controllers import instance_admin
 
 # Views
 from mbiiez.web.views.chat import view as chat_v
@@ -236,6 +237,7 @@ def _required_role_for_path(path, method):
     admin_prefixes = [
         "/config",
         "/instance/",
+        "/instances",
         "/api/audit",
         "/admin",
     ]
@@ -252,6 +254,9 @@ def _required_role_for_path(path, method):
         return "admin"
 
     if path == "/config/save":
+        return "admin"
+
+    if path == "/config/sync_smod_admin":
         return "admin"
 
     if path in ["/rcon/send", "/chat/send"]:
@@ -909,6 +914,75 @@ def config_save():
     if success:
         _audit("config_save", data.get("instance"), "saved")
     return {"success": success, "error": None if success else msg}
+
+
+def _forget_instance_lists():
+    """Drop the cached instance list/menus so a just-created or deleted
+    instance shows up (or disappears) in the sidebar immediately."""
+    _instance_list_cache["expires"] = 0.0
+    _plugin_menu_cache["expires"] = 0.0
+
+
+@app.route("/instances/new", methods=["GET"])
+@require_role("admin")
+def instance_new_page():
+    return render_template("pages/instance-new.html", view_bag=instance_admin.wizard_bag())
+
+
+@app.route("/instances/create", methods=["POST"])
+@require_role("admin")
+def instance_create():
+    data = request.get_json(silent=True) or {}
+    success, msg = instance_admin.create_instance(data)
+    if success:
+        _forget_instance_lists()
+        _audit("instance_create", str(data.get("name", "")).lower(),
+               f"port={data.get('port')};source={data.get('source') or 'template'}")
+    return jsonify({"success": success, "message": msg})
+
+
+@app.route("/instances/<instance_name>/running", methods=["GET"])
+@require_role("admin")
+def instance_running(instance_name):
+    return jsonify({"running": instance_admin.is_running(instance_name)})
+
+
+@app.route("/instances/<instance_name>/delete", methods=["POST"])
+@require_role("admin")
+def instance_delete(instance_name):
+    data = request.get_json(silent=True) or {}
+    # Server-side half of the "type the name to confirm" check.
+    if str(data.get("confirm", "")).strip().lower() != instance_name.lower():
+        return jsonify({"success": False, "message": "Confirmation didn't match the instance name."})
+    success, msg = instance_admin.delete_instance(instance_name)
+    if success:
+        _forget_instance_lists()
+        _audit("instance_delete", instance_name, msg)
+    return jsonify({"success": success, "message": msg})
+
+
+@app.route("/config/sync_smod_admin", methods=["POST"])
+@require_role("admin")
+def config_sync_smod_admin():
+    data = request.get_json() or {}
+    source_instance = data.get("source_instance")
+    # admin_keys (list) is the current shape - a single admin's "Sync to
+    # instances..." button sends a one-item list, the "Sync all admins..."
+    # button sends every smod.admin_N key at once. admin_key (singular,
+    # string) is accepted too for any older client still sending it.
+    admin_keys = data.get("admin_keys")
+    if admin_keys is None and data.get("admin_key"):
+        admin_keys = [data["admin_key"]]
+    admin_keys = admin_keys or []
+    target_instances = data.get("target_instances") or []
+    success, msg = config_c.sync_smod_admins(source_instance, admin_keys, target_instances)
+    if success:
+        _audit(
+            "config_sync_smod_admin",
+            source_instance,
+            f"admins={','.join(admin_keys)};targets={','.join(target_instances)}",
+        )
+    return {"success": success, "message": msg}
 
 
 @app.route("/api/instances/summary", methods=["GET"])

@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% import 'partials/form-field.html' as formfield %}
 {% block content %}
 <div class="page-header">
   <h3 class="page-title">{{ view_bag.menu.label if view_bag.menu else 'Plugin' }} - {{ view_bag.instance }}</h3>
@@ -14,6 +15,15 @@
 <div class="alert alert-warning">{{ view_bag.error }}</div>
 {% endif %}
 
+{% if view_bag.config_content %}
+<datalist id="maps-datalist">
+  {% for m in view_bag.maps_catalog %}
+  <option value="{{ m }}"></option>
+  {% endfor %}
+</datalist>
+{% endif %}
+
+<div id="plugin-form">
 {% for section in view_bag.sections %}
   {% if section.type == 'error' %}
   <div class="alert alert-danger">{{ section.message }}</div>
@@ -65,8 +75,29 @@
       <div class="action-status mt-2"></div>
     </div>
   </div>
+
+  {% elif section.type == 'config_form' %}
+  <div class="card mb-4">
+    <div class="card-body">
+      {% if section.title %}<h5 class="card-title">{{ section.title }}</h5>{% endif %}
+      {% if section.help %}<div class="text-muted small mb-2">{{ section.help }}</div>{% endif %}
+      {% for field in section.fields %}
+        {{ formfield.render_node(field) }}
+      {% endfor %}
+    </div>
+  </div>
   {% endif %}
 {% endfor %}
+</div>
+
+{% if view_bag.config_content %}
+<div class="sticky-save-bar mb-4">
+  <button id="config-form-save" class="btn btn-primary">Save Settings</button>
+  <span class="text-muted small ms-auto d-none d-md-inline">Ctrl+S to save</span>
+</div>
+<script type="application/json" id="original-config-json">{{ view_bag.config_content|safe }}</script>
+<script src="/assets/js/config-form.js"></script>
+{% endif %}
 
 <script>
 (function () {
@@ -157,6 +188,56 @@
         });
     });
   });
+
+  // --- config_form sections: same reconstruct-and-save flow as the
+  // Config page, just scoped to this plugin's own page instead of the
+  // whole instance config (see static/js/config-form.js). ---
+  var configFormRoot = document.getElementById('plugin-form');
+  var originalConfigScript = document.getElementById('original-config-json');
+  if (originalConfigScript && window.MbiiezConfigForm) {
+    var chipApi = MbiiezConfigForm.initChipWidgets(configFormRoot);
+    MbiiezConfigForm.initCompositeFields(configFormRoot);
+    MbiiezConfigForm.initRtmModeFields(configFormRoot);
+    MbiiezConfigForm.initDependsOn(configFormRoot);
+
+    var saveBtn = document.getElementById('config-form-save');
+    saveBtn.addEventListener('click', function () {
+      var original = JSON.parse(originalConfigScript.textContent);
+      var result = MbiiezConfigForm.buildConfig(configFormRoot, original, chipApi.chipState);
+      if (result.error) {
+        mbiiToast('Not saved: ' + result.error, 'danger');
+        return;
+      }
+      saveBtn.disabled = true;
+
+      fetch('/config/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ instance: INSTANCE_NAME, content: JSON.stringify(result.cfg, null, 2) })
+      })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          if (data.success) {
+            mbiiToast('Saved ' + INSTANCE_NAME + '. Restart the instance for engine-level changes to take effect.', 'success');
+            originalConfigScript.textContent = JSON.stringify(result.cfg, null, 2);
+          } else {
+            mbiiToast('Not saved: ' + data.error, 'danger');
+          }
+        })
+        .catch(function () {
+          mbiiToast('Not saved: the server did not respond.', 'danger');
+        })
+        .finally(function () { saveBtn.disabled = false; });
+    });
+
+    // Ctrl/Cmd+S saves instead of the browser's "save page as".
+    document.addEventListener('keydown', function (e) {
+      if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === 's') {
+        e.preventDefault();
+        if (!saveBtn.disabled) saveBtn.click();
+      }
+    });
+  }
 })();
 </script>
 {% endblock %}

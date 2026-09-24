@@ -7,6 +7,23 @@ class plugin:
     plugin_author = "Louis Varley"
     plugin_url = ""
 
+    @staticmethod
+    def web_hide_default_card():
+        return True
+
+    @staticmethod
+    def web_config_sections(instance_name, instance_config):
+        return [
+            {
+                "label": "Kill Streaks",
+                "path": [],
+                "fields": [
+                    {"path": ["enabled"], "key": "enabled", "type": "bool_select", "default": 1,
+                     "label": "Enable Kill Streak Announcements"},
+                ],
+            },
+        ]
+
     instance = None
     plugin_config = None
 

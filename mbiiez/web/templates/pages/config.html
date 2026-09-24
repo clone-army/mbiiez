@@ -2,11 +2,11 @@
 {% import 'partials/form-field.html' as formfield %}
 {% block content %}
 <div class="page-header">
-  <h3 class="page-title">Config - {{ view_bag.instance }}</h3>
+  <h3 class="page-title">Settings - {{ view_bag.instance }}</h3>
   <nav aria-label="breadcrumb">
     <ol class="breadcrumb">
       <li class="breadcrumb-item"><a href="/instance?instance={{ view_bag.instance }}">Instance</a></li>
-      <li class="breadcrumb-item active" aria-current="page">Config</li>
+      <li class="breadcrumb-item active" aria-current="page">Settings</li>
     </ol>
   </nav>
 </div>
@@ -40,8 +40,8 @@
 
     {% if view_bag.sections %}
     <p class="text-muted small mb-2">
-      {{ view_bag.sections|length + 1 }} sections below - each is collapsed until you click it, so this doesn't
-      read as one long list of fields. Only the first one is open to start.
+      {{ view_bag.sections|length + view_bag.plugin_sections|length + 2 }} sections below - each is collapsed until
+      you click it, so this doesn't read as one long list of fields. Only the first one is open to start.
     </p>
     {% endif %}
 
@@ -51,7 +51,7 @@
       'security': 'RCON and server passwords.',
       'smod': 'Per-admin-slot passwords and command rights - use the Pick rights button on each rather than typing a number.',
       'class_limits': 'Max players allowed to pick each class at once.',
-      'rtvrtm': 'Map/mode voting: rock-the-vote, nominations, and the map pool itself.',
+      'rtvrtm': 'General voting/log settings not covered by the RTV, RTM and Maps sections below.',
     } %}
 
     <div class="accordion mb-3" id="config-sections-accordion">
@@ -62,8 +62,9 @@
                   data-bs-toggle="collapse" data-bs-target="#config-section-{{ loop.index }}">
             <span class="flex-grow-1 text-start">
               <span class="fw-semibold">{{ section.label }}</span>
-              {% if section_hints.get(section.key) %}
-              <span class="text-muted small d-block d-sm-inline ms-sm-2">{{ section_hints[section.key] }}</span>
+              {% set hint = section.section_hint or section_hints.get(section.key) %}
+              {% if hint %}
+              <span class="text-muted small d-block d-sm-inline ms-sm-2">{{ hint }}</span>
               {% endif %}
             </span>
             {% if section.field_count is defined %}
@@ -78,6 +79,139 @@
                would draw its own <details><summary>{{ label }}</summary> wrapper
                a second time, right under the accordion header that already
                shows the same label. Render its children directly instead. #}
+            {% if section.key == 'smod' and section.children %}
+            <button type="button" class="btn btn-sm btn-outline-primary mb-2 smod-sync-all-btn">
+              &#8635; Sync all admins to instances...
+            </button>
+            {% endif %}
+            {% if section.children %}
+              {% for child in section.children %}
+                {{ formfield.render_node(child) }}
+              {% endfor %}
+            {% else %}
+              <div class="text-muted small">No options.</div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+
+      <div class="accordion-item">
+        <h2 class="accordion-header">
+          <button class="accordion-button collapsed" type="button"
+                  data-bs-toggle="collapse" data-bs-target="#config-section-maps">
+            <span class="flex-grow-1 text-start">
+              <span class="fw-semibold">Maps</span>
+              <span class="text-muted small d-block d-sm-inline ms-sm-2">The map rotation order, and holiday map periods that come and go automatically on restart.</span>
+            </span>
+          </button>
+        </h2>
+        <div id="config-section-maps" class="accordion-collapse collapse" data-bs-parent="#config-sections-accordion">
+          <div class="accordion-body">
+            <div class="mb-3">
+              <div class="fw-semibold small mb-1">Map Rotation</div>
+              {{ formfield.render_node(view_bag.rotation_node) }}
+            </div>
+
+            <div class="fw-semibold small mb-1">Holiday Maps</div>
+            {% if not view_bag.rtvrtm_enabled %}
+            <p class="text-muted small mb-0">
+              The RTVRTM plugin isn't enabled for this instance, so it has no holiday map periods defined.
+              Enable it in the Plugins section below to set these up.
+            </p>
+            {% elif not view_bag.holidays %}
+            <p class="text-muted small mb-0">
+              No holiday map periods are configured for this instance yet. Add one via the Raw JSON tab under
+              plugins.rtvrtm.holiday_maps - once it exists, it'll show up here to manage and inject into the
+              rotation above.
+            </p>
+            {% else %}
+            <p class="text-muted small">
+              Each period's own map pool. Whenever this instance restarts (including its own daily scheduled
+              restart) while a period is active, its maps are automatically added to the <em>end</em> of Map
+              Rotation above and the <em>front</em> of RTV's map pool - then automatically drop back out again
+              once the period's dates pass and it restarts again. Nothing to do here for that.
+              <br>
+              "Add these to rotation" below is separate: it permanently copies a period's maps into the saved
+              Map Rotation list right now (skipping any already there), regardless of whether the period is
+              currently active - for maps you've decided you just want in the regular rotation year-round.
+            </p>
+            {% set month_names = {1:'January',2:'February',3:'March',4:'April',5:'May',6:'June',7:'July',8:'August',9:'September',10:'October',11:'November',12:'December'} %}
+            {% for holiday in view_bag.holidays %}
+            {% set start_month = holiday.children | selectattr('key','equalto','start_month') | first %}
+            {% set start_day = holiday.children | selectattr('key','equalto','start_day') | first %}
+            {% set end_month = holiday.children | selectattr('key','equalto','end_month') | first %}
+            {% set end_day = holiday.children | selectattr('key','equalto','end_day') | first %}
+            {% set date_keys = ['start_month','start_day','end_month','end_day'] %}
+            <details class="mb-2 border rounded p-2">
+              <summary class="fw-semibold" style="cursor:pointer;">{{ holiday.label }}</summary>
+              <div class="ps-3 pt-2">
+                {% if start_month and start_day and end_month and end_day %}
+                <div class="row g-2 mb-2 align-items-end">
+                  <div class="col-auto">
+                    <label class="form-label small mb-0">Starts</label>
+                    <div class="input-group input-group-sm">
+                      <select class="form-select form-select-sm" style="flex: 0 0 auto; width: 8.5rem;" data-path="{{ start_month.path }}" data-type="number">
+                        {% for m in range(1,13) %}<option value="{{ m }}" {% if start_month.value == m %}selected{% endif %}>{{ month_names[m] }}</option>{% endfor %}
+                      </select>
+                      <select class="form-select form-select-sm" style="flex: 0 0 auto; width: 4.5rem;" data-path="{{ start_day.path }}" data-type="number">
+                        {% for d in range(1,32) %}<option value="{{ d }}" {% if start_day.value == d %}selected{% endif %}>{{ d }}</option>{% endfor %}
+                      </select>
+                    </div>
+                  </div>
+                  <div class="col-auto pb-2 text-muted">&#8594;</div>
+                  <div class="col-auto">
+                    <label class="form-label small mb-0">Ends</label>
+                    <div class="input-group input-group-sm">
+                      <select class="form-select form-select-sm" style="flex: 0 0 auto; width: 8.5rem;" data-path="{{ end_month.path }}" data-type="number">
+                        {% for m in range(1,13) %}<option value="{{ m }}" {% if end_month.value == m %}selected{% endif %}>{{ month_names[m] }}</option>{% endfor %}
+                      </select>
+                      <select class="form-select form-select-sm" style="flex: 0 0 auto; width: 4.5rem;" data-path="{{ end_day.path }}" data-type="number">
+                        {% for d in range(1,32) %}<option value="{{ d }}" {% if end_day.value == d %}selected{% endif %}>{{ d }}</option>{% endfor %}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+                {% endif %}
+                {% for child in holiday.children %}
+                  {% if child.key != 'maps' and child.key not in date_keys %}
+                    {{ formfield.render_node(child) }}
+                  {% endif %}
+                {% endfor %}
+                {% for child in holiday.children %}
+                  {% if child.key == 'maps' %}
+                    {{ formfield.render_node(child) }}
+                    <button type="button" class="btn btn-sm btn-outline-primary holiday-inject-btn" data-holiday-path="{{ child.path }}">
+                      &#8635; Add these to rotation
+                    </button>
+                  {% endif %}
+                {% endfor %}
+              </div>
+            </details>
+            {% endfor %}
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      {% for section in view_bag.plugin_sections %}
+      <div class="accordion-item">
+        <h2 class="accordion-header">
+          <button class="accordion-button collapsed" type="button"
+                  data-bs-toggle="collapse" data-bs-target="#config-section-plugin-{{ loop.index }}">
+            <span class="flex-grow-1 text-start">
+              <span class="fw-semibold">{{ section.label }}</span>
+              {% if section.section_hint %}
+              <span class="text-muted small d-block d-sm-inline ms-sm-2">{{ section.section_hint }}</span>
+              {% endif %}
+            </span>
+            {% if section.field_count is defined %}
+            <span class="badge bg-secondary fw-normal ms-2">{{ section.field_count }}</span>
+            {% endif %}
+          </button>
+        </h2>
+        <div id="config-section-plugin-{{ loop.index }}" class="accordion-collapse collapse" data-bs-parent="#config-sections-accordion">
+          <div class="accordion-body">
             {% if section.children %}
               {% for child in section.children %}
                 {{ formfield.render_node(child) }}
@@ -112,7 +246,9 @@
                 {% if card.author %}<span class="text-muted small ms-2">by {{ card.author }}</span>{% endif %}
               </div>
               <div class="ps-4 pt-1 plugin-options" data-plugin-options="{{ card.name }}" {% if not card.enabled %}style="display:none"{% endif %}>
-                {% if card.options.children %}
+                {% if card.hide_body %}
+                  <div class="text-muted small">Configured in its own section(s) above instead of here - see {{ card.label }}.</div>
+                {% elif card.options.children %}
                   {% for child in card.options.children %}
                     {{ formfield.render_node(child) }}
                   {% endfor %}
@@ -127,7 +263,15 @@
       </div>
     </div>
 
-    <button id="form-save" class="btn btn-primary" {% if view_bag.load_error or not view_bag.config_content %}disabled{% endif %}>Save</button>
+    {# Sticky so Save stays reachable no matter how far down the accordion
+       you are - this page is long enough that editing something near the
+       top and then hunting for a button at the very bottom is how edits
+       get abandoned unsaved. #}
+    <div class="sticky-save-bar">
+      <button id="form-save" class="btn btn-primary" {% if view_bag.load_error or not view_bag.config_content %}disabled{% endif %}>Save</button>
+      <span id="form-unsaved" class="badge bg-warning text-dark" style="display:none;">Unsaved changes</span>
+      <span class="text-muted small ms-auto d-none d-md-inline">Ctrl+S to save</span>
+    </div>
   </div>
 
   <div class="tab-pane fade" id="raw-tab" role="tabpanel">
@@ -137,6 +281,53 @@
   </div>
 
 </div>
+
+{% if view_bag.instance %}
+<div class="card border-danger mb-4">
+  <div class="card-body d-flex flex-wrap align-items-center gap-3">
+    <div class="flex-grow-1">
+      <h5 class="card-title text-danger mb-1">Danger zone</h5>
+      <div class="text-muted small">
+        Delete <strong>{{ view_bag.instance }}</strong>: stops it if it's running and removes it from the panel and
+        the <code>mbii</code> CLI. Its config is kept as <code>configs/{{ view_bag.instance }}.json.del</code>, so it can
+        be restored by renaming it back.
+      </div>
+    </div>
+    <button type="button" class="btn btn-outline-danger" id="delete-instance-btn">Delete instance...</button>
+  </div>
+</div>
+
+<div class="modal fade" id="deleteInstanceModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Delete {{ view_bag.instance }}?</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div id="delete-running-warning" class="alert alert-warning py-2" style="display:none; border-left: 4px solid #ffc107;">
+          <strong>{{ view_bag.instance }} is running right now.</strong> It will be stopped first, which kicks
+          any players on it.
+        </div>
+        <p class="small mb-2">
+          This renames <code>configs/{{ view_bag.instance }}.json</code> to <code>.json.del</code>. The instance
+          disappears from the panel, the <code>mbii</code> CLI and engine rebuilds. Its logs and economy accounts in
+          <code>homepaths/{{ view_bag.instance }}</code> are left untouched.
+        </p>
+        <label class="form-label small mb-1" for="delete-confirm-input">
+          Type <strong>{{ view_bag.instance }}</strong> to confirm:
+        </label>
+        <input type="text" class="form-control" id="delete-confirm-input" autocomplete="off" spellcheck="false">
+        <div id="delete-progress" class="small text-muted mt-2"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-danger" id="delete-confirm-btn" disabled>Delete</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
 
 <div class="modal fade" id="smodRightsModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog">
@@ -170,15 +361,58 @@
   </div>
 </div>
 
+<div class="modal fade" id="smodSyncModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Apply <span id="smod-sync-admin-label"></span> to these instances</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p class="small text-muted">
+          Copies each admin slot's password and rights from <strong>{{ view_bag.instance }}</strong> straight into
+          the config file of each instance checked below, overwriting whatever that slot currently has there.
+          If you just changed a password/rights in the form, hit Save first - this reads the value already on
+          disk for {{ view_bag.instance }}, not the unsaved form value.
+        </p>
+        <div id="smod-sync-instance-list" class="mb-2"></div>
+        <button type="button" class="btn btn-sm btn-outline-secondary" id="smod-sync-toggle-all">All / none</button>
+        <div id="smod-sync-status" class="mt-2"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="smod-sync-apply">Apply</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script type="application/json" id="original-config-json">{{ view_bag.config_content|safe }}</script>
 
+<script src="/assets/js/config-form.js"></script>
 <script>
 (function () {
   const INSTANCE_NAME = {{ view_bag.instance|tojson }};
   const ALL_PLUGIN_NAMES = {{ view_bag.plugin_cards | map(attribute='name') | list | tojson }};
+  const formTab = document.getElementById('form-tab');
 
   let dirty = false;
-  function markDirty() { dirty = true; }
+  const unsavedBadge = document.getElementById('form-unsaved');
+  function setDirty(value) {
+    dirty = value;
+    if (unsavedBadge) unsavedBadge.style.display = value ? '' : 'none';
+  }
+  function markDirty() { setDirty(true); }
+
+  // Without this, editing a field and then clicking any nav link (or
+  // reloading) throws the edits away silently - the tab-switch confirm
+  // below only covers moving between this page's own Form/Raw tabs.
+  window.addEventListener('beforeunload', function (e) {
+    if (!dirty) return;
+    e.preventDefault();
+    e.returnValue = '';
+    return '';
+  });
 
   document.querySelectorAll('#config-tabs button').forEach(function (btn) {
     btn.addEventListener('hide.bs.tab', function (e) {
@@ -186,7 +420,7 @@
         if (!confirm('You have unsaved changes on this tab. Switching tabs will not carry them over. Continue?')) {
           e.preventDefault();
         } else {
-          dirty = false;
+          setDirty(false);
         }
       }
     });
@@ -226,118 +460,29 @@
       .then(function (r) { return r.json(); })
       .then(function (data) {
         if (data.success) {
-          statusDiv.innerHTML = '<span class="badge bg-success">Saved! Reload the page to see it reflected in the Form tab.</span>';
-          dirty = false;
+          mbiiToast('Saved. Reload the page to see it reflected in the Form tab.', 'success');
+          setDirty(false);
         } else {
-          statusDiv.innerHTML = '<span class="badge bg-danger">' + data.error + '</span>';
+          mbiiToast('Not saved: ' + data.error, 'danger');
         }
-      });
+      })
+      .catch(function () { mbiiToast('Not saved: the server did not respond.', 'danger'); });
   });
 
-  // --- Form tab ---
-  function setPath(obj, dottedPath, value) {
-    const parts = dottedPath.split('.');
-    let cur = obj;
-    for (let i = 0; i < parts.length - 1; i++) {
-      const p = parts[i];
-      if (typeof cur[p] !== 'object' || cur[p] === null) cur[p] = {};
-      cur = cur[p];
-    }
-    cur[parts[parts.length - 1]] = value;
-  }
-
-  // Chip list widgets (plain lists + the friendly maps picker)
-  const chipState = {};
-
-  function renderChips(widget) {
-    const path = widget.dataset.chipPath;
-    const container = widget.querySelector('.chip-container');
-    container.innerHTML = '';
-    const values = chipState[path];
-    const reorderable = widget.dataset.kind === 'maplist' && path === 'game.map_rotation_order';
-
-    values.forEach(function (val, idx) {
-      const chip = document.createElement('span');
-      chip.className = 'badge text-bg-secondary d-inline-flex align-items-center gap-1 p-2';
-
-      const label = document.createElement('span');
-      label.textContent = val;
-      chip.appendChild(label);
-
-      if (reorderable) {
-        const up = document.createElement('button');
-        up.type = 'button';
-        up.className = 'btn btn-sm btn-link p-0 text-white';
-        up.title = 'Move up';
-        up.textContent = '↑';
-        up.onclick = function () {
-          if (idx > 0) {
-            const tmp = values[idx - 1];
-            values[idx - 1] = values[idx];
-            values[idx] = tmp;
-            renderChips(widget);
-            markDirty();
-          }
-        };
-        chip.appendChild(up);
-
-        const down = document.createElement('button');
-        down.type = 'button';
-        down.className = 'btn btn-sm btn-link p-0 text-white';
-        down.title = 'Move down';
-        down.textContent = '↓';
-        down.onclick = function () {
-          if (idx < values.length - 1) {
-            const tmp = values[idx + 1];
-            values[idx + 1] = values[idx];
-            values[idx] = tmp;
-            renderChips(widget);
-            markDirty();
-          }
-        };
-        chip.appendChild(down);
-      }
-
-      const rm = document.createElement('button');
-      rm.type = 'button';
-      rm.className = 'btn-close btn-close-white';
-      rm.style.fontSize = '0.6rem';
-      rm.title = 'Remove';
-      rm.onclick = function () {
-        values.splice(idx, 1);
-        renderChips(widget);
-        markDirty();
-      };
-      chip.appendChild(rm);
-
-      container.appendChild(chip);
-    });
-  }
-
+  // --- Form tab: chip-list widgets (rotation/holiday/plugin map pickers) ---
+  const chipApi = MbiiezConfigForm.initChipWidgets(formTab);
+  const chipState = chipApi.chipState;
+  const renderChips = chipApi.renderChips;
   document.querySelectorAll('.chip-list-widget').forEach(function (widget) {
-    const path = widget.dataset.chipPath;
-    const initialScript = widget.parentElement.querySelector('.chip-initial-values');
-    chipState[path] = JSON.parse(initialScript.textContent);
-    renderChips(widget);
-
-    const addInput = widget.querySelector('.chip-add-input');
-    const addBtn = widget.querySelector('.chip-add-btn');
-    function doAdd() {
-      const val = addInput.value.trim();
-      if (!val) return;
-      chipState[path].push(val);
-      addInput.value = '';
-      renderChips(widget);
-      markDirty();
-    }
-    addBtn.addEventListener('click', doAdd);
-    addInput.addEventListener('keydown', function (e) {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        doAdd();
-      }
-    });
+    widget.addEventListener('click', markDirty);
   });
+
+  // Fields that only make sense once another field is set a certain way
+  // (e.g. RTV's rate/timing depending on RTV itself being enabled) get
+  // disabled/dimmed together - see form-field.html's data-depends-on.
+  MbiiezConfigForm.initCompositeFields(formTab);
+  MbiiezConfigForm.initRtmModeFields(formTab);
+  MbiiezConfigForm.initDependsOn(formTab);
 
   // Plugin enable/disable toggles show/hide their options panel
   document.querySelectorAll('.plugin-toggle').forEach(function (cb) {
@@ -457,36 +602,141 @@
     });
   }
 
-  function buildConfigFromForm() {
-    const original = document.getElementById('original-config-json').textContent;
-    const cfg = JSON.parse(original);
+  // --- password reveal toggle ---
+  document.querySelectorAll('.password-reveal-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var input = btn.previousElementSibling;
+      if (!input) return;
+      var revealed = input.type === 'text';
+      input.type = revealed ? 'password' : 'text';
+      btn.textContent = revealed ? 'Show' : 'Hide';
+      btn.setAttribute('aria-label', revealed ? 'Show password' : 'Hide password');
+    });
+  });
 
-    document.querySelectorAll('#form-tab [data-path]').forEach(function (el) {
-      const path = el.dataset.path;
-      const type = el.dataset.type;
-      let value;
-      if (type === 'checkbox') {
-        value = el.checked;
-        if (el.dataset.boolAs === 'int01') value = value ? 1 : 0;
-      } else if (type === 'number') {
-        value = el.value === '' ? 0 : parseFloat(el.value);
-      } else if (type === 'raw') {
-        try {
-          value = JSON.parse(el.value);
-        } catch (e) {
-          alert('One of the raw-JSON fields (' + path + ') is not valid JSON and was left unchanged.');
-          value = null;
-        }
-        if (value === null) return;
-      } else {
-        value = el.value;
+  // --- smod admin sync-to-instances ---
+  const OTHER_INSTANCES = {{ instances | reject('equalto', view_bag.instance) | list | tojson }};
+  var smodSyncModalEl = document.getElementById('smodSyncModal');
+  var smodSyncModal = smodSyncModalEl ? new bootstrap.Modal(smodSyncModalEl) : null;
+  var smodSyncAdminKeys = [];
+
+  function openSmodSyncModal(adminKeys, label) {
+    smodSyncAdminKeys = adminKeys;
+    document.getElementById('smod-sync-admin-label').textContent = label;
+    document.getElementById('smod-sync-status').innerHTML = '';
+
+    var listEl = document.getElementById('smod-sync-instance-list');
+    listEl.innerHTML = '';
+    if (OTHER_INSTANCES.length === 0) {
+      listEl.innerHTML = '<div class="text-muted small">No other instances to apply this to.</div>';
+    }
+    OTHER_INSTANCES.forEach(function (name, i) {
+      var row = document.createElement('div');
+      row.className = 'form-check';
+      row.innerHTML =
+        '<input class="form-check-input smod-sync-target" type="checkbox" value="' + name + '" id="smod-sync-target-' + i + '">' +
+        '<label class="form-check-label" for="smod-sync-target-' + i + '">' + name + '</label>';
+      listEl.appendChild(row);
+    });
+
+    if (smodSyncModal) smodSyncModal.show();
+  }
+
+  document.querySelectorAll('.smod-sync-btn').forEach(function (btn) {
+    btn.addEventListener('click', function (event) {
+      // Button lives inside a <summary> - stop the click reaching it so it
+      // doesn't also collapse/expand the admin's <details> section.
+      event.preventDefault();
+      event.stopPropagation();
+      openSmodSyncModal([btn.dataset.adminKey], btn.dataset.adminKey);
+    });
+  });
+
+  var smodSyncAllBtn = document.querySelector('.smod-sync-all-btn');
+  if (smodSyncAllBtn) {
+    smodSyncAllBtn.addEventListener('click', function () {
+      var allKeys = Array.from(document.querySelectorAll('.smod-sync-btn')).map(function (b) {
+        return b.dataset.adminKey;
+      });
+      openSmodSyncModal(allKeys, 'all ' + allKeys.length + ' admin slots');
+    });
+  }
+
+  var smodSyncToggleAllBtn = document.getElementById('smod-sync-toggle-all');
+  if (smodSyncToggleAllBtn) {
+    smodSyncToggleAllBtn.addEventListener('click', function () {
+      var boxes = document.querySelectorAll('.smod-sync-target');
+      var allChecked = Array.prototype.every.call(boxes, function (cb) { return cb.checked; });
+      boxes.forEach(function (cb) { cb.checked = !allChecked; });
+    });
+  }
+
+  var smodSyncApplyBtn = document.getElementById('smod-sync-apply');
+  if (smodSyncApplyBtn) {
+    smodSyncApplyBtn.addEventListener('click', function () {
+      var targets = Array.prototype.filter.call(
+        document.querySelectorAll('.smod-sync-target'), function (cb) { return cb.checked; }
+      ).map(function (cb) { return cb.value; });
+
+      var statusDiv = document.getElementById('smod-sync-status');
+      if (targets.length === 0) {
+        statusDiv.innerHTML = '<span class="badge bg-warning text-dark">Pick at least one instance.</span>';
+        return;
       }
-      setPath(cfg, path, value);
-    });
 
-    Object.keys(chipState).forEach(function (path) {
-      setPath(cfg, path, chipState[path].slice());
+      statusDiv.innerHTML = '<span class="text-muted small">Applying...</span>';
+      fetch('/config/sync_smod_admin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          source_instance: INSTANCE_NAME,
+          admin_keys: smodSyncAdminKeys,
+          target_instances: targets
+        })
+      })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          if (data.success) {
+            statusDiv.innerHTML = '<span class="badge bg-success">' + data.message + '</span>';
+          } else {
+            statusDiv.innerHTML = '<span class="badge bg-danger">' + data.message + '</span>';
+          }
+        })
+        .catch(function () {
+          statusDiv.innerHTML = '<span class="badge bg-danger">Request failed.</span>';
+        });
     });
+  }
+
+  // --- inject a holiday's maps into the main map rotation ---
+  document.querySelectorAll('.holiday-inject-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      const holidayMaps = chipState[btn.dataset.holidayPath] || [];
+      const rotation = chipState['map_rotation_order'];
+      if (!rotation) return;
+      var added = 0;
+      holidayMaps.forEach(function (m) {
+        if (rotation.indexOf(m) === -1) {
+          rotation.push(m);
+          added++;
+        }
+      });
+      const rotationWidget = document.querySelector('.chip-list-widget[data-chip-path="map_rotation_order"]');
+      if (rotationWidget) renderChips(rotationWidget);
+      markDirty();
+      mbiiToast('Added ' + added + ' map(s) to the rotation - hit Save to keep it.', 'info');
+    });
+  });
+
+  function buildConfigFromForm() {
+    const original = JSON.parse(document.getElementById('original-config-json').textContent);
+    const result = MbiiezConfigForm.buildConfig(formTab, original, chipState);
+    if (result.error) {
+      // Nothing is saved - buildConfig's cfg is incomplete when it errors.
+      mbiiToast('Not saved: ' + result.error, 'danger');
+      return null;
+    }
+    const cfg = result.cfg;
 
     const enabledPlugins = {};
     document.querySelectorAll('.plugin-toggle').forEach(function (cb) {
@@ -506,8 +756,11 @@
     return cfg;
   }
 
-  document.getElementById('form-save').addEventListener('click', function () {
+  const formSaveBtn = document.getElementById('form-save');
+  formSaveBtn.addEventListener('click', function () {
     const cfg = buildConfigFromForm();
+    if (!cfg) return;
+    formSaveBtn.disabled = true;
     fetch('/config/save', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -515,17 +768,113 @@
     })
       .then(function (r) { return r.json(); })
       .then(function (data) {
-        const statusDiv = document.getElementById('form-status');
         if (data.success) {
-          statusDiv.innerHTML = '<span class="badge bg-success">Saved! Restart the instance for engine-level changes to take effect.</span>';
+          mbiiToast('Saved ' + INSTANCE_NAME + '. Restart the instance for engine-level changes to take effect.', 'success');
           document.getElementById('original-config-json').textContent = JSON.stringify(cfg, null, 2);
           editor.value = JSON.stringify(cfg, null, 2);
-          dirty = false;
+          setDirty(false);
         } else {
-          statusDiv.innerHTML = '<span class="badge bg-danger">' + data.error + '</span>';
+          mbiiToast('Not saved: ' + data.error, 'danger');
         }
-      });
+      })
+      .catch(function () { mbiiToast('Not saved: the server did not respond.', 'danger'); })
+      .finally(function () { formSaveBtn.disabled = false; });
   });
+
+  // Ctrl/Cmd+S saves whichever tab is showing, instead of the browser's
+  // "save page as".
+  document.addEventListener('keydown', function (e) {
+    if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === 's') {
+      e.preventDefault();
+      const rawShowing = document.getElementById('raw-tab').classList.contains('active');
+      const btn = rawShowing ? saveBtn : formSaveBtn;
+      if (!btn.disabled) btn.click();
+    }
+  });
+
+  // --- Danger zone: delete this instance ---
+  const deleteModalEl = document.getElementById('deleteInstanceModal');
+  if (deleteModalEl) {
+    const deleteModal = new bootstrap.Modal(deleteModalEl);
+    const confirmInput = document.getElementById('delete-confirm-input');
+    const confirmBtn = document.getElementById('delete-confirm-btn');
+    const runningWarning = document.getElementById('delete-running-warning');
+    const progress = document.getElementById('delete-progress');
+    let running = false;
+    let busy = false;
+
+    function checkRunning() {
+      return fetch('/instances/' + encodeURIComponent(INSTANCE_NAME) + '/running')
+        .then(function (r) { return r.json(); })
+        .then(function (d) { running = !!d.running; return running; });
+    }
+
+    function refreshConfirm() {
+      confirmBtn.disabled = busy || confirmInput.value.trim().toLowerCase() !== INSTANCE_NAME.toLowerCase();
+      confirmBtn.textContent = running ? 'Stop & delete' : 'Delete';
+      runningWarning.style.display = running ? '' : 'none';
+    }
+
+    document.getElementById('delete-instance-btn').addEventListener('click', function () {
+      confirmInput.value = '';
+      progress.textContent = '';
+      busy = false;
+      checkRunning().catch(function () { running = false; }).then(refreshConfirm);
+      refreshConfirm();
+      deleteModal.show();
+    });
+    deleteModalEl.addEventListener('shown.bs.modal', function () { confirmInput.focus(); });
+    confirmInput.addEventListener('input', refreshConfirm);
+    confirmInput.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' && !confirmBtn.disabled) confirmBtn.click();
+    });
+
+    // Polls until the engine's screen session is gone (or ~90s passes).
+    function waitUntilStopped(deadline) {
+      return checkRunning().then(function (stillRunning) {
+        if (!stillRunning) return;
+        if (Date.now() > deadline) throw new Error(INSTANCE_NAME + ' did not stop within 90 seconds.');
+        return new Promise(function (res) { setTimeout(res, 2000); }).then(function () { return waitUntilStopped(deadline); });
+      });
+    }
+
+    function doDelete() {
+      progress.textContent = 'Deleting...';
+      return fetch('/instances/' + encodeURIComponent(INSTANCE_NAME) + '/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirm: confirmInput.value.trim() })
+      }).then(function (r) { return r.json(); });
+    }
+
+    confirmBtn.addEventListener('click', function () {
+      busy = true;
+      refreshConfirm();
+      let chain = Promise.resolve();
+      if (running) {
+        progress.textContent = 'Stopping ' + INSTANCE_NAME + '...';
+        chain = fetch('/instance/' + encodeURIComponent(INSTANCE_NAME) + '/command_async', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ command: 'stop' })
+        }).then(function () { return waitUntilStopped(Date.now() + 90000); });
+      }
+      chain
+        .then(doDelete)
+        .then(function (data) {
+          if (!data.success) throw new Error(data.message);
+          setDirty(false); // don't trigger the unsaved-changes prompt on the way out
+          mbiiToastAfterRedirect(data.message, 'success');
+          window.location.href = '/dashboard';
+        })
+        .catch(function (err) {
+          busy = false;
+          progress.textContent = '';
+          refreshConfirm();
+          mbiiToast('Not deleted: ' + err.message, 'danger');
+        });
+    });
+  }
 })();
 </script>
 {% endblock %}

@@ -53,7 +53,7 @@ run_step(){
 # ─── Preflight ────────────────────────────────────────────────────────────
 (( EUID == 0 )) || { printf "${RED}Error:${NC} must run as root (sudo \$0)\n"; exit 1; }
 . /etc/os-release
-if [[ "$ID" != "ubuntu" && "$ID" != "debian" && ! "$ID_LIKE" =~ debian ]]; then
+if [[ "$ID" != "ubuntu" && "$ID" != "debian" && ! "${ID_LIKE:-}" =~ debian ]]; then
   printf "${RED}Error:${NC} only Debian/Ubuntu (or derivative) supported\n"; exit 1
 fi
 
@@ -72,6 +72,10 @@ run_step "Installing APT packages" \
      wget \
      curl \
      unzip \
+     screen \
+     psmisc \
+     procps \
+     git \
      python3-pip \
      python3-venv \
      python3-dev \
@@ -167,17 +171,21 @@ ASSETS=(
   "https://www.x-raiders.net/download/jk3/assets2/file/assets2.pk3"
   "https://www.x-raiders.net/download/jk3/assets3/file/assets3.pk3"
 )
+missing_assets=()
 for url in "${ASSETS[@]}"; do
   fn=$(basename "$url")
   dest="$BASE/base/$fn"
-  if [ -f "$dest" ]; then
+  # -s, not -f: a download that failed half-way used to leave an empty file
+  # here, which every later run then skipped as "existing".
+  if [ -s "$dest" ]; then
     printf "   ${YELLOW}→ Skipping existing %s${NC}\n" "$fn"
+  elif wget -qO "$dest.part" "$url" && [ -s "$dest.part" ]; then
+    mv -f "$dest.part" "$dest"
+    printf "   ${GREEN}✔${NC} %s\n" "$fn"
   else
-    if wget -qO "$dest" "$url"; then
-      printf "   ${GREEN}✔${NC} %s\n" "$fn"
-    else
-      printf "   ${RED}✗${NC} %s\n" "$fn"
-    fi
+    rm -f "$dest.part"
+    missing_assets+=("$fn")
+    printf "   ${RED}✗${NC} %s\n" "$fn"
   fi
 done
 
@@ -200,6 +208,17 @@ run_step "Installing openjkded command" \
 run_step "Symlinking /opt/openjk to \$HOME/.local/share/openjk" \
   "mkdir -p \"$HOME/.local/share\" && \
    ln -sfn \"${BASE}\" \"$HOME/.local/share/openjk\""
+
+# ─── Install bundled MBII dedicated engine ────────────────────────────────
+# Instance configs name their engine ("engine": "mbiided.i386") and it's run
+# straight off PATH, so the copy shipped in this repo has to be in /usr/bin.
+# An existing one is left alone - it may be a newer build.
+run_step "Installing mbiided.i386 engine" \
+  "if [ ! -e /usr/bin/mbiided.i386 ]; then \
+     install -m 755 \"${SCRIPT_DIR}/mbiided.i386\" /usr/bin/mbiided.i386; \
+   else \
+     echo '/usr/bin/mbiided.i386 already exists, leaving it'; \
+   fi"
 
 # ─── Install mbii CLI command ─────────────────────────────────────────────
 run_step "Installing mbii CLI command" \
@@ -253,9 +272,16 @@ printf "\n${GREEN}✅ Installation complete!${NC}\n"
 printf " • Engines in %s:\n     - MBII installed via updater DLL into %s\n     - OpenJK under %s\n" \
   "$BASE" "$MBII_DIR" "$BASE"
 printf " • Web UI installer: %s\n" "$WEB_INSTALL_SCRIPT"
+printf " • Engines on PATH: openjkded.i386, mbiided.i386. The feature build (caded.i386 -\n"
+printf "   economy, chaos, gun game) comes from the clone-army/OpenJK repo: run its build.sh --install\n"
+
+if (( ${#missing_assets[@]} > 0 )); then
+  printf "\n${RED}✗ These game asset files failed to download: %s${NC}\n" "${missing_assets[*]}"
+  printf "   Servers won't start without them. Re-run this script, or copy them into %s/base/\n" "$BASE"
+fi
 
 printf "\n${YELLOW}⚠️  IMPORTANT CONFIGURATION STEPS:${NC}\n"
 printf " • Edit ${SCRIPT_DIR}/mbiiez.conf to configure your server settings\n"
 printf " • Create server instance configs in ${SCRIPT_DIR}/configs/ folder\n"
 printf " • Example configs are provided in the configs/ directory\n"
-printf " • Restart the service after configuration: sudo systemctl restart ${SERVICE_NAME}\n"
+printf " • If you installed the web panel, restart it after configuration: sudo systemctl restart ${SERVICE_NAME}\n"
