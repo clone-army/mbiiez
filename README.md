@@ -59,8 +59,9 @@ cd OpenJK
 ```
 
 `build.sh` does a clean build, installs the result to `/usr/bin/caded.i386`, and restarts every MBIIEZ
-instance whose config uses `caded.i386`. It takes several minutes on a small VPS. The player-facing commands
-and cvars are documented in the [OpenJK fork's README](https://github.com/clone-army/OpenJK#readme).
+instance whose config uses `caded.i386` **and is empty**. Busy instances keep running the old build until they
+next restart (e.g. their daily scheduled restart). A build takes several minutes on a small VPS. The player-facing commands
+and cvars for every feature are documented in the [OpenJK fork's README](https://github.com/clone-army/OpenJK#readme).
 
 ---
 
@@ -332,18 +333,18 @@ nothing on other engines.
 
 | Plugin (config key) | Engine | What it does |
 |---|---|---|
-| **RTVRTM** (`rtvrtm`) | any | Rock the Vote / Rock the Mode: players vote to change map (`!rtv`) or game mode (`!rtm`), with nominations, runoff votes, extend options, cooldowns, admin-called votes and round/time-limit votes. Has its own RTV, RTM and General sections in Settings. |
-| **Auto Messages** (`auto_message`) | any | Rotating server messages. Settings: `messages` (list), `repeat_minutes`. Other plugins add one line each explaining themselves when enabled. |
-| **Auto Map Rotation** (`auto_map_rotation`) | any | When the server is empty, moves to the next map in the rotation every `rotate_minutes` (default 30), so an idle server doesn't sit on one map. |
-| **VPN Shield** (`shield`) | any | Warns, then kicks, players connecting through a VPN or proxy. Needs an [ipgeolocation.io](https://ipgeolocation.io) API key (`ipgeolocation_apikey`). |
-| **Anytime Spin** (`anytime_spin`) | any | MBII's own `!spin` normally only works on Sundays. This makes the engine always think it's Sunday (`LD_PRELOAD` of `fake_sunday_32.so`). Turn spin on with `game.enable_spin` / `game.spin_cooldown`. |
-| **AI Assistant** (`ai`) | any | An in-game chat assistant (`!ai <question>` by default) backed by [OpenRouter](https://openrouter.ai), with optional death commentary. Settings: `enabled`, `openrouter_api_key`, `model`, `ai_name`, `command`, `cooldown_seconds`, `max_tokens`, `temperature`, `public_replies`, `death_commentary`, `instruction`. |
-| **Discord Bot** (`discord_bot`) | any | *Experimental.* Relays in-game chat to a Discord channel whose name ends in `server-<instance>-chat`. Setting: `token`. |
-| **Credit System** (`creditsystem`) | ***caded*** | The economy: players earn credits for kills while logged in (`!register`, `!login`), check them with `!balance`, spend them in the `!buy` shop and put bounties on each other (`!bounty`). Shop, bounty and each shop item's price can be switched on/off or set individually through `cvars`. Adds an **Economy** page listing accounts, where admins can give or take credits. |
-| **Chaos Mode** (`chaos`) | ***caded*** | Every `cooldown` seconds (default 20), everyone gets a random prize. Settings: `enabled`, `cooldown`. |
-| **Gun Game** (`gungame`) | ***caded*** | Everyone moves up a fixed weapon ladder, one step per kill. Settings live in `game`: `gungame_enable`, `gungame_announce`, `gungame_restrict_classes`. |
-| **Kill Streaks** (`killstreak`) | ***caded*** | Server-wide callouts for kill streaks, reset each round. Setting: `enabled`. |
-| **Stats** (`stats`) | ***caded*** | Turns on the engine's `!stats` (kills, deaths, suicides, playtime, shared across all your servers) and adds a **Stats** page in the web panel. Setting: `enabled`. |
+| **[RTVRTM](plugins/rtvrtm/readme.md)** (`rtvrtm`) | any | Rock the Vote / Rock the Mode: players vote to change map (`!rtv`) or game mode (`!rtm`), with nominations, runoff votes, extend options, cooldowns, admin-called votes and round/time-limit votes. Has its own RTV, RTM and General sections in Settings. |
+| **[Auto Messages](plugins/auto_message/README.md)** (`auto_message`) | any | Rotating server messages. Settings: `messages` (list), `repeat_minutes`. Other plugins add one line each explaining themselves when enabled. |
+| **[Auto Map Rotation](plugins/auto_map_rotation/README.md)** (`auto_map_rotation`) | any | When the server is empty, moves to the next map in the rotation every `rotate_minutes` (default 30), so an idle server doesn't sit on one map. |
+| **[VPN Shield](plugins/shield/README.md)** (`shield`) | any | Warns, then kicks, players connecting through a VPN or proxy. Needs an [ipgeolocation.io](https://ipgeolocation.io) API key (`ipgeolocation_apikey`). |
+| **[Anytime Spin](plugins/anytime_spin/README.md)** (`anytime_spin`) | any | MBII's own `!spin` normally only works on Sundays. This makes the engine always think it's Sunday (`LD_PRELOAD` of `fake_sunday_32.so`). Turn spin on with `game.enable_spin` / `game.spin_cooldown`. |
+| **[AI Assistant](plugins/ai/README.md)** (`ai`) | any | An in-game chat assistant (`!ai <question>` by default) backed by [OpenRouter](https://openrouter.ai), with optional death commentary. Settings: `enabled`, `openrouter_api_key`, `model`, `ai_name`, `command`, `cooldown_seconds`, `max_tokens`, `temperature`, `public_replies`, `death_commentary`, `instruction`. |
+| **[Discord Bot](plugins/discord_bot/README.md)** (`discord_bot`) | any | *Experimental.* Relays in-game chat to a Discord channel whose name ends in `server-<instance>-chat`. Setting: `token`. |
+| **[Credit System](plugins/creditsystem/README.md)** (`creditsystem`) | ***caded*** | The economy: players earn credits for kills while logged in (`!register`, `!login`), check them with `!balance`, spend them in the `!buy` shop and put bounties on each other (`!bounty`). Shop, bounty and each shop item's price can be switched on/off or set individually through `cvars`. Adds an **Economy** page listing accounts, where admins can give or take credits. |
+| **[Chaos Mode](plugins/chaos/README.md)** (`chaos`) | ***caded*** | Every `cooldown` seconds (default 20), everyone gets a random prize. Settings: `enabled`, `cooldown`. |
+| **[Gun Game](plugins/gungame/README.md)** (`gungame`) | ***caded*** | Everyone moves up a fixed weapon ladder, one step per kill. Settings live in `game`: `gungame_enable`, `gungame_announce`, `gungame_restrict_classes`. |
+| **[Kill Streaks](plugins/killstreak/README.md)** (`killstreak`) | ***caded*** | Server-wide callouts for kill streaks, reset each round. Setting: `enabled`. |
+| **[Stats](plugins/stats/README.md)** (`stats`) | ***caded*** | Turns on the engine's `!stats` (kills, deaths, suicides, playtime, shared across all your servers) and adds a **Stats** page in the web panel. Setting: `enabled`. |
 
 ---
 
@@ -367,7 +368,7 @@ changes to plugins or the core.
 ### Updating the engine
 
 Pull and re-run `./build.sh` in your [clone-army/OpenJK](https://github.com/clone-army/OpenJK) checkout. It
-reinstalls `caded.i386` and restarts every instance using it.
+reinstalls `caded.i386` and restarts the empty instances using it. The rest switch over at their next restart.
 
 ### Scheduled machine reboot (optional)
 
