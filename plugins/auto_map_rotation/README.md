@@ -1,32 +1,24 @@
 # Auto Map Rotation Plugin
 
-Automatically rotates through a predefined list of maps at specified intervals.
+Keeps an idle server from sitting on one map: every `rotate_minutes`, if **nobody is playing**, it moves the
+server on to the next map in the instance's own map rotation (`map_rotation_order`, via `vstr nextmap`). If
+anyone is on, that cycle is skipped. Works with any engine.
 
 ## Configuration
-
-Add to your instance config:
 
 ```json
 {
     "plugins": {
         "auto_map_rotation": {
-            "enabled": true,
-            "maps": [
-                "mp_duel1",
-                "mp_duel2",
-                "mp_dotf",
-                "mp_deathstar"
-            ],
-            "rotation_minutes": 15,
-            "announce_next_map": true
+            "rotate_minutes": 30
         }
     }
 }
 ```
 
-## Features
+| Key | Default | Meaning |
+|---|---|---|
+| `rotate_minutes` | `30` | How often to check (`rotation_minutes` is accepted too) |
 
-- Configurable map list
-- Adjustable rotation interval
-- Next map announcements
-- Automatic map switching
+The maps themselves come from the instance's **Map Rotation** (`map_rotation_order`), edited under
+**Settings → Maps** in the web panel.
