@@ -2,10 +2,11 @@
 <body>
     <div class="wrapper">
         {% include '/partials/nav-side.html' %}
+        <div id="sidebar-backdrop"></div>
         <div id="body" class="active">
             {% include '/partials/nav-top.html' %}
             <div class="main-panel">
-                <div class="content-wrapper" style="margin: 32px 24px 24px 24px;">
+                <div class="content-wrapper">
                     {% block content %}{% endblock %}
                 </div>
             </div>

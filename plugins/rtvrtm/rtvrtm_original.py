@@ -1750,20 +1750,30 @@ class Config(object):
                     5: (0, 2),
                     6: (1, 2),
                     7: (0, 1, 2),
-                8: (3),
+                8: (3,),
                 9: (0, 3),
                 10: (1, 3),
                 11: (2, 3),
                 12: (0, 2, 3),
                 13: (1, 2, 3),
                 14: (0, 1, 2, 3),
-            15: (4),
+            15: (4,),
             16: (0, 4),
             17: (2, 4),
             18: (0, 3, 4),
             19: (0, 2, 4),
             20: (0, 2, 3, 4),
             21: (0, 1, 2, 3, 4),
+            22: (1, 4),
+            23: (3, 4),
+            24: (0, 1, 4),
+            25: (0, 1, 3),
+            26: (1, 2, 4),
+            27: (1, 3, 4),
+            28: (2, 3, 4),
+            29: (0, 1, 2, 4),
+            30: (0, 1, 3, 4),
+            31: (1, 2, 3, 4),
                     }[int(self.rtm)]
 
         if self.rtm:
@@ -3353,20 +3363,30 @@ class Config(object):
                     5: (0, 2),
                     6: (1, 2),
                     7: (0, 1, 2),
-                8: (3),
+                8: (3,),
                 9: (0, 3),
                 10: (1, 3),
                 11: (2, 3),
                 12: (0, 2, 3),
                 13: (1, 2, 3),
                 14: (0, 1, 2, 3),
-            15: (4),
+            15: (4,),
             16: (0, 4),
             17: (2, 4),
             18: (0, 3, 4),
             19: (0, 2, 4),
             20: (0, 2, 3, 4),
             21: (0, 1, 2, 3, 4),
+            22: (1, 4),
+            23: (3, 4),
+            24: (0, 1, 4),
+            25: (0, 1, 3),
+            26: (1, 2, 4),
+            27: (1, 3, 4),
+            28: (2, 3, 4),
+            29: (0, 1, 2, 4),
+            30: (0, 1, 3, 4),
+            31: (1, 2, 3, 4),
                     }[int(self._rtm)]
 
         if self._rtm:
@@ -3993,6 +4013,13 @@ def calculate_time(time1, time2):
 
   return ("%02i:%02i:%02i %s%s" % (hours, minutes, seconds, time_type,
                                    ("" if (hours + minutes + seconds) == 1 else "s")))
+
+def vote_progress(votes, needed):
+
+  """Counter shown after an RTV/RTM request, e.g. "10 votes, 12 needed".
+  Was "(10/12)", which players kept reading as "10 of 12 players"."""
+
+  return "%i vote%s, %i needed" % (votes, "" if votes == 1 else "s", needed)
 
 def send_voting_message(voting_name, countdown, countdown_type, total_votes, total_players, votes_items, svsay):
 
@@ -5119,20 +5146,20 @@ def main(argv):
                           
                         elif players[player_id][1]:
                           
-                          say("^2[RTV] ^7%s ^7already wanted to rock the vote (%i/%i)."
+                          say("^2[RTV] ^7%s ^7already wanted to rock the vote (%s)."
                               % (player_name,
-                                 sum((rtv_vote for (timer, rtv_vote, rtm_vote, nomination, vote_option)
+                                 vote_progress(sum((rtv_vote for (timer, rtv_vote, rtm_vote, nomination, vote_option)
                                       in players_values)),
-                                 rtv_players))
+                                               rtv_players)))
                           
                         else:
 
                           players[player_id][1] = check_votes = True
-                          svsay("^2[RTV] ^7%s ^7wants to rock the vote (%i/%i)."
+                          svsay("^2[RTV] ^7%s ^7wants to rock the vote (%s)."
                                 % (player_name,
-                                   sum((rtv_vote for (timer, rtv_vote, rtm_vote, nomination, vote_option)
+                                   vote_progress(sum((rtv_vote for (timer, rtv_vote, rtm_vote, nomination, vote_option)
                                         in players_values)),
-                                   rtv_players))
+                                                 rtv_players)))
 
                       players[player_id][0] = (current_time + config.flood_protection)
 
@@ -5178,20 +5205,20 @@ def main(argv):
                           
                         elif not players[player_id][1]:
                           
-                          say("^2[RTV] ^7%s ^7didn't want to rock the vote yet (%i/%i)."
+                          say("^2[RTV] ^7%s ^7didn't want to rock the vote yet (%s)."
                               % (player_name,
-                                 sum((rtv_vote for (timer, rtv_vote, rtm_vote, nomination, vote_option)
+                                 vote_progress(sum((rtv_vote for (timer, rtv_vote, rtm_vote, nomination, vote_option)
                                       in players_values)),
-                                 rtv_players))
+                                               rtv_players)))
                           
                         else:
 
                           players[player_id][1] = False
-                          svsay("^2[RTV] ^7%s ^7no longer wants to rock the vote (%i/%i)."
+                          svsay("^2[RTV] ^7%s ^7no longer wants to rock the vote (%s)."
                                 % (player_name,
-                                   sum((rtv_vote for (timer, rtv_vote, rtm_vote, nomination, vote_option)
+                                   vote_progress(sum((rtv_vote for (timer, rtv_vote, rtm_vote, nomination, vote_option)
                                         in players_values)),
-                                   rtv_players))
+                                                 rtv_players)))
 
                       players[player_id][0] = (current_time + config.flood_protection)
 
@@ -5223,20 +5250,20 @@ def main(argv):
                         
                       elif players[player_id][2]:
                           
-                        say("^2[RTM] ^7%s ^7already wanted to rock the mode (%i/%i)."
+                        say("^2[RTM] ^7%s ^7already wanted to rock the mode (%s)."
                             % (player_name,
-                               sum((rtm_vote for (timer, rtv_vote, rtm_vote, nomination, vote_option)
+                               vote_progress(sum((rtm_vote for (timer, rtv_vote, rtm_vote, nomination, vote_option)
                                     in players_values)),
-                               rtm_players))
+                                             rtm_players)))
                           
                       else:
 
                         players[player_id][2] = check_votes = True
-                        svsay("^2[RTM] ^7%s ^7wants to rock the mode (%i/%i)."
+                        svsay("^2[RTM] ^7%s ^7wants to rock the mode (%s)."
                               % (player_name,
-                                 sum((rtm_vote for (timer, rtv_vote, rtm_vote, nomination, vote_option)
+                                 vote_progress(sum((rtm_vote for (timer, rtv_vote, rtm_vote, nomination, vote_option)
                                       in players_values)),
-                                 rtm_players))
+                                               rtm_players)))
 
                       players[player_id][0] = (current_time + config.flood_protection)
 
@@ -5268,20 +5295,20 @@ def main(argv):
 
                       elif not players[player_id][2]:
                           
-                        say("^2[RTM] ^7%s ^7didn't want to rock the mode yet (%i/%i)."
+                        say("^2[RTM] ^7%s ^7didn't want to rock the mode yet (%s)."
                             % (player_name,
-                               sum((rtm_vote for (timer, rtv_vote, rtm_vote, nomination, vote_option)
+                               vote_progress(sum((rtm_vote for (timer, rtv_vote, rtm_vote, nomination, vote_option)
                                     in players_values)),
-                               rtm_players))
+                                             rtm_players)))
                           
                       else:
 
                         players[player_id][2] = False
-                        svsay("^2[RTM] ^7%s ^7no longer wants to rock the mode (%i/%i)."
+                        svsay("^2[RTM] ^7%s ^7no longer wants to rock the mode (%s)."
                               % (player_name,
-                                 sum((rtm_vote for (timer, rtv_vote, rtm_vote, nomination, vote_option)
+                                 vote_progress(sum((rtm_vote for (timer, rtv_vote, rtm_vote, nomination, vote_option)
                                       in players_values)),
-                                 rtm_players))
+                                               rtm_players)))
 
                       players[player_id][0] = (current_time + config.flood_protection)
 

@@ -1,4 +1,4 @@
-<nav id="sidebar" class="active">
+<nav id="sidebar">
             <div class="sidebar-header">
                 <img src="/assets/img/bootstraper-logo.png" alt="MBIIEZ logo" class="app-logo">
             </div>
@@ -27,8 +27,13 @@
                                 </li>
                                 {% if can_admin %}
                                 <li>
-                                    <a href="/config?instance={{ instance|lower }}" class="{% if request.path.startswith('/config') and is_active_instance %}active{% endif %}"><i class="fas fa-cog"></i> Config</a>
+                                    <a href="/config?instance={{ instance|lower }}" class="{% if request.path.startswith('/config') and is_active_instance %}active{% endif %}"><i class="fas fa-cog"></i> Settings</a>
                                 </li>
+                                {% for menu_item in plugin_menus.get(instance, []) %}
+                                <li>
+                                    <a href="/plugin/{{ instance|lower }}/{{ menu_item.slug }}" class="{% if request.path == '/plugin/' + instance|lower + '/' + menu_item.slug %}active{% endif %}"><i class="fas {{ menu_item.icon|default('fa-puzzle-piece') }}"></i> {{ menu_item.label }}</a>
+                                </li>
+                                {% endfor %}
                                 {% endif %}
                                 {% if can_mod %}
                                 <li>
@@ -39,6 +44,11 @@
                             </ul>
                         </li>
                         {% endfor %}
+                        {% if can_admin %}
+                        <li>
+                            <a href="/instances/new" class="{% if request.path.startswith('/instances/new') %}active{% endif %}"><i class="fas fa-plus"></i> New instance</a>
+                        </li>
+                        {% endif %}
                     </ul>
                 </li>
                 {% if can_admin %}

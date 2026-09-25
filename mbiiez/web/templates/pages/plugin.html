@@ -1,0 +1,243 @@
+{% extends 'base.html' %}
+{% import 'partials/form-field.html' as formfield %}
+{% block content %}
+<div class="page-header">
+  <h3 class="page-title">{{ view_bag.menu.label if view_bag.menu else 'Plugin' }} - {{ view_bag.instance }}</h3>
+  <nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item"><a href="/instance?instance={{ view_bag.instance }}">Instance</a></li>
+      <li class="breadcrumb-item active" aria-current="page">{{ view_bag.menu.label if view_bag.menu else view_bag.slug }}</li>
+    </ol>
+  </nav>
+</div>
+
+{% if view_bag.error %}
+<div class="alert alert-warning">{{ view_bag.error }}</div>
+{% endif %}
+
+{% if view_bag.config_content %}
+<datalist id="maps-datalist">
+  {% for m in view_bag.maps_catalog %}
+  <option value="{{ m }}"></option>
+  {% endfor %}
+</datalist>
+{% endif %}
+
+<div id="plugin-form">
+{% for section in view_bag.sections %}
+  {% if section.type == 'error' %}
+  <div class="alert alert-danger">{{ section.message }}</div>
+
+  {% elif section.type == 'table' %}
+  <div class="card mb-4">
+    <div class="card-body">
+      {% if section.title %}<h5 class="card-title">{{ section.title }}</h5>{% endif %}
+      {% if section.help %}<div class="text-muted small mb-2">{{ section.help }}</div>{% endif %}
+      {% if section.rows %}
+      {% if section.searchable %}
+      <input type="text" class="form-control form-control-sm mb-2 plugin-table-search" data-table-target="table-section-{{ loop.index }}" placeholder="Search {{ section.title|lower if section.title else 'table' }}...">
+      {% endif %}
+      <div class="table-responsive">
+        <table class="table table-sm table-striped mb-0" id="table-section-{{ loop.index }}" {% if section.row_action %}data-row-action='{{ section.row_action|tojson }}'{% endif %}>
+          <thead>
+            <tr>{% for col in section.columns %}<th>{{ col }}</th>{% endfor %}</tr>
+          </thead>
+          <tbody>
+            {% for row in section.rows %}
+            <tr {% if section.row_action %}class="plugin-clickable-row" style="cursor:pointer;" title="Click to fill the form below"{% endif %}>{% for cell in row %}<td>{{ cell }}</td>{% endfor %}</tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <div class="text-muted small mt-1 plugin-table-empty" style="display:none;">No rows match your search.</div>
+      {% else %}
+      <div class="text-muted">No data yet.</div>
+      {% endif %}
+    </div>
+  </div>
+
+  {% elif section.type == 'action_form' %}
+  <div class="card mb-4">
+    <div class="card-body">
+      {% if section.title %}<h5 class="card-title">{{ section.title }}</h5>{% endif %}
+      {% if section.help %}<div class="text-muted small mb-2">{{ section.help }}</div>{% endif %}
+      <form class="plugin-action-form row g-2 align-items-end" data-action="{{ section.action }}">
+        {% for field in section.fields %}
+        <div class="col-12 col-sm-auto">
+          <label class="form-label small mb-0">{{ field.label }}</label>
+          <input type="{{ field.type|default('text') }}" step="any" class="form-control form-control-sm" name="{{ field.name }}" {% if field.required %}required{% endif %}>
+        </div>
+        {% endfor %}
+        <div class="col-12 col-sm-auto">
+          <button type="submit" class="btn btn-sm btn-primary w-100">{{ section.submit_label|default('Submit') }}</button>
+        </div>
+      </form>
+      <div class="action-status mt-2"></div>
+    </div>
+  </div>
+
+  {% elif section.type == 'config_form' %}
+  <div class="card mb-4">
+    <div class="card-body">
+      {% if section.title %}<h5 class="card-title">{{ section.title }}</h5>{% endif %}
+      {% if section.help %}<div class="text-muted small mb-2">{{ section.help }}</div>{% endif %}
+      {% for field in section.fields %}
+        {{ formfield.render_node(field) }}
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+{% endfor %}
+</div>
+
+{% if view_bag.config_content %}
+<div class="sticky-save-bar mb-4">
+  <button id="config-form-save" class="btn btn-primary">Save Settings</button>
+  <span class="text-muted small ms-auto d-none d-md-inline">Ctrl+S to save</span>
+</div>
+<script type="application/json" id="original-config-json">{{ view_bag.config_content|safe }}</script>
+<script src="/assets/js/config-form.js"></script>
+{% endif %}
+
+<script>
+(function () {
+  const INSTANCE_NAME = {{ view_bag.instance|tojson }};
+  const SLUG = {{ view_bag.slug|tojson }};
+
+  // Search box above a searchable table: filters rows by substring match
+  // across every cell, case-insensitive.
+  document.querySelectorAll('.plugin-table-search').forEach(function (input) {
+    const table = document.getElementById(input.dataset.tableTarget);
+    if (!table) return;
+    const emptyMsg = table.closest('.card-body').querySelector('.plugin-table-empty');
+    const rows = Array.prototype.slice.call(table.querySelectorAll('tbody tr'));
+
+    input.addEventListener('input', function () {
+      const term = input.value.trim().toLowerCase();
+      let visibleCount = 0;
+      rows.forEach(function (row) {
+        const matches = !term || row.textContent.toLowerCase().indexOf(term) !== -1;
+        row.style.display = matches ? '' : 'none';
+        if (matches) visibleCount++;
+      });
+      if (emptyMsg) emptyMsg.style.display = visibleCount === 0 ? '' : 'none';
+    });
+  });
+
+  // Clicking a row in a table with row_action fills the named field of the
+  // matching action form (by data-action) with that row's chosen column,
+  // then focuses the next empty field so giving credits is click-then-type.
+  document.querySelectorAll('table[data-row-action]').forEach(function (table) {
+    let rowAction;
+    try {
+      rowAction = JSON.parse(table.dataset.rowAction);
+    } catch (e) {
+      return;
+    }
+    const targetForm = document.querySelector('.plugin-action-form[data-action="' + rowAction.fill_form + '"]');
+    if (!targetForm) return;
+    const targetField = targetForm.querySelector('[name="' + rowAction.fill_field + '"]');
+    if (!targetField) return;
+    const valueColumn = rowAction.value_column || 0;
+
+    table.querySelectorAll('tbody tr.plugin-clickable-row').forEach(function (row) {
+      row.addEventListener('click', function () {
+        const cells = row.querySelectorAll('td');
+        if (!cells[valueColumn]) return;
+        targetField.value = cells[valueColumn].textContent.trim();
+        targetField.dispatchEvent(new Event('input'));
+
+        const formInputs = Array.prototype.slice.call(targetForm.querySelectorAll('input'));
+        const nextIdx = formInputs.indexOf(targetField) + 1;
+        if (formInputs[nextIdx]) {
+          formInputs[nextIdx].focus();
+          formInputs[nextIdx].select();
+        }
+
+        targetForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        targetForm.classList.add('border', 'border-primary');
+        setTimeout(function () { targetForm.classList.remove('border', 'border-primary'); }, 1200);
+      });
+    });
+  });
+
+  document.querySelectorAll('.plugin-action-form').forEach(function (form) {
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      const action = form.dataset.action;
+      const statusDiv = form.parentElement.querySelector('.action-status');
+      const data = {};
+      new FormData(form).forEach(function (value, key) { data[key] = value; });
+
+      fetch('/plugin/' + encodeURIComponent(INSTANCE_NAME) + '/' + encodeURIComponent(SLUG) + '/action/' + encodeURIComponent(action), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      })
+        .then(function (r) { return r.json(); })
+        .then(function (result) {
+          if (result.success) {
+            statusDiv.innerHTML = '<span class="text-success">' + (result.message || 'Done.') + '</span>';
+            form.reset();
+          } else {
+            statusDiv.innerHTML = '<span class="text-danger">' + (result.message || 'Failed.') + '</span>';
+          }
+        })
+        .catch(function (err) {
+          statusDiv.innerHTML = '<span class="text-danger">' + err + '</span>';
+        });
+    });
+  });
+
+  // --- config_form sections: same reconstruct-and-save flow as the
+  // Config page, just scoped to this plugin's own page instead of the
+  // whole instance config (see static/js/config-form.js). ---
+  var configFormRoot = document.getElementById('plugin-form');
+  var originalConfigScript = document.getElementById('original-config-json');
+  if (originalConfigScript && window.MbiiezConfigForm) {
+    var chipApi = MbiiezConfigForm.initChipWidgets(configFormRoot);
+    MbiiezConfigForm.initCompositeFields(configFormRoot);
+    MbiiezConfigForm.initRtmModeFields(configFormRoot);
+    MbiiezConfigForm.initDependsOn(configFormRoot);
+
+    var saveBtn = document.getElementById('config-form-save');
+    saveBtn.addEventListener('click', function () {
+      var original = JSON.parse(originalConfigScript.textContent);
+      var result = MbiiezConfigForm.buildConfig(configFormRoot, original, chipApi.chipState);
+      if (result.error) {
+        mbiiToast('Not saved: ' + result.error, 'danger');
+        return;
+      }
+      saveBtn.disabled = true;
+
+      fetch('/config/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ instance: INSTANCE_NAME, content: JSON.stringify(result.cfg, null, 2) })
+      })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          if (data.success) {
+            mbiiToast('Saved ' + INSTANCE_NAME + '. Restart the instance for engine-level changes to take effect.', 'success');
+            originalConfigScript.textContent = JSON.stringify(result.cfg, null, 2);
+          } else {
+            mbiiToast('Not saved: ' + data.error, 'danger');
+          }
+        })
+        .catch(function () {
+          mbiiToast('Not saved: the server did not respond.', 'danger');
+        })
+        .finally(function () { saveBtn.disabled = false; });
+    });
+
+    // Ctrl/Cmd+S saves instead of the browser's "save page as".
+    document.addEventListener('keydown', function (e) {
+      if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === 's') {
+        e.preventDefault();
+        if (!saveBtn.disabled) saveBtn.click();
+      }
+    });
+  }
+})();
+</script>
+{% endblock %}

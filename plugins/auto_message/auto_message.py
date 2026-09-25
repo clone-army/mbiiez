@@ -48,6 +48,26 @@ class plugin:
     plugin_author = "Louis Varley"
     plugin_url = ""
 
+    @staticmethod
+    def web_hide_default_card():
+        return True
+
+    @staticmethod
+    def web_config_sections(instance_name, instance_config):
+        return [
+            {
+                "label": "Auto Messages",
+                "path": [],
+                "hint": "Rotating chat messages broadcast on a timer.",
+                "fields": [
+                    {"path": ["messages"], "key": "messages", "type": "list",
+                     "label": "Messages", "help": "Shown in rotation, one at a time."},
+                    {"path": ["repeat_minutes"], "key": "repeat_minutes", "type": "number",
+                     "label": "Repeat Every (minutes)"},
+                ],
+            },
+        ]
+
     instance = None
     plugin_config = None
     discord_bot = None

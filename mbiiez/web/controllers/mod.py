@@ -1,6 +1,9 @@
 from flask import request, jsonify
 from mbiiez.instance import instance as MBInstance
 from mbiiez.bcolors import bcolors
+from mbiiez.web import maps_catalog
+from mbiiez import plugin_loader
+from mbiiez.web.controllers.plugin_page import load_instance_config
 import re
 
 class controller:
@@ -8,11 +11,13 @@ class controller:
 
     def __init__(self, instance=None):
         self.controller_bag['instance'] = instance
+        self.controller_bag['maps_catalog'] = maps_catalog.get_maps()
         if instance:
             inst = MBInstance(instance)
             status = inst.status()
             bc = bcolors()
             # Render color tags for map and mode
+            status['map_raw'] = str(status.get('map', ''))
             status['map'] = bc.html_color_convert(str(status.get('map', '')))
             status['mode_html'] = bc.html_color_convert(str(status.get('mode', '')))
             self.controller_bag['status'] = status
@@ -22,6 +27,44 @@ class controller:
                 p['name'] = bc.html_color_convert(str(p.get('name', '')))
             self.controller_bag['players'] = players
             self.controller_bag['bans'] = self.get_bans(inst)
+            self.controller_bag['plugin_cards'] = self.plugin_cards(instance)
+
+    @staticmethod
+    def plugin_cards(instance):
+        """Quick-action cards from every plugin enabled on this instance
+        that implements web_mod_actions() - see plugin_loader.call_web_mod_actions
+        for the shape. Each card is tagged with its plugin so the page can
+        post back to the right one."""
+        instance_config = load_instance_config(instance) or {}
+        cards = []
+        for plugin_name in (instance_config.get('plugins', {}) or {}).keys():
+            for card in plugin_loader.call_web_mod_actions(plugin_name, instance, instance_config):
+                if isinstance(card, dict) and card.get('actions'):
+                    card = dict(card)
+                    card['plugin'] = plugin_name
+                    cards.append(card)
+        return cards
+
+    @staticmethod
+    def run_plugin_action(instance, plugin_name, action_name, form_data):
+        """Run a Mod page plugin action - but only one the plugin is
+        actually offering for this instance right now (it must be enabled
+        here, and its web_mod_actions() must list the action), so a request
+        can't reach actions the page would never show."""
+        instance_config = load_instance_config(instance)
+        if instance_config is None:
+            return False, "Could not load config for instance '{}'.".format(instance)
+        if plugin_name not in (instance_config.get('plugins', {}) or {}):
+            return False, "Plugin '{}' isn't enabled on {}.".format(plugin_name, instance)
+
+        offered = set()
+        for card in plugin_loader.call_web_mod_actions(plugin_name, instance, instance_config):
+            for action in (card or {}).get('actions', []):
+                offered.add(action.get('name'))
+        if action_name not in offered:
+            return False, "That action isn't available on {} right now.".format(instance)
+
+        return plugin_loader.call_web_mod_action(plugin_name, instance, action_name, form_data or {})
 
     @staticmethod
     def get_bans(inst):

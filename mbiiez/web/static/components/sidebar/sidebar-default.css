@@ -11,11 +11,10 @@
     color: #c9d1d9;
     transition: all 0.3s;
     border-right: 1px solid #243041;
-    margin-left: 0 !important; /* Always visible */
-}
-
-#sidebar.active {
-    margin-left: 0 !important; /* Prevent hiding */
+    margin-left: 0 !important; /* Always visible on desktop - overridden
+    below 768px by the mobile drawer rules in master.css [15. Mobile
+    sidebar drawer], which need #sidebar to carry no other class so
+    nothing here outranks them on specificity. */
 }
 
 #sidebar .sidebar-header {

@@ -34,6 +34,17 @@ class log_handler:
         self._db_log_writer = threading.Thread(target=self._log_writer_loop, daemon=True)
         self._db_log_writer.start()
 
+    def restart_writer_after_fork(self):
+        """Give a forked child (every registered service - see
+        process_handler.start) its own log queue and writer thread.
+        Threads don't survive fork(), so without this a service's log()
+        calls only fill a queue nothing ever drains, and none of them reach
+        the database. A fresh Queue rather than the inherited one, in case
+        the parent's writer held its internal lock at the moment of the fork."""
+        self._db_log_queue = queue.Queue(maxsize=5000)
+        self._db_log_writer = threading.Thread(target=self._log_writer_loop, daemon=True)
+        self._db_log_writer.start()
+
     def _flush_log_batch(self, batch):
         if not batch:
             return

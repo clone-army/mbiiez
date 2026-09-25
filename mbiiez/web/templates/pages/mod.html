@@ -20,7 +20,12 @@
         <h5 class="card-title">Change Map</h5>
         <div>Current Map: <span id="current-map">{{ view_bag.status.map|safe }}</span></div>
         <div class="input-group mt-2">
-          <input type="text" id="map-input" class="form-control" placeholder="Enter new map name...">
+          <select id="map-input" class="form-select">
+            <option value="" disabled {% if view_bag.status.map_raw not in view_bag.maps_catalog %}selected{% endif %}>Select a map...</option>
+            {% for m in view_bag.maps_catalog %}
+            <option value="{{ m }}" {% if m == view_bag.status.map_raw %}selected{% endif %}>{{ m }}</option>
+            {% endfor %}
+          </select>
           <button class="btn btn-primary" id="change-map">Change</button>
         </div>
         <div id="map-status" class="mt-2"></div>
@@ -56,9 +61,9 @@
         <h5 class="card-title">Players</h5>
         <ul class="list-group">
           {% for player in view_bag.players %}
-          <li class="list-group-item d-flex justify-content-between align-items-center">
+          <li class="list-group-item d-flex flex-column flex-sm-row justify-content-sm-between align-items-sm-center gap-2">
             <span>{{ player.name|safe }} <span class="text-muted small">({{ player.ip }})</span></span>
-            <span>
+            <span class="d-flex flex-wrap gap-2">
               <button class="btn btn-sm btn-danger" onclick="banPlayer('{{ player.ip }}')">Ban</button>
               <button class="btn btn-sm btn-warning" onclick="kickPlayer('{{ player.id }}')">Kick</button>
               <button class="btn btn-sm btn-info" onclick="showTellModal('{{ player.id }}', '{{ player.name|escape }}')">Tell</button>
@@ -76,7 +81,7 @@
         <h5 class="card-title">Banned IPs</h5>
         <ul class="list-group" id="bans-list">
           {% for ban in view_bag.bans %}
-          <li class="list-group-item d-flex justify-content-between align-items-center">
+          <li class="list-group-item d-flex flex-column flex-sm-row justify-content-sm-between align-items-sm-center gap-2">
             <span>{{ ban }}</span>
             <button class="btn btn-sm btn-success" onclick="unbanIp('{{ ban }}')">Unban</button>
           </li>
@@ -86,6 +91,36 @@
     </div>
   </div>
 </div>
+{% if view_bag.plugin_cards %}
+{# Quick actions added by plugins (web_mod_actions() - see PLUGINS.md). #}
+<div class="row">
+  {% for card in view_bag.plugin_cards %}
+  <div class="col-md-6 mb-4">
+    <div class="card">
+      <div class="card-body">
+        <h5 class="card-title">{{ card.title }}</h5>
+        {% if card.help %}<div class="text-muted small mb-2">{{ card.help }}</div>{% endif %}
+        {% for action in card.actions %}
+        <form class="mod-plugin-action row g-2 align-items-end mb-2" data-plugin="{{ card.plugin }}"
+              data-action="{{ action.name }}" {% if action.confirm %}data-confirm="{{ action.confirm }}"{% endif %}>
+          {% for field in action.fields or [] %}
+          <div class="col-12 col-sm">
+            <label class="form-label small mb-0">{{ field.label }}</label>
+            <input type="{{ field.type|default('text') }}" class="form-control form-control-sm" name="{{ field.name }}"
+                   {% if field.placeholder %}placeholder="{{ field.placeholder }}"{% endif %} {% if field.required %}required{% endif %}>
+          </div>
+          {% endfor %}
+          <div class="col-12 {% if action.fields %}col-sm-auto{% endif %}">
+            <button type="submit" class="btn btn-sm btn-{{ action.style|default('primary') }} {% if not action.fields %}w-100{% endif %}">{{ action.label }}</button>
+          </div>
+        </form>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
 <!-- Tell Modal -->
 <div class="modal" tabindex="-1" id="tellModal">
   <div class="modal-dialog">
@@ -175,6 +210,25 @@ function unbanIp(ip) {
     location.reload();
   });
 }
+document.querySelectorAll('form.mod-plugin-action').forEach(function (form) {
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    if (form.dataset.confirm && !confirm(form.dataset.confirm)) return;
+    const fields = {};
+    new FormData(form).forEach(function (value, key) { fields[key] = value; });
+    const btn = form.querySelector('button[type="submit"]');
+    btn.disabled = true;
+    fetch('/mod/plugin_action', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ instance: {{ view_bag.instance|tojson }}, plugin: form.dataset.plugin, action: form.dataset.action, data: fields })
+    })
+      .then(r => r.json())
+      .then(data => mbiiToast(data.message || (data.success ? 'Done.' : 'Failed.'), data.success ? 'success' : 'danger'))
+      .catch(() => mbiiToast('The server did not respond.', 'danger'))
+      .finally(() => { btn.disabled = false; });
+  });
+});
 document.getElementById('change-map').onclick = function() {
   const map = document.getElementById('map-input').value.trim();
   if (!map) return;

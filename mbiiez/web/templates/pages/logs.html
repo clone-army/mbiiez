@@ -11,35 +11,39 @@
 </div>
 <div class="card mb-4">
   <div class="card-body">
-    <form class="form-inline mb-3" id="log-filter-form">
-      <div class="form-group mr-2">
-        <label for="log-tag" class="mr-2">Filter:</label>
-        <select id="log-tag" class="form-control">
+    <form class="row g-2 align-items-end mb-3" id="log-filter-form">
+      <div class="col-12 col-sm-auto">
+        <label for="log-tag" class="form-label small mb-0">Filter</label>
+        <select id="log-tag" class="form-select form-select-sm">
           <option value="">All</option>
           <option value="SMOD">SMOD</option>
           <option value="ClientConnect">Client Connect</option>
           <option value="Exception">Exception/Error</option>
         </select>
       </div>
-      <div class="form-group mr-2">
-        <label for="log-limit" class="mr-2">Show:</label>
-        <select id="log-limit" class="form-control">
+      <div class="col-12 col-sm-auto">
+        <label for="log-limit" class="form-label small mb-0">Show</label>
+        <select id="log-limit" class="form-select form-select-sm">
           <option value="50">50</option>
           <option value="100" selected>100</option>
           <option value="200">200</option>
         </select>
       </div>
-      <div class="form-group mr-2">
-        <label for="log-search" class="mr-2">Search:</label>
-        <input type="text" id="log-search" class="form-control" placeholder="search...">
+      <div class="col-12 col-sm-auto">
+        <label for="log-search" class="form-label small mb-0">Search</label>
+        <input type="text" id="log-search" class="form-control form-control-sm" placeholder="search...">
       </div>
-      <div class="form-group mr-2">
-        <label for="auto-refresh" class="mr-2">Auto Refresh</label>
-        <input type="checkbox" id="auto-refresh" checked>
+      <div class="col-12 col-sm-auto">
+        <div class="form-check mb-1">
+          <input type="checkbox" class="form-check-input" id="auto-refresh" checked>
+          <label class="form-check-label small" for="auto-refresh">Auto Refresh</label>
+        </div>
       </div>
-      <button class="btn btn-primary" type="submit">Apply</button>
+      <div class="col-12 col-sm-auto">
+        <button class="btn btn-primary btn-sm" type="submit">Apply</button>
+      </div>
     </form>
-    <div style="max-height: 500px; overflow-y: auto;" id="logs-table-wrapper">
+    <div style="max-height: 500px; overflow: auto;" id="logs-table-wrapper">
       <table class="table table-sm table-striped" id="logs-table">
         <thead>
           <tr><th>Time</th><th>Log Line</th></tr>

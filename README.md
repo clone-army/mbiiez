@@ -1,162 +1,414 @@
-## Movie Battles II EZ
+# MBIIEZ - Movie Battles II made easy
 
-MBIIEZ is a python wrapper for running instances of Movie Battles II. 
-The wrapper acts as both a CLI (Command Line Interface) as well as a Web GUI for managing instances. 
+MBIIEZ runs and manages [Movie Battles II](https://www.moviebattles.org/) dedicated servers on Linux. It is a
+Python wrapper around the game server with three parts:
 
-In a sense, you should not need to edit server configs, RTV/RTM configs, understand installing any of the components needed to run an MBII server. Using the WebGUI to manage everything instead and basic JSON config files. 
+- **`mbii` CLI** - start/stop/restart instances, send RCON, change maps and modes, check status.
+- **Web panel** - a browser UI for everything the CLI does, plus settings editing, logs, chat, moderation,
+  user accounts and a new-instance wizard.
+- **Plugin system** - optional features (voting, economy, chaos mode, gun game, auto messages, VPN blocking,
+  an AI assistant...) that you switch on per instance. See **[PLUGINS.md](PLUGINS.md)** to write your own.
 
-## Features
-- Simple to use Web GUI 
-- Simple CLI for running automated commands
-- Plugin System for creating additional plugins 
-- Included plugins include 
-- - Auto Server Messages, Unlimited rotating service messages  
-- - RTV/RTM, integrated as a plugin  
-- - Discord Bot, allow certain roles in your discord channel, to restart instances, change map, kick players, etc
+You describe each server ("instance") in one small JSON file. MBIIEZ generates the real server configs, runs
+the engine, watches its log, restarts it if it crashes, and runs any plugins you've enabled.
+
+---
+
+## Contents
+
+- [The engine: `caded.i386` and our OpenJK fork](#the-engine-cadedi386-and-our-openjk-fork)
+- [Installing](#installing)
+- [Instances](#instances)
+- [Instance config reference](#instance-config-reference)
+- [The `mbii` CLI](#the-mbii-cli)
+- [Web panel](#web-panel)
+- [Included plugins](#included-plugins)
+- [Running it day to day](#running-it-day-to-day)
+- [Files and folders](#files-and-folders)
+- [Database](#database)
+- [Contributing](#contributing)
+
+---
+
+## The engine: `caded.i386` and our OpenJK fork
+
+Every instance names the dedicated-server binary it runs with (`"engine"` in its config), looked up in
+`/usr/bin`. Three are supported:
+
+| Engine | Where it comes from | Notes |
+|---|---|---|
+| **`caded.i386`** | Built from **our OpenJK fork: [github.com/clone-army/OpenJK](https://github.com/clone-army/OpenJK)** | Recommended. Adds the economy (credits, shop, bounties, accounts), Chaos Mode, Gun Game, kill streaks and native `!stats`. |
+| `mbiided.i386` | Bundled in this repo; `install.sh` copies it to `/usr/bin` | Standard MBII dedicated server, none of the extra features. |
+| `openjkded.i386` | Stock 2018 OpenJK build downloaded by `install.sh` | Plain OpenJK. |
+
+> **Several plugins only work with `caded.i386`.** Credit System, Chaos Mode, Gun Game, Kill Streaks and Stats
+> don't add features themselves: they switch features on and off in our engine with cvars
+> (`g_creditSystemEnable`, `g_chaosEnable`, `g_gungame`, `g_killstreakEnable`, `g_statsEnable`...). On any
+> other engine those cvars don't exist and the plugins do nothing. See [Included plugins](#included-plugins).
+
+All of these features are compiled into the one `caded.i386` binary and controlled by cvars, so any
+instance can use any combination of them just by changing its config.
+
+### Building `caded.i386`
+
+```bash
+git clone https://github.com/clone-army/OpenJK
+cd OpenJK
+./build.sh --install   # first time only: also installs build dependencies
+./build.sh             # later rebuilds
+```
+
+`build.sh` does a clean build, installs the result to `/usr/bin/caded.i386`, and restarts every MBIIEZ
+instance whose config uses `caded.i386` **and is empty**. Busy instances keep running the old build until they
+next restart (e.g. their daily scheduled restart). A build takes several minutes on a small VPS. The player-facing commands
+and cvars for every feature are documented in the [OpenJK fork's README](https://github.com/clone-army/OpenJK#readme).
+
+---
 
 ## Installing
 
-- Clone this repo into your home directory using `git clone https://github.com/clone-army/mbiiez` 
-- Run `chmod +x install.sh` on the installation bash script
-- Run `./install.sh` which will install all required depedencies
-- Amend the mbiiez.conf file to ensure paths are correctly set to your MBIIEZ path
-- Installation is a simple step by step process
-- Movie Battles II is downloaded automatically, as well as the most recent build of OpenJK For Linux
+Debian or Ubuntu (or a derivative), as root.
 
-## Updating
-- Run the included update.sh to update MBII
-- run it with arguments `-i open,duel` etc to auto restart these instances on update
-- Recommend putting this into a crontab every 10 minutes
-- git pull to grab updates from this repo for MBIIEZ
+```bash
+git clone https://github.com/clone-army/mbiiez
+cd mbiiez
+sudo ./install.sh
+```
 
-## Adding Base files
+`install.sh`:
 
-Base files are downloaded automatically
+- installs system packages (`screen`, `psmisc`, `git`, 32-bit runtime libraries, Python venv tooling...) and
+  the .NET 6 runtime (needed by the official MBII updater)
+- creates a Python virtualenv at `/opt/openjk/venv` with the Python dependencies
+- downloads and installs **MBII** into `/opt/openjk/MBII` using the official MBII command-line updater
+- downloads the **Jedi Academy base assets** into `/opt/openjk/base` (if any fail, it lists them at the end:
+  re-run the script or copy them in yourself)
+- installs **OpenJK** (`openjkded.i386`) and the bundled **`mbiided.i386`** into `/usr/bin`
+- installs the **`mbii`** command into `/usr/local/bin`
+- creates `mbiiez.conf` from `mbiiez.conf.example`
+- offers to install the **web panel** (you can also run `sudo ./install_web.sh` later)
 
+Then:
+
+1. Build **`caded.i386`** from [clone-army/OpenJK](https://github.com/clone-army/OpenJK) if you want the
+   extra features (see above).
+2. Check the paths in **`mbiiez.conf`** (the defaults match what `install.sh` sets up).
+3. Create your first instance, either with the web panel's **New instance** wizard or by copying
+   `configs/demo.json.example` to `configs/<name>.json`.
+4. Open the instance's port (UDP) in your firewall.
+5. `mbii -i <name> start`
+
+### `mbiiez.conf`
+
+| Section | Key | Meaning |
+|---|---|---|
+| `[locations]` | `game_path` | Game root, `/opt/openjk` |
+| | `mbii_path` | MBII folder, `/opt/openjk/MBII` |
+| | `config_path` | Where instance JSON files live, relative to this repo (`configs`) |
+| `[dedicated]` | `engine`, `game` | Defaults used by the status helpers (`mbiided.i386`, `MBII`) |
+| `[database]` | `database` | SQLite file, `mbiiez.db` |
+| `[web_service]` | `port` | Web panel port (default `8080`) |
+| | `auth_enabled` | `true` / `false`: require login |
+| | `users_file` | Web panel accounts file (default `web_users.json`) |
+
+---
 
 ## Instances
-"Instances" are a single game servers. Most modern virtual servers or bare metal servers can support a number of instances running together. These instances will normally have a name. such as **open** or **duel**. Each instance will have a different port number
 
-## Creating an Instance
+An **instance** is one game server: its own name (like `open`, `duel`, `legends`), port, game mode, plugins
+and settings. One machine can run many at once.
 
-All that is needed to create an instance is to create your own instance json file located in the `config` folder of the project. There is a template file already included in the config file.
+**An instance is simply its config file: `configs/<name>.json`.** Every tool (the CLI, the web panel,
+`update.sh` and OpenJK's `build.sh`) finds instances by listing `configs/*.json`. So:
 
-The format is very easy to understand. (Easier than the OpenJK Server Config Files)
+- **To create one**, add a `.json` file (or use the web panel's wizard, which can clone an existing instance).
+- **To delete one**, rename it so it no longer ends in `.json`. The web panel's Delete button renames it to
+  `<name>.json.del`; rename it back to restore it.
 
-Edit the file and make any changes to the config which you want. Should you make any mistakes in the formatting. The server will not start and will warn you about JSON errors. 
+When an instance starts, MBIIEZ:
 
-Ensure the port you use in the config file is one you have not already assigned to another instance otherwise the program will have trouble monitoring and RTV/RTM will not work as the game will automatically assign it a different port. 
+1. generates its server config (`<name>-server.cfg`) and plugin configs under `homepaths/<name>/`
+2. launches the engine in a `screen` session called `mb2_<name>`, logging to `/var/log/<name>-engine.log`
+3. starts the instance's background services: log watcher, crash watchdog, scheduled restarter, and one
+   service per plugin that needs one
 
-You need to also ensure any ports you do use are forwarded correctly and no firewall is blocking them
+Each instance's runtime files (generated configs, logs, per-instance data) live in its own
+`homepaths/<name>/` folder, so instances never overwrite each other's files. Economy accounts and `!stats` are
+shared across all instances on the machine (they live in the MBII folder), so a player's credits and stats
+follow them from server to server.
 
-## Using the CLI
+### Built-in safety nets
 
-the CLI Enables simple commands to be executed against an instance. Most actions are in this format
+- **Crash watchdog**: if the engine's screen session disappears unexpectedly, it's relaunched. It checks
+  every `crash_watchdog_interval_seconds` (default 15) and backs off if the engine keeps crashing straight
+  after starting.
+- **Scheduled restart**: every `restart_instance_every_hours`, the instance restarts, but only when nobody is
+  playing. If players are on, it retries every 10 minutes.
+- **Self-healing plugin settings**: feature plugins re-apply their cvars about every 60 seconds, so a stray
+  manual `rcon set` doesn't silently stick.
 
-`mbii -i [Name of your instance] ACTION`
+---
 
-There a number of actions that can be used when specifying an "instance" 
+## Instance config reference
 
-#### start 
-start an instance
-#### stop
-stop an instance
-#### restart
-restart an instance
-#### status
-show stats such as players, the map, uptime, port, ip 
-#### say [message] 
-executes svsay on the server
-`mbii -i dueling say "Hello Everyone"` would say "Server: Hello Everyone"
-#### rcon [rcon_commands]
-`mbii -i legends rcon "myrconcommand argument"` would send this rcon command to the server
-#### cvar key value
-You can change CVAR values or just see what the value is using cvar command, for example 
-`mbii -i open cvar g_authenticity 1` would change the mode
-`mbii -i open cvar g_authenticity` would print the current the mode
+A trimmed example (the full template is `configs/demo.json.example`):
 
-## Plugins
+```json
+{
+  "server": {
+    "host_name": "^5My^7Server|NA|^5Open",
+    "port": 29071,
+    "engine": "caded.i386",
+    "game": "MBII",
+    "discord": "https://discord.gg/example",
+    "restart_instance_every_hours": 24
+  },
+  "security": {
+    "rcon_password": "change-me",
+    "server_password": ""
+  },
+  "game": {
+    "mode": "open",
+    "map_win_limit": 20,
+    "map_round_limit": 20,
+    "competitive_config": 0,
+    "balance_mode": 1,
+    "message_of_the_day": "Welcome!\n\nBe respectful."
+  },
+  "smod": {
+    "admin_1": { "password": "change-me-too", "config": 65535 }
+  },
+  "class_limits": { "Jedi": 50, "Sith": 50, "Droideka": 4 },
+  "map_rotation_order": ["mb2_dotf", "mb2_commtower", "mb2_deathstar"],
+  "plugins": {
+    "auto_message": { "messages": ["Welcome!"], "repeat_minutes": 5 },
+    "rtvrtm": { }
+  }
+}
+```
 
-Plugins allow for new functionality for a server to be built as a seperate python script and added to the server. 
+| Key | Meaning |
+|---|---|
+| `server.host_name` | Name in the server browser. `^0`-`^9` are colour codes. |
+| `server.port` | UDP port. Must be unique per instance. |
+| `server.engine` | `caded.i386`, `mbiided.i386` or `openjkded.i386` (see [The engine](#the-engine-cadedi386-and-our-openjk-fork)). |
+| `server.restart_instance_every_hours` | Scheduled restart interval (only restarts when empty). |
+| `server.crash_watchdog_interval_seconds` | Optional. Crash check interval; `0` disables the watchdog. Default 15. |
+| `security.rcon_password` | RCON password. |
+| `security.server_password` | Join password, empty for a public server. |
+| `game.mode` | `open`, `semi-authentic`, `full-authentic`, `duel` or `legends`. |
+| `game.map_win_limit`, `game.map_round_limit` | Round/win limits per map. |
+| `game.balance_mode`, `game.competitive_config` | MBII team balance and competitive settings. |
+| `game.message_of_the_day` | Shown on connect. `\n` for new lines. |
+| `game.enable_spin`, `game.spin_cooldown` | MBII's own `!spin` (see the Anytime Spin plugin). |
+| `game.gungame_*` | Gun Game settings (see the Gun Game plugin). |
+| `smod.admin_1` ... `admin_10` | In-game admin (smod) slots: a password plus a `config` bitmask of which commands that slot may use. The web panel has a checkbox picker for it. |
+| `class_limits` | Max players per class at once. |
+| `map_rotation_order` | The map cycle, any length. |
+| `plugins` | One key per enabled plugin with that plugin's settings. Leave it out (or `{}`) for no plugins. |
 
-A plugin has access to the instance that is running it and could be used to, for example. Do a certain action when a command is said by a user, or once every 2 minutes. 
-It can even be used to do actions on the server based on external factors, such as coming from discord.
+If a config file isn't valid JSON, the instance won't start and tells you where the error is. The web panel
+edits these files for you, so you rarely need to touch them by hand.
 
-Plugins must be enabled in the config section, must have a number of additional config options need to be added to the config. Any plugin can request additional config information. The Example server json has the RTV plugin enabled by default. 
+---
 
-leaving your plugin line in config as `"plugins":{},` will disable all plugins
+## The `mbii` CLI
 
-### Events
+```
+mbii -i <instance> <action> [arguments]
+```
 
-Plugins can "register" actions against events. For example, the plugin will have a method called "register_events" and adding a line such as 
+| Action | Example | What it does |
+|---|---|---|
+| `start` | `mbii -i open start` | Start the instance |
+| `stop` | `mbii -i open stop --force` | Stop it (`--force` skips the confirmation) |
+| `restart` | `mbii -i open restart --force` | Stop then start |
+| `status` | `mbii -i open status` | Players, map, mode, uptime, port |
+| `say` | `mbii -i open say "Hello"` | Server message to everyone |
+| `tell` | `mbii -i open tell 3 "Hi"` | Private message to player slot 3 |
+| `rcon` | `mbii -i open rcon "g_gravity 800"` | Send any RCON command |
+| `cvar` | `mbii -i open cvar g_authenticity 1` | Set a cvar (omit the value to read it) |
+| `map` | `mbii -i open map mb2_dotf` | Change map |
+| `mode` | `mbii -i open mode 1` | Change game mode (0 Open, 1 Semi Authentic, 2 Full Authentic, 3 Duel, 4 Legends) |
+| `players` | `mbii -i open players` | List connected players |
+| `kick` / `ban` / `unban` / `listbans` | `mbii -i open ban 1.2.3.4` | Moderation |
+| `uptime`, `version`, `log` | | Info |
 
-`self.instance.event_handler.register_event("player_chat_command", self.say_hello)`
+Other forms:
 
-Will, if the plugin is enabled on an instance, call the method within the plugin `say_hello` when a user in game does a chat starting with `!` 
+| Command | What it does |
+|---|---|
+| `mbii -l` | List all instances |
+| `mbii -i` | List instances that are running right now |
+| `mbii -a <action>` | Run an action on **every** instance, e.g. `mbii -a restart` |
+| `mbii -c <player>` | Look up a player's history (connections, kills) |
+| `mbii -u` | Check for an MBII update and apply it once every instance is empty |
+| `-v` | Verbose output |
 
-Some events come with additional arguements that you can use.  Here is a current list of events plugins can use, They come in a dictionary object as the first arguement
+> Over SSH from another machine, `start`/`restart` can keep the SSH command open after the server is up
+> (the engine's `screen` session holds the terminal). Run them in the background and check with
+> `mbii -i <name> status`.
 
-|Name|Arguements  |Description |
-|--|--|--|
-|before_dedicated_server_launch| None |  Runs before dedicated server starts
-|after_dedicated_server_launch | None  |   Runs after dedicated server starts
-|new_log_line                  | log_line | Log File changed
-|player_chat_command           | message, player, player_id | ! prefix chat 
-|player_chat                   | type, message, player, player_id | any and all chats, type is either TEAM or PUBLIC 
-|player_connects               | player, player_id |  A new player connected
-|player_disconnects            | player, player_id |  A player disconnected
-|player_killed                 | fragger_id fragger, fragged_id, fragged, weapon | A player was killed
-|player_begin                  |  player,player_id | A player entered the map (once per round, not per life)
-|map_change                    |current_map, new_map|
+---
 
+## Web panel
 
-### Services
+Install it as a systemd service with `sudo ./install_web.sh` (or say yes when `install.sh` asks). It runs as
+`mbii-web` on port `8080` by default:
 
-You can also register services in your plugin. These are methods you want to start as a seperate process and for them to persist while the instance runs. Otherwise methods are only called when events happen. This allows you to potentially create your own events. 
+```bash
+sudo systemctl status mbii-web
+journalctl -u mbii-web -n 100 --no-pager
+```
 
-For example using 
-`self.instance.event_handler.run_event("my_custom_event",{"type": "NEW", "message": message, "player_id": player_id, "player": player}) `
+On first visit you create the first admin account. Accounts are stored in `web_users.json`.
 
-The process handler will automatically start your service, and shut it down when the instance is stopped by keeping track of its PID. 
+### Roles
+
+| Role | Can |
+|---|---|
+| `viewer` | See the dashboard, instance status, logs and chat |
+| `mod` | Everything a viewer can, plus the RCON console, sending chat, and the Mod page (change map/mode, kick, ban, unban, private message) |
+| `admin` | Everything, plus start/stop/restart, Settings, plugin pages, new/delete instance, user management, panel update/restart and the audit log |
+
+### Pages
+
+- **Dashboard**: every instance at a glance (online, players, map, mode). Admins can also **update the panel**
+  (`git pull`, restarting only if something changed) or restart it.
+- **Instances** (sidebar, one entry per instance):
+  - **Status**: live status with start / stop / restart.
+  - **Logs**: the instance's log, searchable.
+  - **Chat**: live in-game chat. Mods can send messages.
+  - **Settings**: edit the instance's config through a form instead of raw JSON (details below).
+  - **Plugin pages**: extra pages added by plugins, such as **Economy** (accounts and balances, give/remove
+    credits) and **Stats** (player kills, deaths, playtime).
+  - **RCON**: an RCON console.
+  - **Mod**: change map or mode, kick, ban/unban, message a player, plus buttons added by plugins (e.g.
+    RTVRTM's **Voting** card: start a map vote, start a mode vote, cancel a vote).
+- **+ New instance**: the new-instance wizard.
+- **Admin Users**: add users, change passwords and roles, remove users.
+
+### Settings page
+
+The Settings page turns the instance's JSON into grouped, collapsible sections with the right input for each
+value: toggles, dropdowns with explained options, percentage fields, map pickers.
+
+- **Save as you go**: the Save bar stays at the bottom of the screen and **Ctrl+S** (Cmd+S) saves. An
+  "Unsaved changes" badge shows when you've edited something, and every save shows a notification. Most
+  changes need an instance restart to take effect.
+- **Raw JSON** tab for anything the form doesn't cover, with live JSON validation.
+- **smod admins**: a **Pick rights** checkbox picker instead of typing bitmasks, plus **Sync to instances** to
+  copy an admin's password and rights to other instances in one go.
+- **Maps**: the map rotation (reorder with the up/down arrows, map names autocomplete) and **holiday map
+  periods** (e.g. Christmas maps in December), whose maps are added to the rotation and RTV pool whenever the
+  instance restarts during the period, and drop out again afterwards.
+- **Plugins**: switch plugins on or off for this instance and edit their settings. Plugins can give their
+  settings a section of their own (RTV, RTM, Chaos, VPN Shield...).
+- **RTV / RTM**: settings that the voting plugin stores as one compact value (like `"0 3"` or
+  `"2 1 0 2 1 0"`) are split into separate labelled inputs and put back together on save, so they can't be
+  saved in a form that stops the plugin starting. RTM's allowed modes are checkboxes.
+- **Danger zone**: delete the instance. You have to type its name to confirm. If it's running it's stopped
+  first, then its config is renamed to `<name>.json.del` (logs and player data in `homepaths/` are kept).
+
+### New instance wizard
+
+1. **Start from**: copy an existing instance (all its settings, plugins, maps and admins) or a clean
+   template (with freshly generated admin passwords).
+2. **Basics**: instance name, server name (with a live colour preview), port, game mode, engine, RCON
+   password (with a generator) and optional join password. The port list shows 29070-29089 and marks which
+   instance or program is already using each one.
+3. **Review & create**, optionally starting the server straight away.
+
+### Audit log
+
+Actions that change things (saves, start/stop, instance create/delete, plugin actions, user changes) are
+recorded with who did them and from which IP, and admins can read them at `/api/audit`.
+
+---
+
+## Included plugins
+
+Enable a plugin by adding its key under `plugins` in the instance config (or tick it in the Settings page).
+**Plugins marked *caded* need the [`caded.i386` engine](#the-engine-cadedi386-and-our-openjk-fork)** and do
+nothing on other engines.
+
+| Plugin (config key) | Engine | What it does |
+|---|---|---|
+| **[RTVRTM](plugins/rtvrtm/readme.md)** (`rtvrtm`) | any | Rock the Vote / Rock the Mode: players vote to change map (`!rtv`) or game mode (`!rtm`), with nominations, runoff votes, extend options, cooldowns, admin-called votes and round/time-limit votes. Has its own RTV, RTM and General sections in Settings. |
+| **[Auto Messages](plugins/auto_message/README.md)** (`auto_message`) | any | Rotating server messages. Settings: `messages` (list), `repeat_minutes`. Other plugins add one line each explaining themselves when enabled. |
+| **[Auto Map Rotation](plugins/auto_map_rotation/README.md)** (`auto_map_rotation`) | any | Once the server has been empty for `rotation_minutes` (default 30), moves it to the next map in its rotation, then again every `rotation_minutes` while it stays empty. Anyone joining resets the clock. `0` turns it off. |
+| **[VPN Shield](plugins/shield/README.md)** (`shield`) | any | Warns, then kicks, players connecting through a VPN or proxy. Needs an [ipgeolocation.io](https://ipgeolocation.io) API key (`ipgeolocation_apikey`). |
+| **[Anytime Spin](plugins/anytime_spin/README.md)** (`anytime_spin`) | any | MBII's own `!spin` normally only works on Sundays. This makes the engine always think it's Sunday (`LD_PRELOAD` of `fake_sunday_32.so`). Turn spin on with `game.enable_spin` / `game.spin_cooldown`. |
+| **[AI Assistant](plugins/ai/README.md)** (`ai`) | any | An in-game chat assistant (`!ai <question>` by default) backed by [OpenRouter](https://openrouter.ai), with optional death commentary. Settings: `enabled`, `openrouter_api_key`, `model`, `ai_name`, `command`, `cooldown_seconds`, `max_tokens`, `temperature`, `public_replies`, `death_commentary`, `instruction`. |
+| **[Discord Bot](plugins/discord_bot/README.md)** (`discord_bot`) | any | *Experimental.* Relays in-game chat to a Discord channel whose name ends in `server-<instance>-chat`. Setting: `token`. |
+| **[Credit System](plugins/creditsystem/README.md)** (`creditsystem`) | ***caded*** | The economy: players earn credits for kills while logged in (`!register`, `!login`), check them with `!balance`, spend them in the `!buy` shop and put bounties on each other (`!bounty`). Shop, bounty and each shop item's price can be switched on/off or set individually through `cvars`. Adds an **Economy** page listing accounts, where admins can give or take credits. |
+| **[Chaos Mode](plugins/chaos/README.md)** (`chaos`) | ***caded*** | Every `cooldown` seconds (default 20), everyone gets a random prize. Settings: `enabled`, `cooldown`. |
+| **[Gun Game](plugins/gungame/README.md)** (`gungame`) | ***caded*** | Everyone moves up a fixed weapon ladder, one step per kill. Settings live in `game`: `gungame_enable`, `gungame_announce`, `gungame_restrict_classes`. |
+| **[Kill Streaks](plugins/killstreak/README.md)** (`killstreak`) | ***caded*** | Server-wide callouts for kill streaks, reset each round. Setting: `enabled`. |
+| **[Stats](plugins/stats/README.md)** (`stats`) | ***caded*** | Turns on the engine's `!stats` (kills, deaths, suicides, playtime, shared across all your servers) and adds a **Stats** page in the web panel. Setting: `enabled`. |
+
+---
+
+## Running it day to day
+
+### Updating MBII
+
+```bash
+./update.sh                  # check for an MBII update and apply it
+./update.sh -i open,duel     # ...and restart these instances afterwards
+```
+
+With no `-i`, it restarts whichever instances were running. Running it from cron (e.g. every 10 minutes)
+keeps servers current automatically.
+
+### Updating MBIIEZ
+
+`git pull` in this folder, or use **Update** on the web panel's dashboard. Restart instances to pick up
+changes to plugins or the core.
+
+### Updating the engine
+
+Pull and re-run `./build.sh` in your [clone-army/OpenJK](https://github.com/clone-army/OpenJK) checkout. It
+reinstalls `caded.i386` and restarts the empty instances using it. The rest switch over at their next restart.
+
+### Scheduled machine reboot (optional)
+
+`sudo ./install_scheduled_reboot.sh` installs a daily cron job (`mbii-scheduled-reboot.sh`) that reboots the
+machine, but only when every instance is empty.
+
+---
+
+## Files and folders
+
+| Path | What it is |
+|---|---|
+| `mbii.py` | The CLI (`mbii` wraps it) |
+| `mbii-web.py` | The web panel (Flask) |
+| `mbiiez/` | Core: instance lifecycle, config generation, log parsing, events, services, plugin loading, web controllers/templates |
+| `plugins/` | Plugins, one folder each (see [PLUGINS.md](PLUGINS.md)) |
+| `configs/` | Instance configs (`<name>.json`, gitignored: they contain passwords) and `demo.json.example` |
+| `homepaths/<name>/` | Per-instance runtime files: generated configs, logs, data (gitignored) |
+| `mbiiez.conf` | Paths, database and web panel settings (gitignored; copy from `mbiiez.conf.example`) |
+| `web_users.json` | Web panel accounts (gitignored) |
+| `mbiiez.db` | SQLite database (gitignored) |
+| `install.sh`, `install_web.sh` | Installers |
+| `update.sh` | MBII updater wrapper |
+| `/opt/openjk` | Game install: MBII, base assets, venv |
+| `/var/log/<name>-engine.log` | Engine console output per instance |
+
+---
 
 ## Database
 
-A small SQLite database is used to store ALL log lines, all kills, keep track of services, and keep track of player connections in a way that persists. 
+`mbiiez.db` (SQLite) records log lines, chat, kills, player connections (with IPs) and web panel audit
+entries across all instances. The CLI's `-c` player lookup and the web panel read from it, and plugins or
+external tools can query it too. Players are only identified by name (and IP), so history can't reliably
+follow someone who changes their name.
 
-For this reason the database can be used by external processes to query this information, or in a plugin, if for example, a discord bot wants to show when the last time a given player connected. 
+---
 
-Usablity is limited as there is no way beyond a name, to track a player between connections. 
+## Contributing
 
-## Useful Included Plugins
-
-There is an updater plugin, and it is active on the default version. This plugin will, based on the config scan for updates to MBII. It is recomended you only run the updater plugin on one instance. Although it can run on all instances
-There is a chance you could have 3 updaters all checking files at the same time. Ideally the updater would be moved to the core, but the core doesnt have it's own processes management like instances does. 
-
-## Get Involved
-This is still a little rough round the edges, i am NOT a full python dev, if anyone is interested in doing further development on this or pushing pull requests into this thats all fine with me. 
-
-## WebUI
-
-- The webui can be installed using `bash install_web.sh` it will try to install as a service called `mbii-web`
-- Run manually with `bash mbii-web.py`
-- defaults to port 8080
-- Authentication is role-aware (`viewer`, `mod`, `admin`)
-- Configure users in `web_users.json` (created by first-run setup)
-- `mbiiez.conf` supports:
-	- `auth_enabled = true|false`
-	- `users_file = web_users.json`
-- On first run, if `users_file` does not exist, the web UI shows a setup page to create the first admin user.
-
-### Still to do
-
-- [x] Write an Update.sh file for updating MBII
-- [x] Make process handler auto restart a failed service unless instance is being stopped
-- [x] Make process handler auto restart instances at a given time rather than using crontab
-- [x] Create the Web GUI
-- [X] Web to edit server.json files
-- [x] Web to show database logs
-- [X] Web to handle bans
-- [X] Web to handle plugins
-- [X] Web to start / stop / restart instances
-
-
+Pull requests are welcome. Plugins are the easiest place to start: see **[PLUGINS.md](PLUGINS.md)**. Engine
+features (anything a plugin switches on with a cvar) live in
+[clone-army/OpenJK](https://github.com/clone-army/OpenJK).

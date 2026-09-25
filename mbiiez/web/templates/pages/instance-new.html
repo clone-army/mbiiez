@@ -1,0 +1,385 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="page-header">
+  <h3 class="page-title">New instance</h3>
+  <nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item"><a href="/dashboard">Dashboard</a></li>
+      <li class="breadcrumb-item active" aria-current="page">New instance</li>
+    </ol>
+  </nav>
+</div>
+
+<ul class="nav nav-pills mb-3 gap-1" id="wizard-steps">
+  <li class="nav-item"><span class="nav-link active" data-step-pill="1">1. Start from</span></li>
+  <li class="nav-item"><span class="nav-link" data-step-pill="2">2. Basics</span></li>
+  <li class="nav-item"><span class="nav-link" data-step-pill="3">3. Review &amp; create</span></li>
+</ul>
+
+<div class="card" style="max-width: 820px; overflow: visible;">
+  <div class="card-body">
+
+    {# ---------- Step 1: template or clone ---------- #}
+    <div class="wizard-step" data-step="1">
+      <h5 class="card-title">What should the new instance start from?</h5>
+
+      <div class="form-check border rounded p-3 ps-5 mb-2">
+        <input class="form-check-input" type="radio" name="start-from" id="start-clone" value="clone" {% if view_bag.sources %}checked{% endif %}>
+        <label class="form-check-label w-100" for="start-clone">
+          <strong>Copy an existing instance</strong>
+          <div class="text-muted small">Takes every setting from it (plugins, map rotation, RTV/RTM, admins, class limits).
+            You then give it its own name and port.</div>
+        </label>
+        <div class="mt-2" id="clone-picker">
+          <select class="form-select" id="source-select">
+            {% for s in view_bag.sources %}
+            <option value="{{ s.name }}">{{ s.name }} (port {{ s.port }}, {{ s.mode }})</option>
+            {% endfor %}
+          </select>
+          <div class="form-text" id="source-summary"></div>
+        </div>
+      </div>
+
+      <div class="form-check border rounded p-3 ps-5 mb-3">
+        <input class="form-check-input" type="radio" name="start-from" id="start-template" value="template" {% if not view_bag.sources %}checked{% endif %}>
+        <label class="form-check-label w-100" for="start-template">
+          <strong>Start from a clean template</strong>
+          <div class="text-muted small">Default settings with the auto message, shield, stats and RTV/RTM plugins.
+            Admin passwords are randomly generated. You'll probably want to go through Settings afterwards.</div>
+        </label>
+      </div>
+
+      <div class="d-flex justify-content-end">
+        <button type="button" class="btn btn-primary" data-go="2">Next</button>
+      </div>
+    </div>
+
+    {# ---------- Step 2: basics ---------- #}
+    <div class="wizard-step" data-step="2" style="display:none;">
+      <h5 class="card-title">Basics</h5>
+
+      <div class="mb-3">
+        <label class="form-label mb-0" for="f-name">Instance name</label>
+        <input type="text" class="form-control" id="f-name" autocomplete="off" spellcheck="false" placeholder="e.g. authentic">
+        <div class="form-text">Short internal name - used in the sidebar, the <code>mbii -i &lt;name&gt;</code> command and
+          the config file name. Lowercase letters, numbers, <code>-</code> and <code>_</code>. Can't be changed later.</div>
+        <div class="invalid-feedback" id="f-name-error"></div>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label mb-0" for="f-host">Server name</label>
+        <input type="text" class="form-control" id="f-host" autocomplete="off" spellcheck="false">
+        <div class="form-text">What players see in the server browser. <code>^1</code>-<code>^9</code> change colour.
+          Preview: <span id="f-host-preview" class="fw-semibold"></span></div>
+      </div>
+
+      <div class="row g-3 mb-3">
+        <div class="col-sm-6">
+          <label class="form-label mb-0" for="f-port">Port</label>
+          <select class="form-select" id="f-port">
+            {% for p in view_bag.ports %}
+            <option value="{{ p.port }}" {% if not p.free %}disabled{% endif %}>
+              {{ p.port }}{% if p.used_by %} - used by {{ p.used_by|join(', ') }}{% elif p.listening %} - in use by another program{% else %} - free{% endif %}
+            </option>
+            {% endfor %}
+          </select>
+          <div class="form-text">Each instance needs its own port. Used ones are greyed out.</div>
+        </div>
+        <div class="col-sm-6">
+          <label class="form-label mb-0" for="f-mode">Game mode</label>
+          <select class="form-select" id="f-mode">
+            {% for m in view_bag.modes %}
+            <option value="{{ m }}">{{ m|replace('-', ' ')|title }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label mb-0" for="f-engine">Engine</label>
+        <select class="form-select" id="f-engine">
+          {% for e in view_bag.engines %}
+          <option value="{{ e }}">{{ e }}{% if e == 'caded.i386' %} (current build - economy, chaos, gun game){% elif e == 'mbiided.i386' %} (MBII's standard engine, no extra features){% elif e == 'openjkded.i386' %} (plain 2018 OpenJK build){% endif %}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="row g-3 mb-3">
+        <div class="col-sm-6">
+          <label class="form-label mb-0" for="f-rcon">RCON password</label>
+          <div class="input-group">
+            <input type="text" class="form-control" id="f-rcon" autocomplete="off" spellcheck="false">
+            <button type="button" class="btn btn-outline-secondary" id="f-rcon-gen">Generate</button>
+          </div>
+          <div class="form-text" id="f-rcon-help">Full remote control of the server - keep it secret. At least 6 characters.</div>
+        </div>
+        <div class="col-sm-6">
+          <label class="form-label mb-0" for="f-serverpw">Join password <span class="text-muted">(optional)</span></label>
+          <input type="text" class="form-control" id="f-serverpw" autocomplete="off" spellcheck="false">
+          <div class="form-text">Leave empty for a public server.</div>
+        </div>
+      </div>
+
+      <div class="alert alert-warning py-2 small" id="step2-problems" style="display:none; border-left: 4px solid #ffc107;"></div>
+
+      <div class="d-flex justify-content-between">
+        <button type="button" class="btn btn-outline-secondary" data-go="1">Back</button>
+        <button type="button" class="btn btn-primary" data-go="3">Next</button>
+      </div>
+    </div>
+
+    {# ---------- Step 3: review ---------- #}
+    <div class="wizard-step" data-step="3" style="display:none;">
+      <h5 class="card-title">Review</h5>
+      <table class="table table-sm mb-3">
+        <tbody id="review-table"></tbody>
+      </table>
+
+      <div class="form-check mb-3">
+        <input class="form-check-input" type="checkbox" id="f-start" checked>
+        <label class="form-check-label" for="f-start">Start the server as soon as it's created</label>
+      </div>
+
+      <div class="d-flex justify-content-between">
+        <button type="button" class="btn btn-outline-secondary" data-go="2">Back</button>
+        <button type="button" class="btn btn-success" id="create-btn">Create instance</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script type="application/json" id="wizard-data">{{ view_bag|tojson }}</script>
+<script>
+(function () {
+  const data = JSON.parse(document.getElementById('wizard-data').textContent);
+  const existing = data.sources.map(function (s) { return s.name; });
+  const sourceByName = {};
+  data.sources.forEach(function (s) { sourceByName[s.name] = s; });
+  const $ = function (id) { return document.getElementById(id); };
+  const NAME_RE = /^[a-z0-9][a-z0-9_-]{0,23}$/;
+
+  // --- step navigation ---
+  let current = 1;
+  function show(step) {
+    document.querySelectorAll('.wizard-step').forEach(function (el) {
+      el.style.display = Number(el.dataset.step) === step ? '' : 'none';
+    });
+    document.querySelectorAll('[data-step-pill]').forEach(function (el) {
+      el.classList.toggle('active', Number(el.dataset.stepPill) === step);
+    });
+    current = step;
+    window.scrollTo(0, 0);
+  }
+
+  // --- step 1: source ---
+  function startMode() {
+    return document.querySelector('input[name="start-from"]:checked').value;
+  }
+  function selectedSource() {
+    return startMode() === 'clone' ? sourceByName[$('source-select').value] : null;
+  }
+  function renderSourceSummary() {
+    const s = sourceByName[$('source-select').value];
+    $('source-summary').textContent = s
+      ? 'Engine ' + s.engine + '. Plugins: ' + (s.plugins.join(', ') || 'none') + '.'
+      : '';
+    $('clone-picker').style.opacity = startMode() === 'clone' ? '' : '0.5';
+    $('source-select').disabled = startMode() !== 'clone';
+  }
+  $('source-select').addEventListener('change', renderSourceSummary);
+  document.querySelectorAll('input[name="start-from"]').forEach(function (r) {
+    r.addEventListener('change', renderSourceSummary);
+  });
+  if (!data.sources.length) $('start-clone').disabled = true;
+  renderSourceSummary();
+
+  // Prefill step 2 from the chosen source when you move on - but never
+  // over a field you've changed yourself.
+  const touched = {};
+  ['f-host', 'f-mode', 'f-engine', 'f-rcon', 'f-serverpw'].forEach(function (id) {
+    $(id).addEventListener('input', function () { touched[id] = true; });
+    $(id).addEventListener('change', function () { touched[id] = true; });
+  });
+  function prefill() {
+    const s = selectedSource();
+    const values = {
+      'f-host': s ? s.host_name : '',
+      'f-mode': s ? s.mode : 'open',
+      'f-engine': s ? s.engine : data.engines[0],
+      'f-rcon': s ? s.rcon_password : data.suggested_rcon,
+      'f-serverpw': s ? s.server_password : '',
+    };
+    Object.keys(values).forEach(function (id) {
+      const el = $(id);
+      if (touched[id]) return;
+      if (el.tagName === 'SELECT' && !Array.prototype.some.call(el.options, function (o) { return o.value === values[id]; })) return;
+      el.value = values[id];
+    });
+    $('f-rcon-help').textContent = s
+      ? 'Copied from ' + s.name + ' - hit Generate to give this instance its own. At least 6 characters.'
+      : 'Full remote control of the server - keep it secret. At least 6 characters.';
+    renderHostPreview();
+  }
+
+  // Default port: the first free one.
+  const firstFree = data.ports.find(function (p) { return p.free; });
+  if (firstFree) $('f-port').value = String(firstFree.port);
+
+  // --- step 2: validation + helpers ---
+  function nameError() {
+    const v = $('f-name').value.trim().toLowerCase();
+    if (!v) return 'Give it a name.';
+    if (!NAME_RE.test(v)) return 'Lowercase letters, numbers, - and _ only (max 24), starting with a letter or number.';
+    if (existing.indexOf(v) !== -1) return 'There is already an instance called ' + v + '.';
+    return '';
+  }
+  function validateStep2() {
+    const problems = [];
+    const ne = nameError();
+    $('f-name').classList.toggle('is-invalid', !!ne);
+    $('f-name-error').textContent = ne;
+    if (ne) problems.push(ne);
+    if (!$('f-host').value.trim()) problems.push('Give it a server name.');
+    if (!$('f-port').value || $('f-port').selectedOptions[0].disabled) problems.push('Pick a free port.');
+    if ($('f-rcon').value.trim().length < 6) problems.push('RCON password must be at least 6 characters.');
+    return problems;
+  }
+  // Once a problem has been shown, keep re-checking as you type so it
+  // clears as soon as it's fixed.
+  function recheckStep2() {
+    if ($('step2-problems').style.display === 'none' && !$('f-name').classList.contains('is-invalid')) return;
+    const problems = validateStep2();
+    $('step2-problems').textContent = problems.join(' ');
+    $('step2-problems').style.display = problems.length ? '' : 'none';
+  }
+  ['f-name', 'f-host', 'f-port', 'f-rcon'].forEach(function (id) {
+    $(id).addEventListener('input', recheckStep2);
+    $(id).addEventListener('change', recheckStep2);
+  });
+  $('f-rcon-gen').addEventListener('click', recheckStep2);
+
+  $('f-rcon-gen').addEventListener('click', function () {
+    touched['f-rcon'] = true;
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+    const bytes = new Uint32Array(14);
+    crypto.getRandomValues(bytes);
+    $('f-rcon').value = Array.prototype.map.call(bytes, function (b) { return chars[b % chars.length]; }).join('');
+  });
+
+  // Jedi Academy ^0-^9 colour codes, for the server-name preview.
+  const Q3_COLORS = ['#000000', '#ff3b3b', '#3bdc3b', '#ffff3b', '#3b6bff', '#3bffff', '#ff3bff', '#ffffff', '#ff9a3b', '#9a9a9a'];
+  function renderHostPreview() {
+    const out = $('f-host-preview');
+    out.innerHTML = '';
+    let color = '#ffffff';
+    const parts = $('f-host').value.split(/(\^[0-9])/);
+    parts.forEach(function (part) {
+      const m = /^\^([0-9])$/.exec(part);
+      if (m) { color = Q3_COLORS[Number(m[1])]; return; }
+      if (!part) return;
+      const span = document.createElement('span');
+      span.style.color = color;
+      span.textContent = part;
+      out.appendChild(span);
+    });
+  }
+  $('f-host').addEventListener('input', renderHostPreview);
+
+  // --- step 3: review ---
+  function payload() {
+    const s = selectedSource();
+    return {
+      source: s ? s.name : '',
+      name: $('f-name').value.trim().toLowerCase(),
+      host_name: $('f-host').value.trim(),
+      port: Number($('f-port').value),
+      mode: $('f-mode').value,
+      engine: $('f-engine').value,
+      rcon_password: $('f-rcon').value.trim(),
+      server_password: $('f-serverpw').value.trim(),
+    };
+  }
+  function renderReview() {
+    const p = payload();
+    const rows = [
+      ['Starts from', p.source ? 'Copy of ' + p.source : 'Clean template'],
+      ['Instance name', p.name],
+      ['Server name', null],
+      ['Port', String(p.port)],
+      ['Game mode', $('f-mode').selectedOptions[0].textContent],
+      ['Engine', p.engine],
+      ['RCON password', p.rcon_password],
+      ['Join password', p.server_password || '(none - public)'],
+    ];
+    const tbody = $('review-table');
+    tbody.innerHTML = '';
+    rows.forEach(function (row) {
+      const tr = document.createElement('tr');
+      const th = document.createElement('th');
+      th.className = 'text-muted fw-normal';
+      th.style.width = '35%';
+      th.textContent = row[0];
+      const td = document.createElement('td');
+      if (row[1] === null) td.appendChild($('f-host-preview').cloneNode(true));
+      else td.textContent = row[1];
+      tr.appendChild(th);
+      tr.appendChild(td);
+      tbody.appendChild(tr);
+    });
+  }
+
+  document.querySelectorAll('[data-go]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      const target = Number(btn.dataset.go);
+      if (current === 1 && target === 2) prefill();
+      if (current === 2 && target === 3) {
+        const problems = validateStep2();
+        $('step2-problems').textContent = problems.join(' ');
+        $('step2-problems').style.display = problems.length ? '' : 'none';
+        if (problems.length) return;
+        renderReview();
+      }
+      show(target);
+      if (target === 2) $('f-name').focus();
+    });
+  });
+
+  // --- create ---
+  $('create-btn').addEventListener('click', function () {
+    const btn = $('create-btn');
+    const p = payload();
+    btn.disabled = true;
+    fetch('/instances/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(p)
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (res) {
+        if (!res.success) throw new Error(res.message);
+        let chain = Promise.resolve(res.message);
+        if ($('f-start').checked) {
+          chain = fetch('/instance/' + encodeURIComponent(p.name) + '/command_async', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ command: 'start' })
+          })
+            .then(function (r) { return r.json(); })
+            .then(function (s) {
+              return res.message + (s.error ? ' It could not be started: ' + s.error : ' Starting it now - give it a few seconds.');
+            });
+        }
+        return chain.then(function (msg) {
+          mbiiToastAfterRedirect(msg, 'success');
+          window.location.href = '/config?instance=' + encodeURIComponent(p.name);
+        });
+      })
+      .catch(function (err) {
+        btn.disabled = false;
+        mbiiToast('Not created: ' + err.message, 'danger');
+      });
+  });
+})();
+</script>
+{% endblock %}

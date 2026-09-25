@@ -178,7 +178,8 @@ Add the following to your instance configuration JSON file under the `plugins` s
 - `enable_recently_played_maps`: Recently played maps restriction (seconds)
 
 ### Rock the Mode (RTM)
-- `rtm`: RTM modes to enable (0-21, see RTVRTM documentation)
+- `rtm`: which modes players can vote to switch to, as one code (table below; `0` = RTM off). In the web
+  panel this is a set of checkboxes that picks the code for you.
 - `mode_priority`: Priority settings for different modes
 - `rtm_rate`: Percentage of players needed to trigger RTM
 - `rtm_voting`: Voting timing and method
@@ -189,6 +190,35 @@ Add the following to your instance configuration JSON file under the `plugins` s
 - `rtm_skip_voting`: Skip voting behavior
 - `rtm_second_turn`: Enable second turn voting
 - `rtm_change_immediately`: Change mode immediately after vote
+
+Mode codes (0 Open, 1 Semi Authentic, 2 Full Authentic, 3 Duel, 4 Legends):
+
+| Code | Modes | Code | Modes |
+|---|---|---|---|
+| 0 | RTM off | 16 | Open, Legends |
+| 1 | Open | 17 | Full Auth, Legends |
+| 2 | Semi Auth | 18 | Open, Duel, Legends |
+| 3 | Full Auth | 19 | Open, Full Auth, Legends |
+| 4 | Open, Semi | 20 | Open, Full Auth, Duel, Legends |
+| 5 | Open, Full Auth | 21 | All five |
+| 6 | Semi, Full Auth | 22 | Semi, Legends |
+| 7 | Open, Semi, Full Auth | 23 | Duel, Legends |
+| 8 | Duel | 24 | Open, Semi, Legends |
+| 9 | Open, Duel | 25 | Open, Semi, Duel |
+| 10 | Semi, Duel | 26 | Semi, Full Auth, Legends |
+| 11 | Full Auth, Duel | 27 | Semi, Duel, Legends |
+| 12 | Open, Full Auth, Duel | 28 | Full Auth, Duel, Legends |
+| 13 | Semi, Full Auth, Duel | 29 | Open, Semi, Full Auth, Legends |
+| 14 | Open, Semi, Full Auth, Duel | 30 | Open, Semi, Duel, Legends |
+| 15 | Legends | 31 | Semi, Full Auth, Duel, Legends |
+
+Codes 0-21 are the original script's. 22-31 were added in MBIIEZ so every combination has a code, and 8
+and 15 were fixed (they used to crash when a vote started). The mode that's currently running is always
+left off the ballot.
+
+`mode_priority` is six tie-break weights (0 low, 1 medium, 2 high) in the order Open, Semi, Full, Duel,
+Legends, "Don't change". The web panel shows these, and the other two-part values (`rtm_voting`,
+`rtm_extend`...), as separate labelled inputs.
 
 ### Map Lists
 - `primary_maps`: Array of primary map names
@@ -207,6 +237,18 @@ When the plugin starts, it creates these files in your MBII folder:
 2. **RCON Issues**: Verify your server address and RCON password in the configuration
 3. **Log File Access**: Ensure the log file path is correct and readable
 4. **Map Issues**: Check that map names in the configuration match the actual map files
+
+## Mod page: Voting card
+
+The web panel's **Mod** page for an instance shows a **Voting** card (for mods and admins):
+
+- **Start map vote (RTV)**, shown when RTV is enabled
+- **Start mode vote (RTM)**, shown when RTM has any modes
+- **Cancel vote / pending change**
+
+The buttons send RTVRTM's own admin commands (`!force rtv`, `!force rtm`, `!cancel`) as a console `say`,
+which RTVRTM reads from the game log. `!force` counts every connected player as having voted, so the vote
+starts straight away. Players see the command in chat, then RTVRTM's announcement.
 
 ## Commands
 
