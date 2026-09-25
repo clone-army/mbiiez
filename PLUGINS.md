@@ -164,6 +164,7 @@ def loop(self):
 ```
 
 - Services start when the instance starts and stop when it stops.
+- `log_handler.log()` works inside a service: each service process gets its own log writer.
 - Each service runs in its **own forked process**. It gets a copy of the plugin object: changes it makes to
   `self` aren't seen by event handlers (which run in the log-watcher process), and the other way round. Share
   state through the server (cvars), a file or the database.

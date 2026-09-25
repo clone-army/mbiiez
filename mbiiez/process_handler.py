@@ -61,6 +61,14 @@ class process_handler:
             
             # Child Process Continues
             if(pid == 0):
+
+                # The parent's log writer thread didn't come with the fork -
+                # start one for this process so the service's log() calls
+                # actually reach the database.
+                try:
+                    self.instance.log_handler.restart_writer_after_fork()
+                except Exception:
+                    pass
             
                 # Capture the PID for this fork
                 db().insert("processes", {"name": name, "pid": os.getpid(), "instance": instance})
