@@ -238,6 +238,18 @@ When the plugin starts, it creates these files in your MBII folder:
 3. **Log File Access**: Ensure the log file path is correct and readable
 4. **Map Issues**: Check that map names in the configuration match the actual map files
 
+## Mod page: Voting card
+
+The web panel's **Mod** page for an instance shows a **Voting** card (for mods and admins):
+
+- **Start map vote (RTV)**, shown when RTV is enabled
+- **Start mode vote (RTM)**, shown when RTM has any modes
+- **Cancel vote / pending change**
+
+The buttons send RTVRTM's own admin commands (`!force rtv`, `!force rtm`, `!cancel`) as a console `say`,
+which RTVRTM reads from the game log. `!force` counts every connected player as having voted, so the vote
+starts straight away. Players see the command in chat, then RTVRTM's announcement.
+
 ## Commands
 
 All original RTVRTM commands work exactly as before:

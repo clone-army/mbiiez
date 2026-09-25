@@ -283,7 +283,8 @@ On first visit you create the first admin account. Accounts are stored in `web_u
   - **Plugin pages**: extra pages added by plugins, such as **Economy** (accounts and balances, give/remove
     credits) and **Stats** (player kills, deaths, playtime).
   - **RCON**: an RCON console.
-  - **Mod**: change map or mode, kick, ban/unban, message a player.
+  - **Mod**: change map or mode, kick, ban/unban, message a player, plus buttons added by plugins (e.g.
+    RTVRTM's **Voting** card: start a map vote, start a mode vote, cancel a vote).
 - **+ New instance**: the new-instance wizard.
 - **Admin Users**: add users, change passwords and roles, remove users.
 

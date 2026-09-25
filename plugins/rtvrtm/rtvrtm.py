@@ -127,6 +127,62 @@ class plugin:
         mbiiez/plugin_loader.py:call_web_hide_default_card()."""
         return True
 
+    # RTVRTM's own admin commands (rtvrtm_original.py): it treats any
+    # "say: Server: ..." line in the game log as an admin command. Only the
+    # console "say" command writes that line - "svsay" isn't logged at all,
+    # so RTVRTM would never see it - so the Mod page buttons send "say".
+    MOD_COMMANDS = {
+        "force_rtv": ("!force rtv", "Map vote requested."),
+        "force_rtm": ("!force rtm", "Mode vote requested."),
+        "cancel": ("!cancel", "Cancel sent."),
+    }
+
+    @staticmethod
+    def web_mod_actions(instance_name, instance_config):
+        """Voting card on the Mod page - see plugin_loader.call_web_mod_actions.
+        Start buttons only appear for what this instance has switched on
+        (same defaults as the generated rtvrtm cfg: RTV 1, RTM 7)."""
+        cfg = (instance_config.get("plugins", {}) or {}).get("rtvrtm", {}) or {}
+        try:
+            rtv_on = int((cfg.get("rtv", {}) or {}).get("rtv", 1)) != 0
+        except (TypeError, ValueError):
+            rtv_on = False
+        try:
+            rtm_on = int((cfg.get("rtm", {}) or {}).get("rtm", 7)) != 0
+        except (TypeError, ValueError):
+            rtm_on = False
+
+        actions = []
+        if rtv_on:
+            actions.append({"name": "force_rtv", "label": "Start map vote (RTV)",
+                            "confirm": "Start a map vote on {} now?".format(instance_name)})
+        if rtm_on:
+            actions.append({"name": "force_rtm", "label": "Start mode vote (RTM)",
+                            "confirm": "Start a game mode vote on {} now?".format(instance_name)})
+        if not actions:
+            return []
+        actions.append({"name": "cancel", "label": "Cancel vote / pending change", "style": "outline-danger",
+                        "confirm": "Cancel the vote in progress (or the map/mode change a vote already decided)?"})
+
+        return [{
+            "title": "Voting",
+            "help": "Start counts every connected player as having typed rtv/rtm, so the vote begins straight "
+                    "away (as long as anyone is on). Cancel stops a vote in progress, or a map/mode change a "
+                    "vote already decided; with neither, it does nothing. Players see the command in chat, "
+                    "then RTVRTM's announcement.",
+            "actions": actions,
+        }]
+
+    @staticmethod
+    def web_mod_action(instance_name, action_name, form_data):
+        command = plugin.MOD_COMMANDS.get(action_name)
+        if not command:
+            return False, "Unknown action."
+
+        from mbiiez.instance import instance as MBInstance
+        MBInstance(instance_name).rconResponse("say " + command[0])
+        return True, command[1] + " RTVRTM announces the result in game within a few seconds."
+
     @staticmethod
     def web_config_sections(instance_name, instance_config):
         """Gives RTV, RTM and General their own top-level sections on the

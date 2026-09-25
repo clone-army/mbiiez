@@ -195,3 +195,48 @@ def call_web_action(plugin_name, instance_name, action_name, form_data):
         return hook(instance_name, action_name, form_data)
     except Exception as e:
         return False, str(e)
+
+
+def call_web_mod_actions(plugin_name, instance_name, instance_config):
+    """Safely call a plugin's optional web_mod_actions(instance_name,
+    instance_config) static hook: cards of quick actions shown on the Mod
+    page (mod role and up, unlike web_page/web_action which are admin-only).
+
+    Expected return shape: a list of
+        {"title": str, "help": str (optional),
+         "actions": [{"name": str, "label": str,
+                      "style": "primary"|"secondary"|"success"|"warning"|"danger" (optional),
+                      "confirm": str (optional - asked before running),
+                      "fields": [{"name", "label", "type", "required", "placeholder"}] (optional)}]}
+    Returns [] if the plugin doesn't implement it, or if it raises - a
+    broken plugin must never take down the Mod page."""
+    module = load_plugin_module(plugin_name)
+    if module is None or not hasattr(module, "plugin"):
+        return []
+
+    hook = getattr(module.plugin, "web_mod_actions", None)
+    if hook is None:
+        return []
+
+    try:
+        return hook(instance_name, instance_config) or []
+    except Exception:
+        return []
+
+
+def call_web_mod_action(plugin_name, instance_name, action_name, form_data):
+    """Safely call a plugin's optional web_mod_action(instance_name,
+    action_name, form_data) static hook. Returns (False, message) if
+    unavailable or it raises."""
+    module = load_plugin_module(plugin_name)
+    if module is None or not hasattr(module, "plugin"):
+        return False, "Plugin not found."
+
+    hook = getattr(module.plugin, "web_mod_action", None)
+    if hook is None:
+        return False, "This plugin does not support Mod page actions."
+
+    try:
+        return hook(instance_name, action_name, form_data)
+    except Exception as e:
+        return False, str(e)

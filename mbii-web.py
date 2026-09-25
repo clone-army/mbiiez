@@ -809,6 +809,19 @@ def mod_map():
     return {"success": success, "error": None if success else msg}
 
 
+@app.route("/mod/plugin_action", methods=["POST"])
+@require_role("mod")
+def mod_plugin_action():
+    data = request.get_json(silent=True) or {}
+    instance_name = str(data.get("instance", ""))
+    plugin_name = str(data.get("plugin", ""))
+    action_name = str(data.get("action", ""))
+    success, msg = mod_c.run_plugin_action(instance_name, plugin_name, action_name, data.get("data") or {})
+    if success:
+        _audit("mod_plugin_action", instance_name, f"plugin={plugin_name};action={action_name}")
+    return jsonify({"success": success, "message": msg})
+
+
 @app.route("/mod/mode", methods=["POST"])
 @require_role("mod")
 def mod_mode():

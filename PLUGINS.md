@@ -22,6 +22,7 @@ For what the included plugins do, see the [README](README.md#included-plugins).
   - [Field types](#field-types)
   - [Menu items and pages](#menu-items-and-pages-web_menu--web_page)
   - [Actions](#actions-web_action)
+  - [Mod page actions](#mod-page-actions-web_mod_actions)
 - [A complete example](#a-complete-example)
 - [Rules of thumb](#rules-of-thumb)
 
@@ -260,8 +261,10 @@ so a broken plugin can't take the panel down.
 | `web_menu(instance_name, instance_config)` | dict or `None` | Add an item under the instance in the sidebar |
 | `web_page(instance_name, instance_config)` | list of sections | Content of that item's page |
 | `web_action(instance_name, action_name, form_data)` | `(ok, message)` | Handle a form submitted from your page |
+| `web_mod_actions(instance_name, instance_config)` | list of cards | Quick-action buttons on the **Mod** page |
+| `web_mod_action(instance_name, action_name, form_data)` | `(ok, message)` | Handle a Mod page button |
 
-Plugin pages and actions are admin-only.
+Plugin pages and their actions are admin-only. Mod page actions are for mods and admins.
 
 ### Settings sections (`web_config_sections`)
 
@@ -411,6 +414,54 @@ Validate everything in `form_data`: it comes straight from the browser. Return `
 `(False, message)`; the message is shown to the admin, and successful actions go into the audit log. If you
 edit a file the engine also writes (like `economy_accounts.dat`), take the same file lock the engine uses:
 see `_apply_credit_delta` in `plugins/creditsystem/creditsystem.py`.
+
+### Mod page actions (`web_mod_actions`)
+
+For things moderators need during a game, a plugin can add a card of buttons to the instance's **Mod** page.
+Unlike plugin pages, these are available to the **mod** role. Return an empty list to show nothing (for
+example while the feature is switched off on that instance).
+
+```python
+@staticmethod
+def web_mod_actions(instance_name, instance_config):
+    return [{
+        "title": "Hello",
+        "help": "Shown under the title.",
+        "actions": [
+            {"name": "greet_all", "label": "Greet everyone", "confirm": "Say hello to the whole server?"},
+            {"name": "greet_one", "label": "Greet", "style": "secondary",
+             "fields": [{"name": "player", "label": "Player name", "type": "text", "required": True}]},
+        ],
+    }]
+
+@staticmethod
+def web_mod_action(instance_name, action_name, form_data):
+    from mbiiez.instance import instance as MBInstance
+    if action_name == "greet_all":
+        MBInstance(instance_name).say("Hello everyone!")
+        return True, "Said hello."
+    if action_name == "greet_one":
+        name = str(form_data.get("player", "")).strip()
+        MBInstance(instance_name).say("Hello, {}!".format(name))
+        return True, "Said hello to {}.".format(name)
+    return False, "Unknown action."
+```
+
+| Action key | Meaning |
+|---|---|
+| `name` | Passed to `web_mod_action` as `action_name` |
+| `label` | Button text |
+| `style` | Bootstrap button style: `primary` (default), `secondary`, `success`, `warning`, `danger`, `outline-danger`... |
+| `confirm` | Optional question asked before running |
+| `fields` | Optional inputs shown next to the button (`name`, `label`, `type`, `required`, `placeholder`), sent as `form_data` |
+
+The result message is shown as a notification, and successful actions go into the audit log. The panel only
+runs an action your `web_mod_actions` is currently returning for that instance, so hiding a button also
+blocks it. `plugins/rtvrtm/rtvrtm.py` (the **Voting** card) is a working example.
+
+To send something that shows up in the game log (for example a command another log-watching script listens
+for), use the console `say` command (`rconResponse("say ...")`). `svsay` only goes to players and isn't
+logged.
 
 ---
 
