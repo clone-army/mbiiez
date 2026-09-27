@@ -48,11 +48,11 @@ class plugin:
 
         if self.instance.has_plugin("auto_message") and self.enabled:
             self.instance.config['plugins']['auto_message']['messages'].append(
-                "^5Social mode is on! Nobody can take damage and you can spawn in any time."
+                "^5This is a ^7Social ^5server - nobody can take damage outside a duel, and you can spawn in any time. Just hang out!"
             )
             if self.duels:
                 self.instance.config['plugins']['auto_message']['messages'].append(
-                    "^5Want a real fight? Bow at someone to challenge them to a duel - they bow back to accept."
+                    "^5Fancy a fight? Face any player and bow (^7K^5). If they bow back, it's a duel to the death - any class, any weapon."
                 )
 
     def register(self):
