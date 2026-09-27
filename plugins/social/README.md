@@ -25,7 +25,6 @@ lines (how social mode and duels work) when the `auto_message` plugin is on.
 | `respawn_seconds` | `3` | Seconds to wait before spawning back in |
 | `duels` | `1` | Allow duels: bow at someone to challenge, they bow back to accept. Any class, any weapon |
 | `round_minutes` | `0` | Round length in minutes; `0` keeps each map's own round timer |
-| `bots` | `0` | Bots pick a random Legends class so they spawn. Works with `enabled: 0` too, for a normal Legends server with bots |
 
 Also editable under **Settings → Social Mode** in the web panel.
 

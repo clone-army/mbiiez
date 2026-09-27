@@ -26,8 +26,6 @@ class plugin:
                      "label": "Duels (bow at someone to challenge)"},
                     {"path": ["round_minutes"], "key": "round_minutes", "type": "number", "default": 0,
                      "label": "Round Length (minutes, 0 = map default)"},
-                    {"path": ["bots"], "key": "bots", "type": "bool_select", "default": 0,
-                     "label": "Bots Pick Legends Classes (works with social mode off too)"},
                 ],
             },
         ]
@@ -42,13 +40,11 @@ class plugin:
         self.respawn_seconds = max(1, int(self.config.get('respawn_seconds', 3)))
         self.duels = int(self.config.get('duels', 1))
         self.round_seconds = max(0, int(self.config.get('round_minutes', 0))) * 60
-        self.bots = int(self.config.get('bots', 0))
 
         self.instance.register_startup_cvar("g_socialMode", "1" if self.enabled else "0")
         self.instance.register_startup_cvar("g_socialRespawnTime", str(self.respawn_seconds))
         self.instance.register_startup_cvar("g_socialDuels", "1" if self.duels else "0")
         self.instance.register_startup_cvar("g_socialRoundTime", str(self.round_seconds))
-        self.instance.register_startup_cvar("g_socialBots", "1" if self.bots else "0")
 
         if self.instance.has_plugin("auto_message") and self.enabled:
             self.instance.config['plugins']['auto_message']['messages'].append(
@@ -71,7 +67,6 @@ class plugin:
                 self.instance.cvar("g_socialRespawnTime", str(self.respawn_seconds))
                 self.instance.cvar("g_socialDuels", "1" if self.duels else "0")
                 self.instance.cvar("g_socialRoundTime", str(self.round_seconds))
-                self.instance.cvar("g_socialBots", "1" if self.bots else "0")
             except Exception as e:
                 self.instance.exception_handler.log(e)
 
