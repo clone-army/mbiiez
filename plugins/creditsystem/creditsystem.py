@@ -20,12 +20,16 @@ class plugin:
     #   g_economyShopEnable   - !buy (requires the master switch too)
     #   g_economyBountyEnable - !bounty / !<n> <credits> (requires the master switch too)
     #   g_economyBarEnable    - !bar drinks menu (requires the master switch too)
+    #   g_economyJukeboxEnable - !jukebox (requires the master switch too)
     default_cvars = {
         "g_creditSystemEnable": "1",
         "g_economyShopEnable": "0",
         "g_economyBountyEnable": "0",
         "g_economyBarEnable": "0",
         "g_economyRegisterBonus": "100",
+        "g_economyJukeboxEnable": "0",
+        "g_jukeboxCost": "10",
+        "g_jukeboxCooldown": "60",
         # Pistols
         "g_shopCost_bryar": "8",
         "g_shopCost_clone_pistol": "8",
@@ -130,6 +134,7 @@ class plugin:
         self.shop_enabled = cvars.get("g_economyShopEnable") == "1"
         self.bounty_enabled = cvars.get("g_economyBountyEnable") == "1"
         self.bar_enabled = cvars.get("g_economyBarEnable") == "1"
+        self.jukebox_enabled = cvars.get("g_economyJukeboxEnable") == "1"
 
         if self.instance.has_plugin("auto_message") and self.economy_enabled:
             msgs = self.instance.config['plugins']['auto_message']['messages']
@@ -162,6 +167,9 @@ class plugin:
             messages.append("^5Thirsty? ^7!bar ^5for the drinks menu, ^7!bar <number> ^5to order - "
                             "get tiny, huge, drunk, super fast, glowing - or try a death stick.")
 
+        if self.jukebox_enabled:
+            messages.append("^5Pick the music: ^7!jukebox ^5lists the tracks, ^7!jukebox <number> ^5plays one for everyone.")
+
         return messages
 
     def register(self):
@@ -175,6 +183,7 @@ class plugin:
                 self.instance.cvar("g_economyShopEnable", "1" if self.shop_enabled else "0")
                 self.instance.cvar("g_economyBountyEnable", "1" if self.bounty_enabled else "0")
                 self.instance.cvar("g_economyBarEnable", "1" if self.bar_enabled else "0")
+                self.instance.cvar("g_economyJukeboxEnable", "1" if self.jukebox_enabled else "0")
             except Exception as e:
                 self.instance.exception_handler.log(e)
             time.sleep(60)

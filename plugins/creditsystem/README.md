@@ -41,6 +41,9 @@ Everything is a cvar, set through `cvars`:
 | `g_economyShopEnable` | `"0"` | The `!buy` shop |
 | `g_economyBountyEnable` | `"0"` | Bounties |
 | `g_economyBarEnable` | `"0"` | The `!bar` drinks menu |
+| `g_economyJukeboxEnable` | `"0"` | The `!jukebox`: pay to change the music for everyone |
+| `g_jukeboxCost` | `"10"` | Price of a jukebox track |
+| `g_jukeboxCooldown` | `"60"` | Seconds a track plays before anyone can change it |
 | `g_economyRegisterBonus` | `"100"` | Credits given once when a player `!register`s a new account. `"0"` for none. |
 | `g_barCost_<drink>` | engine defaults | Price per drink. `"0"` takes it off the menu. |
 | `g_shopCost_<item>` | engine defaults | Price per item. `"0"` removes it from the shop. |
