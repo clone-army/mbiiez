@@ -5,9 +5,8 @@ On any other engine it does nothing.
 
 The engine's economy: players register an account (`!register`, `!login`), earn credits for kills and
 rounds, check them with `!balance`, spend them in the `!buy` shop and put bounties on each other
-(`!bounty`, then `!<n> <credits>`). With the bar on, `!bar` lists drinks that do something (shrink, grow, armour,
-get drunk...) and make you glow while they work; `!bar <number>` orders one, `!bar round <number>` buys one for
-everyone. Accounts and balances are shared across every server on the machine.
+(`!bounty`, then `!<n> <credits>`). With the bar on, `!bar` lists drinks that do something (shrink, grow, get drunk,
+super speed, reversed controls...) and make you glow while they work; `!bar <number>` orders one. Accounts and balances are shared across every server on the machine.
 The engine's README has the full player guide and shop catalog.
 
 The plugin:

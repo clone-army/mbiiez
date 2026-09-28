@@ -97,12 +97,19 @@ class plugin:
         # Bar drinks (!bar), numbered on the menu in this order
         "g_barCost_jawa_juice": "10",
         "g_barCost_hutt_brew": "15",
-        "g_barCost_blue_milk": "10",
-        "g_barCost_bacta_shot": "8",
-        "g_barCost_spotchka": "20",
         "g_barCost_corellian_whiskey": "12",
-        "g_barCost_ion_fizz": "20",
-        "g_barCost_jet_juice": "22",
+        "g_barCost_tatooine_twister": "10",
+        "g_barCost_bubble_brew": "10",
+        "g_barCost_moon_milk": "12",
+        "g_barCost_sugar_rush": "15",
+        "g_barCost_bantha_sludge": "10",
+        "g_barCost_backwards_brandy": "12",
+        "g_barCost_runaway_rum": "12",
+        "g_barCost_low_ceiling_lager": "10",
+        "g_barCost_spotchka": "20",
+        "g_barCost_hoth_chiller": "12",
+        "g_barCost_mustafar_magma": "12",
+        "g_barCost_ion_fizz": "12",
     }
 
     def __init__(self, instance):
@@ -149,8 +156,8 @@ class plugin:
         if self.bounty_enabled:
             messages.append("^5Put a price on someone's head: ^7!bounty <player> <credits> ^5- whoever kills them collects it.")
         if self.bar_enabled:
-            messages.append("^5Thirsty? ^7!bar ^5for the drinks menu, ^7!bar <number> ^5to order, "
-                            "^7!bar round <number> ^5to buy everyone one.")
+            messages.append("^5Thirsty? ^7!bar ^5for the drinks menu, ^7!bar <number> ^5to order - "
+                            "get tiny, huge, drunk, super fast, glowing and more.")
 
         return messages
 
