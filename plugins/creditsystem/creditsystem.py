@@ -166,7 +166,7 @@ class plugin:
             "^7!register <handle> <pin> ^5(new - free welcome credits!) or ^7!login <handle> <pin> ^5(returning) to get started.",
         ]
 
-        messages.append("^7!balance ^5to check your credits.")
+        messages.append("^7!balance ^5to check your credits, ^7!gift <player> <credits> ^5to give some to a friend.")
 
         # One line per feature that's actually on here, so nobody's told
         # about a command that won't work on this server.
