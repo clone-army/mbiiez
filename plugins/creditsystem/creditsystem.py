@@ -12,17 +12,19 @@ class plugin:
 
     # Default shop costs sourced from clone-army/OpenJK README.
     # Any of these (and g_creditSystemEnable / g_economyShopEnable /
-    # g_economyBountyEnable) can be overridden via the instance JSON plugin
-    # config's "cvars" section.
+    # g_economyBountyEnable / g_economyBarEnable) can be overridden via the
+    # instance JSON plugin config's "cvars" section.
     #
-    # Three independent switches:
+    # Independent switches:
     #   g_creditSystemEnable  - master: kill rewards, accounts, !balance
     #   g_economyShopEnable   - !buy (requires the master switch too)
     #   g_economyBountyEnable - !bounty / !<n> <credits> (requires the master switch too)
+    #   g_economyBarEnable    - !bar drinks menu (requires the master switch too)
     default_cvars = {
         "g_creditSystemEnable": "1",
         "g_economyShopEnable": "0",
         "g_economyBountyEnable": "0",
+        "g_economyBarEnable": "0",
         # Pistols
         "g_shopCost_bryar": "8",
         "g_shopCost_clone_pistol": "8",
@@ -92,6 +94,15 @@ class plugin:
         "g_shopCost_size_xl": "18",
         # Ammo
         "g_shopCost_ammo": "6",
+        # Bar drinks (!bar), numbered on the menu in this order
+        "g_barCost_jawa_juice": "10",
+        "g_barCost_hutt_brew": "15",
+        "g_barCost_blue_milk": "10",
+        "g_barCost_bacta_shot": "8",
+        "g_barCost_spotchka": "20",
+        "g_barCost_corellian_whiskey": "12",
+        "g_barCost_ion_fizz": "20",
+        "g_barCost_jet_juice": "22",
     }
 
     def __init__(self, instance):
@@ -108,6 +119,7 @@ class plugin:
         self.economy_enabled = cvars.get("g_creditSystemEnable") == "1"
         self.shop_enabled = cvars.get("g_economyShopEnable") == "1"
         self.bounty_enabled = cvars.get("g_economyBountyEnable") == "1"
+        self.bar_enabled = cvars.get("g_economyBarEnable") == "1"
 
         if self.instance.has_plugin("auto_message") and self.economy_enabled:
             msgs = self.instance.config['plugins']['auto_message']['messages']
@@ -128,15 +140,17 @@ class plugin:
             "^7!register <handle> <pin> ^5(new) or ^7!login <handle> <pin> ^5(returning) to get started.",
         ]
 
-        balanceLine = "^7!balance ^5to check your credits"
-        if self.shop_enabled and self.bounty_enabled:
-            messages.append(balanceLine + ", ^7!buy ^5to shop for gear, ^7!bounty ^5to put a price on someone's head.")
-        elif self.shop_enabled:
-            messages.append(balanceLine + ", ^7!buy ^5to shop for gear.")
-        elif self.bounty_enabled:
-            messages.append(balanceLine + ", ^7!bounty ^5to put a price on someone's head - whoever kills them collects it.")
-        else:
-            messages.append(balanceLine + ".")
+        messages.append("^7!balance ^5to check your credits.")
+
+        # One line per feature that's actually on here, so nobody's told
+        # about a command that won't work on this server.
+        if self.shop_enabled:
+            messages.append("^5Spend credits on gear: ^7!buy ^5lists the shop, ^7!buy <item> ^5buys it.")
+        if self.bounty_enabled:
+            messages.append("^5Put a price on someone's head: ^7!bounty <player> <credits> ^5- whoever kills them collects it.")
+        if self.bar_enabled:
+            messages.append("^5Thirsty? ^7!bar ^5for the drinks menu, ^7!bar <number> ^5to order, "
+                            "^7!bar round <number> ^5to buy everyone one.")
 
         return messages
 
@@ -150,6 +164,7 @@ class plugin:
                 self.instance.cvar("g_creditSystemEnable", "1" if self.economy_enabled else "0")
                 self.instance.cvar("g_economyShopEnable", "1" if self.shop_enabled else "0")
                 self.instance.cvar("g_economyBountyEnable", "1" if self.bounty_enabled else "0")
+                self.instance.cvar("g_economyBarEnable", "1" if self.bar_enabled else "0")
             except Exception as e:
                 self.instance.exception_handler.log(e)
             time.sleep(60)

@@ -5,7 +5,9 @@ On any other engine it does nothing.
 
 The engine's economy: players register an account (`!register`, `!login`), earn credits for kills and
 rounds, check them with `!balance`, spend them in the `!buy` shop and put bounties on each other
-(`!bounty`, then `!<n> <credits>`). Accounts and balances are shared across every server on the machine.
+(`!bounty`, then `!<n> <credits>`). With the bar on, `!bar` lists drinks that do something (shrink, grow, armour,
+get drunk...) and make you glow while they work; `!bar <number>` orders one, `!bar round <number>` buys one for
+everyone. Accounts and balances are shared across every server on the machine.
 The engine's README has the full player guide and shop catalog.
 
 The plugin:
@@ -39,6 +41,8 @@ Everything is a cvar, set through `cvars`:
 | `g_creditSystemEnable` | `"1"` | Master switch: accounts, earning, `!balance`. The Economy page only shows while this is `1`. |
 | `g_economyShopEnable` | `"0"` | The `!buy` shop |
 | `g_economyBountyEnable` | `"0"` | Bounties |
+| `g_economyBarEnable` | `"0"` | The `!bar` drinks menu |
+| `g_barCost_<drink>` | engine defaults | Price per drink. `"0"` takes it off the menu. |
 | `g_shopCost_<item>` | engine defaults | Price per item. `"0"` removes it from the shop. |
 
 Values are strings, as they're written straight into the server config.
