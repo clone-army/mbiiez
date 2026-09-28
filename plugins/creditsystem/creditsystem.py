@@ -109,7 +109,7 @@ class plugin:
         "g_shopCost_ammo": "6",
         # Bar drinks (!bar), numbered on the menu in this order
         "g_barCost_jawa_juice": "10",
-        "g_barCost_hutt_brew": "15",
+        "g_barCost_gungan_grog": "12",
         "g_barCost_corellian_whiskey": "12",
         "g_barCost_tatooine_twister": "10",
         "g_barCost_bubble_brew": "10",
@@ -176,7 +176,7 @@ class plugin:
             messages.append("^5Put a price on someone's head: ^7!bounty <player> <credits> ^5- whoever kills them collects it.")
         if self.bar_enabled:
             messages.append("^5Thirsty? ^7!bar ^5for the drinks menu, ^7!bar <number> ^5to order - "
-                            "get tiny, huge, drunk, super fast - or try a death stick.")
+                            "get tiny, drunk, clumsy, super fast - or try a death stick.")
 
         if self.jukebox_enabled:
             messages.append("^5Pick the music: ^7!jukebox ^5lists the tracks, ^7!jukebox <number> ^5plays one for everyone.")
