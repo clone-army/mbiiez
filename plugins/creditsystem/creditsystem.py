@@ -176,7 +176,7 @@ class plugin:
             messages.append("^5Put a price on someone's head: ^7!bounty <player> <credits> ^5- whoever kills them collects it.")
         if self.bar_enabled:
             messages.append("^5Thirsty? ^7!bar ^5for the drinks menu, ^7!bar <number> ^5to order - "
-                            "get tiny, huge, drunk, super fast, glowing - or try a death stick.")
+                            "get tiny, huge, drunk, super fast - or try a death stick.")
 
         if self.jukebox_enabled:
             messages.append("^5Pick the music: ^7!jukebox ^5lists the tracks, ^7!jukebox <number> ^5plays one for everyone.")
