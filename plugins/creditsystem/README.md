@@ -51,6 +51,10 @@ Everything is a cvar, set through `cvars`:
 | `g_raffleTicketPrice` | `"5"` | Credits per ticket |
 | `g_raffleMinEntrants` | `"5"` | Different players who must enter, or everyone is refunded |
 | `g_economyRegisterBonus` | `"100"` | Credits given once when a player `!register`s a new account. `"0"` for none. |
+| `g_barTabMinutes` | `"5"` | Minutes of drinking that count towards the three below |
+| `g_barPassOutDrinks` | `"8"` | Drinks that knock you out (`"0"` = never) |
+| `g_barPoisoningDrinks` | `"10"` | Drinks that kill you with alcohol poisoning (`"0"` = never) |
+| `g_barSpiceOverdose` | `"3"` | Spice that kills you with an overdose (`"0"` = never) |
 | `g_barCost_<drink>` | engine defaults | Price per drink. `"0"` takes it off the menu. |
 | `g_shopCost_<item>` | engine defaults | Price per item. `"0"` removes it from the shop. |
 
