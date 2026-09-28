@@ -43,6 +43,7 @@ class plugin:
         "g_economyBetEnable": "0",
         "g_betWindowSeconds": "30",
         "g_betMax": "100",
+        "g_betWinBonus": "20",
         "g_economyRaffleEnable": "0",
         "g_raffleIntervalMinutes": "60",
         "g_raffleOpenMinutes": "10",
@@ -200,7 +201,7 @@ class plugin:
         if self.chance_enabled:
             messages.append("^5Red or blue? ^7!chance <player> <credits> ^5- they pick a colour, the server rolls, winner takes the pot.")
         if self.bet_enabled:
-            messages.append("^5Duelling? ^7!bets start ^5lets people bet on your fight. ^7!bet ^5lists fights taking bets - the winning side splits the pot.")
+            messages.append("^5Duelling? ^7!bets start ^5lets people bet on your fight. ^7!bet ^5to back a fighter - winners get a bonus and the losers' bets.")
         if self.raffle_enabled:
             messages.append("^5There's a raffle every " + self.raffle_interval + " minutes - tickets go on sale before each draw. "
                             "^7!raffle ^5to see the pool.")
