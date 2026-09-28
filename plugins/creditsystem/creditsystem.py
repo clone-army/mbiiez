@@ -135,6 +135,8 @@ class plugin:
         "g_barCost_ion_fizz": "12",
         "g_barCost_death_stick": "20",
         "g_barCost_spice": "20",
+        "g_barCost_nurse_wine": "15",
+        "g_barCost_doctor_vodka": "12",
     }
 
     def __init__(self, instance):
