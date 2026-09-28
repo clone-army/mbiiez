@@ -46,6 +46,9 @@ Everything is a cvar, set through `cvars`:
 | `g_jukeboxCooldown` | `"60"` | Seconds a track plays before anyone can change it |
 | `g_economyPazaakEnable` | `"0"` | `!pazaak <player> <credits>`: Pazaak against another player, winner takes the pot |
 | `g_economyRaffleEnable` | `"0"` | The `!raffle` |
+| `g_economyBetEnable` | `"0"` | `!bet` on duels in progress; the winning side splits the pot |
+| `g_betWindowSeconds` | `"30"` | Seconds after a duel starts that bets are taken |
+| `g_betMax` | `"100"` | Most one player can bet on one duel (`"0"` = no limit) |
 | `g_economyChanceEnable` | `"0"` | `!chance <player> <credits>`: they pick red or blue, the server rolls, winning colour takes the pot |
 | `g_raffleIntervalMinutes` | `"60"` | Minutes between draws, on the clock (60 = on the hour) |
 | `g_raffleOpenMinutes` | `"10"` | Minutes before each draw that tickets go on sale |

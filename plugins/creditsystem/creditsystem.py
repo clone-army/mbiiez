@@ -24,6 +24,7 @@ class plugin:
     #   g_economyPazaakEnable  - !pazaak challenges (requires the master switch too)
     #   g_economyRaffleEnable  - !raffle (requires the master switch too)
     #   g_economyChanceEnable  - !chance red/blue challenges (requires the master switch too)
+    #   g_economyBetEnable     - !bet on duels (requires the master switch too)
     default_cvars = {
         "g_creditSystemEnable": "1",
         "g_economyShopEnable": "0",
@@ -39,6 +40,9 @@ class plugin:
         "g_jukeboxCooldown": "60",
         "g_economyPazaakEnable": "0",
         "g_economyChanceEnable": "0",
+        "g_economyBetEnable": "0",
+        "g_betWindowSeconds": "30",
+        "g_betMax": "100",
         "g_economyRaffleEnable": "0",
         "g_raffleIntervalMinutes": "60",
         "g_raffleOpenMinutes": "10",
@@ -151,6 +155,7 @@ class plugin:
         self.jukebox_enabled = cvars.get("g_economyJukeboxEnable") == "1"
         self.pazaak_enabled = cvars.get("g_economyPazaakEnable") == "1"
         self.chance_enabled = cvars.get("g_economyChanceEnable") == "1"
+        self.bet_enabled = cvars.get("g_economyBetEnable") == "1"
         self.raffle_enabled = cvars.get("g_economyRaffleEnable") == "1"
         self.raffle_interval = cvars.get("g_raffleIntervalMinutes", "60")
 
@@ -192,6 +197,8 @@ class plugin:
             messages.append("^5Feeling lucky? ^7!pazaak <player> <credits> ^5challenges someone to Pazaak - winner takes the pot.")
         if self.chance_enabled:
             messages.append("^5Red or blue? ^7!chance <player> <credits> ^5- they pick a colour, the server rolls, winner takes the pot.")
+        if self.bet_enabled:
+            messages.append("^5Bet on duels! ^7!bet ^5lists the fights, ^7!bet <number> <credits> ^5backs one - the winning side splits the pot.")
         if self.raffle_enabled:
             messages.append("^5There's a raffle every " + self.raffle_interval + " minutes - tickets go on sale before each draw. "
                             "^7!raffle ^5to see the pool.")
@@ -212,6 +219,7 @@ class plugin:
                 self.instance.cvar("g_economyJukeboxEnable", "1" if self.jukebox_enabled else "0")
                 self.instance.cvar("g_economyPazaakEnable", "1" if self.pazaak_enabled else "0")
                 self.instance.cvar("g_economyChanceEnable", "1" if self.chance_enabled else "0")
+                self.instance.cvar("g_economyBetEnable", "1" if self.bet_enabled else "0")
                 self.instance.cvar("g_economyRaffleEnable", "1" if self.raffle_enabled else "0")
             except Exception as e:
                 self.instance.exception_handler.log(e)
