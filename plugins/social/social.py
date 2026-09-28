@@ -50,6 +50,12 @@ class plugin:
             self.instance.config['plugins']['auto_message']['messages'].append(
                 "^5This is a ^7Social ^5server - nobody can take damage outside a duel, and you can spawn in any time. Just hang out!"
             )
+            self.instance.config['plugins']['auto_message']['messages'].append(
+                "^7!emotes ^5- sit at the bar with ^7!sit^5, ^7!dance^5, ^7!hug^5, ^7!sleep^5, ^7!taunt ^5and more."
+            )
+            self.instance.config['plugins']['auto_message']['messages'].append(
+                "^5Type ^7!help ^5for every command on this server."
+            )
             if self.duels:
                 self.instance.config['plugins']['auto_message']['messages'].append(
                     "^5Fancy a fight? Face any player and bow (^7K^5). If they bow back, it's a duel to the death - any class, any weapon."

@@ -178,7 +178,7 @@ class plugin:
         # so a player who never sees this line could rack up kills all game
         # and wonder why their balance stayed at 0.
         messages = [
-            "^5Credits are enabled on this server! Earn credits from kills - but only while logged in.",
+            "^5Credits are enabled! Earn them while logged in - from kills, rounds and games - and spend them on any of our servers.",
             "^7!register <handle> <pin> ^5(new - free welcome credits!) or ^7!login <handle> <pin> ^5(returning) to get started.",
         ]
 
@@ -193,16 +193,18 @@ class plugin:
         if self.bar_enabled:
             messages.append("^5Thirsty? ^7!bar ^5for the drinks menu, ^7!bar <number> ^5to order - "
                             "get tiny, drunk, clumsy, super fast - or try a death stick.")
+            messages.append("^5Had a few too many? A ^7Nurse Wine ^5from ^7!bar ^5cures everything and clears your tab.")
 
         if self.jukebox_enabled:
-            messages.append("^5Pick the music: ^7!jukebox ^5lists the tracks, ^7!jukebox <number> ^5plays one for everyone.")
+            messages.append("^5Pick the music: ^7!jukebox ^5for the favourites, ^7!jukebox <words> ^5to search ~200 tracks, ^7!jukebox <number> ^5plays one.")
 
         if self.pazaak_enabled:
             messages.append("^5Feeling lucky? ^7!pazaak <player> <credits> ^5challenges someone to Pazaak - winner takes the pot.")
         if self.chance_enabled:
             messages.append("^5Red or blue? ^7!chance <player> <credits> ^5- they pick a colour, the server rolls, winner takes the pot.")
         if self.bet_enabled:
-            messages.append("^5Duelling? ^7!bets start ^5lets people bet on your fight. ^7!bet ^5to back a fighter - winners get a bonus and the losers' bets.")
+            messages.append("^5Want bets on your duel? Bow at someone (^7K^5), they bow back, then type ^7!bets start ^5in the first 10s.")
+            messages.append("^5You're both frozen while everyone bets - ^7!bet <fighter> <credits> ^5backs a fighter, winners share the losers' bets.")
         if self.raffle_enabled:
             messages.append("^5There's a raffle every " + self.raffle_interval + " minutes - tickets go on sale before each draw. "
                             "^7!raffle ^5to see the pool.")
