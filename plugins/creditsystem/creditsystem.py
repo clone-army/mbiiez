@@ -25,6 +25,7 @@ class plugin:
         "g_economyShopEnable": "0",
         "g_economyBountyEnable": "0",
         "g_economyBarEnable": "0",
+        "g_economyRegisterBonus": "100",
         # Pistols
         "g_shopCost_bryar": "8",
         "g_shopCost_clone_pistol": "8",
@@ -144,7 +145,7 @@ class plugin:
         # and wonder why their balance stayed at 0.
         messages = [
             "^5Credits are enabled on this server! Earn credits from kills - but only while logged in.",
-            "^7!register <handle> <pin> ^5(new) or ^7!login <handle> <pin> ^5(returning) to get started.",
+            "^7!register <handle> <pin> ^5(new - free welcome credits!) or ^7!login <handle> <pin> ^5(returning) to get started.",
         ]
 
         messages.append("^7!balance ^5to check your credits.")
