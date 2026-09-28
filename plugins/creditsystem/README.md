@@ -49,6 +49,7 @@ Everything is a cvar, set through `cvars`:
 | `g_economyBetEnable` | `"0"` | `!bet` on duels in progress |
 | `g_betWindowSeconds` | `"30"` | How long a duel opened with `!bets start` takes bets, with both fighters frozen |
 | `g_betWinBonus` | `"20"` | Flat bonus a winning bet earns on top of its share of the losing bets, capped at the stake (`"0"` = none) |
+| `g_betLoserRefund` | `"25"` | If nobody backed the winner, losing bets get this percent back (the rest is gone) |
 | `g_betMax` | `"100"` | Most one player can bet on one duel (`"0"` = no limit) |
 | `g_economyChanceEnable` | `"0"` | `!chance <player> <credits>`: they pick red or blue, the server rolls, winning colour takes the pot |
 | `g_raffleIntervalMinutes` | `"60"` | Minutes between draws, on the clock (60 = on the hour) |

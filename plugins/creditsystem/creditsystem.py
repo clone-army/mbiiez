@@ -44,6 +44,7 @@ class plugin:
         "g_betWindowSeconds": "30",
         "g_betMax": "100",
         "g_betWinBonus": "20",
+        "g_betLoserRefund": "25",
         "g_economyRaffleEnable": "0",
         "g_raffleIntervalMinutes": "60",
         "g_raffleOpenMinutes": "10",
