@@ -56,6 +56,7 @@ Everything is a cvar, set through `cvars`:
 | `g_raffleOpenMinutes` | `"10"` | Minutes before each draw that tickets go on sale |
 | `g_raffleTicketPrice` | `"5"` | Credits per ticket |
 | `g_raffleMinEntrants` | `"5"` | Different players who must enter, or everyone is refunded |
+| `g_economyDailyBonus` | `"25"` | Credits for the first `!login` in any 24 hours, on any server (`"0"` = off) |
 | `g_economyRegisterBonus` | `"100"` | Credits given once when a player `!register`s a new account. `"0"` for none. |
 | `g_barTabMinutes` | `"5"` | Minutes of drinking that count towards the three below |
 | `g_barPassOutDrinks` | `"8"` | Drinks that knock you out (`"0"` = never) |

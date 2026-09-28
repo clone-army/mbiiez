@@ -35,6 +35,7 @@ class plugin:
         "g_barPoisoningDrinks": "10",
         "g_barSpiceOverdose": "3",
         "g_economyRegisterBonus": "100",
+        "g_economyDailyBonus": "25",
         "g_economyJukeboxEnable": "0",
         "g_jukeboxCost": "10",
         "g_jukeboxCooldown": "60",
@@ -179,7 +180,7 @@ class plugin:
         # and wonder why their balance stayed at 0.
         messages = [
             "^5Credits are enabled! Earn them while logged in - from kills, rounds and games - and spend them on any of our servers.",
-            "^7!register <handle> <pin> ^5(new - free welcome credits!) or ^7!login <handle> <pin> ^5(returning) to get started.",
+            "^7!register <handle> <pin> ^5(new - free welcome credits!) or ^7!login <handle> <pin> ^5(returning - daily bonus!) to get started.",
         ]
 
         messages.append("^7!balance ^5to check your credits, ^7!gift <player> <credits> ^5to give some to a friend.")
