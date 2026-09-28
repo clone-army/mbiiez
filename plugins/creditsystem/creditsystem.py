@@ -111,6 +111,8 @@ class plugin:
         "g_barCost_hoth_chiller": "12",
         "g_barCost_mustafar_magma": "12",
         "g_barCost_ion_fizz": "12",
+        "g_barCost_death_stick": "20",
+        "g_barCost_spice": "20",
     }
 
     def __init__(self, instance):
@@ -158,7 +160,7 @@ class plugin:
             messages.append("^5Put a price on someone's head: ^7!bounty <player> <credits> ^5- whoever kills them collects it.")
         if self.bar_enabled:
             messages.append("^5Thirsty? ^7!bar ^5for the drinks menu, ^7!bar <number> ^5to order - "
-                            "get tiny, huge, drunk, super fast, glowing and more.")
+                            "get tiny, huge, drunk, super fast, glowing - or try a death stick.")
 
         return messages
 
