@@ -21,6 +21,8 @@ class plugin:
     #   g_economyBountyEnable - !bounty / !<n> <credits> (requires the master switch too)
     #   g_economyBarEnable    - !bar drinks menu (requires the master switch too)
     #   g_economyJukeboxEnable - !jukebox (requires the master switch too)
+    #   g_economyPazaakEnable  - !pazaak challenges (requires the master switch too)
+    #   g_economyRaffleEnable  - !raffle (requires the master switch too)
     default_cvars = {
         "g_creditSystemEnable": "1",
         "g_economyShopEnable": "0",
@@ -30,6 +32,12 @@ class plugin:
         "g_economyJukeboxEnable": "0",
         "g_jukeboxCost": "10",
         "g_jukeboxCooldown": "60",
+        "g_economyPazaakEnable": "0",
+        "g_economyRaffleEnable": "0",
+        "g_raffleIntervalMinutes": "60",
+        "g_raffleOpenMinutes": "10",
+        "g_raffleTicketPrice": "5",
+        "g_raffleMinEntrants": "5",
         # Pistols
         "g_shopCost_bryar": "8",
         "g_shopCost_clone_pistol": "8",
@@ -135,6 +143,9 @@ class plugin:
         self.bounty_enabled = cvars.get("g_economyBountyEnable") == "1"
         self.bar_enabled = cvars.get("g_economyBarEnable") == "1"
         self.jukebox_enabled = cvars.get("g_economyJukeboxEnable") == "1"
+        self.pazaak_enabled = cvars.get("g_economyPazaakEnable") == "1"
+        self.raffle_enabled = cvars.get("g_economyRaffleEnable") == "1"
+        self.raffle_interval = cvars.get("g_raffleIntervalMinutes", "60")
 
         if self.instance.has_plugin("auto_message") and self.economy_enabled:
             msgs = self.instance.config['plugins']['auto_message']['messages']
@@ -170,6 +181,12 @@ class plugin:
         if self.jukebox_enabled:
             messages.append("^5Pick the music: ^7!jukebox ^5lists the tracks, ^7!jukebox <number> ^5plays one for everyone.")
 
+        if self.pazaak_enabled:
+            messages.append("^5Feeling lucky? ^7!pazaak <player> <credits> ^5challenges someone to Pazaak - winner takes the pot.")
+        if self.raffle_enabled:
+            messages.append("^5There's a raffle every " + self.raffle_interval + " minutes - tickets go on sale before each draw. "
+                            "^7!raffle ^5to see the pool.")
+
         return messages
 
     def register(self):
@@ -184,6 +201,8 @@ class plugin:
                 self.instance.cvar("g_economyBountyEnable", "1" if self.bounty_enabled else "0")
                 self.instance.cvar("g_economyBarEnable", "1" if self.bar_enabled else "0")
                 self.instance.cvar("g_economyJukeboxEnable", "1" if self.jukebox_enabled else "0")
+                self.instance.cvar("g_economyPazaakEnable", "1" if self.pazaak_enabled else "0")
+                self.instance.cvar("g_economyRaffleEnable", "1" if self.raffle_enabled else "0")
             except Exception as e:
                 self.instance.exception_handler.log(e)
             time.sleep(60)
