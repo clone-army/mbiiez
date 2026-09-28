@@ -46,6 +46,5 @@ Everything is a cvar, set through `cvars`:
 
 Values are strings, as they're written straight into the server config.
 
-**Give Credits caveat**: if the account is logged in on a server at that moment, that live session still
-has the old balance in memory and overwrites the edit the next time it earns or spends. It's safest for
-players who are offline.
+**Give Credits works for online players too**: a logged-in session picks up changes to its stored balance
+within about 5 seconds (and before any `!balance`, `!buy` or `!bar`), and tells the player they were topped up.
