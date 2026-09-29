@@ -130,6 +130,24 @@ PY
 }
 
 
+# ─── 8) Session secret key ────────────────────────────────────────────────
+# Signs the web UI's login cookies: anyone who knows it can forge a login,
+# so every install gets its own random one. Kept if it already exists, so
+# reinstalling doesn't log everyone out. mbii-web.py reads it from beside
+# the users file (and would generate one itself if this step were skipped).
+KEY_USERS_FILE="$(get_cfg_value web_service users_file web_users.json)"
+[[ "$KEY_USERS_FILE" == /* ]] || KEY_USERS_FILE="${SCRIPT_DIR}/${KEY_USERS_FILE}"
+SECRET_KEY_FILE="$(dirname "$KEY_USERS_FILE")/web_secret.key"
+printf "${BLUE}→ Web UI session key...${NC} "
+if [[ -s "$SECRET_KEY_FILE" ]] && (( $(wc -c < "$SECRET_KEY_FILE") >= 32 )); then
+  printf "${GREEN}✔ (kept existing)${NC}\n"
+else
+  mkdir -p "$(dirname "$SECRET_KEY_FILE")"
+  ( umask 077; od -An -tx1 -N32 /dev/urandom | tr -d ' \n' > "$SECRET_KEY_FILE" )
+  chmod 600 "$SECRET_KEY_FILE"
+  printf "${GREEN}✔ (generated %s)${NC}\n" "$SECRET_KEY_FILE"
+fi
+
 # ─── 9) Write systemd service ─────────────────────────────────────────────
 printf "${BLUE}→ Writing systemd service...${NC} "
 cat >"/etc/systemd/system/${SERVICE_NAME}.service" <<EOF
