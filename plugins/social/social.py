@@ -59,6 +59,9 @@ class plugin:
             self.instance.config['plugins']['auto_message']['messages'].append(
                 "^5Type ^7!help ^5for every command on this server."
             )
+            self.instance.config['plugins']['auto_message']['messages'].append(
+                "^5Stuck in spectator? Type ^7!spawn ^5and we'll get you into the game."
+            )
             if self.duels:
                 self.instance.config['plugins']['auto_message']['messages'].append(
                     "^5Fancy a fight? Face any player and bow (^7K^5). If they bow back, it's a duel to the death - any class, any weapon."
