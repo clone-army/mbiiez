@@ -1,5 +1,7 @@
+import hashlib
 import json
 import os
+import secrets
 import socket
 import subprocess
 import time
@@ -52,7 +54,34 @@ app = Flask(
 app.config["TEMPLATES_AUTO_RELOAD"] = True
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
-app.secret_key = os.environ.get("MBIIEZ_WEB_SECRET_KEY", "mbiiez-change-this-secret")
+
+
+def _load_secret_key():
+    """The key that signs login cookies. Anyone who knows it can forge a
+    session, so it must never be a value from the source: use
+    MBIIEZ_WEB_SECRET_KEY if set, else a random key generated once and kept
+    beside the users file (owner-only)."""
+    key = os.environ.get("MBIIEZ_WEB_SECRET_KEY", "").strip()
+    if key:
+        return key
+
+    key_dir = os.path.dirname(settings.web_service.users_file or "") or os.path.dirname(os.path.abspath(__file__))
+    key_file = os.path.join(key_dir, "web_secret.key")
+    try:
+        with open(key_file, "r", encoding="utf-8") as f:
+            key = f.read().strip()
+    except FileNotFoundError:
+        key = ""
+    if len(key) < 32:
+        key = secrets.token_hex(32)
+        os.makedirs(key_dir, exist_ok=True)
+        fd = os.open(key_file, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write(key)
+    return key
+
+
+app.secret_key = _load_secret_key()
 
 
 # Authentication
@@ -191,14 +220,33 @@ def _session_role():
     return _normalize_role(session.get("mbiiez_role", "viewer"))
 
 
+def _password_fingerprint(stored_password):
+    return hashlib.sha256(("mbiiez-session:" + str(stored_password)).encode("utf-8")).hexdigest()[:32]
+
+
 def _set_session_auth(username, role):
     session["mbiiez_user"] = username
     session["mbiiez_role"] = _normalize_role(role)
+    user = _load_users().get(username) or {}
+    session["mbiiez_pw"] = _password_fingerprint(user.get("password", ""))
+
+
+def _validate_session_user():
+    """The logged-in user's current role from the users file, or None if the
+    session is no longer valid (user deleted or password changed), in which
+    case it's cleared. The role stored in the cookie is never trusted."""
+    user = _load_users().get(_session_user())
+    if not user or session.get("mbiiez_pw") != _password_fingerprint(user.get("password", "")):
+        _clear_session_auth()
+        return None
+    session["mbiiez_role"] = user.get("role", "viewer")
+    return user.get("role", "viewer")
 
 
 def _clear_session_auth():
     session.pop("mbiiez_user", None)
     session.pop("mbiiez_role", None)
+    session.pop("mbiiez_pw", None)
 
 
 def _is_logged_in():
@@ -406,8 +454,10 @@ def enforce_auth_and_role():
         g.current_user = "local"
         g.current_role = "admin"
     elif _is_logged_in():
-        g.current_user = _session_user()
-        g.current_role = _session_role()
+        role = _validate_session_user()
+        if role:
+            g.current_user = _session_user()
+            g.current_role = _normalize_role(role)
 
     required_role = _required_role_for_path(path, request.method)
 
@@ -490,6 +540,18 @@ def setup_create():
         return jsonify({"error": str(e)}), 500
 
 
+LOGIN_MAX_FAILURES = 10
+LOGIN_WINDOW_SECONDS = 15 * 60
+_login_failures = {}
+
+
+def _login_blocked(ip):
+    now = time.time()
+    recent = [t for t in _login_failures.get(ip, []) if now - t < LOGIN_WINDOW_SECONDS]
+    _login_failures[ip] = recent
+    return len(recent) >= LOGIN_MAX_FAILURES
+
+
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if not settings.web_service.auth_enabled:
@@ -505,14 +567,22 @@ def login():
     next_path = _safe_next_path(request.args.get("next") or "/dashboard")
 
     if request.method == "POST":
+        ip = request.remote_addr or ""
         username = str(request.form.get("username", "")).strip()
         password = str(request.form.get("password", "")).strip()
 
+        if _login_blocked(ip):
+            error = "Too many failed logins. Try again in 15 minutes."
+            return render_template("pages/login.html", error=error, next_path=next_path), 429
+
         ok, role = _authenticate_credentials(username, password)
         if ok:
+            _login_failures.pop(ip, None)
             _set_session_auth(username, role)
             return redirect(_safe_next_path(request.form.get("next")), code=302)
 
+        _login_failures.setdefault(ip, []).append(time.time())
+        _audit("login_failed", details="user={}".format(username))
         error = "Invalid username or password."
 
     return render_template("pages/login.html", error=error, next_path=next_path)
