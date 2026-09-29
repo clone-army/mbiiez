@@ -35,6 +35,8 @@ class plugin:
                      "label": "Bar Fight Spawn Point (x y z yaw, on the floor)"},
                     {"path": ["barfight_rally"], "key": "barfight_rally", "type": "text", "default": "",
                      "label": "Bar Fight Rally Point (x y z yaw - where they head first)"},
+                    {"path": ["admins"], "key": "admins", "type": "text", "default": "",
+                     "label": "Admins (economy accounts that can record NPC routes with !wp, space separated)"},
                     {"path": ["npcs"], "key": "npcs", "type": "text", "default": "",
                      "label": "NPCs on the Map (type x y z yaw pose; separate several with ;)",
                      "help": "e.g. bartender 4008 -550 -1769 169 bartend. Pose: sit, idle, bartend, roam, or none. /viewpos on the spot gives x y z (take ~30 off z) and the facing."},
@@ -60,6 +62,7 @@ class plugin:
         self.barfight = 1 if str(self.config.get('barfight', 0)) not in ("0", "False", "false", "") else 0
         self.barfight_spawn = str(self.config.get('barfight_spawn', '') or '').replace('"', '')
         self.barfight_rally = str(self.config.get('barfight_rally', '') or '').replace('"', '')
+        self.admins = str(self.config.get('admins', '') or '').replace('"', '')
 
         self.instance.register_startup_cvar("g_socialMode", "1" if self.enabled else "0")
         self.instance.register_startup_cvar("g_socialRespawnTime", str(self.respawn_seconds))
@@ -130,6 +133,8 @@ class plugin:
                 self.instance.console.rcon('set g_barFightSpawn "{}"'.format(self.barfight_spawn), True)
                 time.sleep(0.25)
                 self.instance.console.rcon('set g_barFightRally "{}"'.format(self.barfight_rally), True)
+                time.sleep(0.25)
+                self.instance.console.rcon('set g_socialAdmins "{}"'.format(self.admins), True)
             except Exception as e:
                 self.instance.exception_handler.log(e)
 
