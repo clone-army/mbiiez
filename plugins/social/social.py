@@ -31,6 +31,11 @@ class plugin:
                      "help": "Anyone not in the game this long after joining is spawned as !spawn would. Not people who chose to spectate."},
                     {"path": ["barfight"], "key": "barfight", "type": "bool_select", "default": 0,
                      "label": "Bar Fights (!barfight)"},
+                    {"path": ["barfight_auto_minutes"], "key": "barfight_auto_minutes", "type": "number", "default": 0,
+                     "label": "Random Bar Fight Every (minutes, 0 = only !barfight)",
+                     "help": "Counted from the end of the last fight. Only when enough players are in (below)."},
+                    {"path": ["barfight_auto_players"], "key": "barfight_auto_players", "type": "number", "default": 2,
+                     "label": "Players Needed for a Random Bar Fight"},
                     {"path": ["barfight_spawn"], "key": "barfight_spawn", "type": "text", "default": "",
                      "label": "Bar Fight Spawn Point (x y z yaw, on the floor)"},
                     {"path": ["barfight_rally"], "key": "barfight_rally", "type": "text", "default": "",
@@ -64,6 +69,8 @@ class plugin:
         self.npcs = str(self.config.get('npcs', '') or '')
         self.auto_spawn = max(0, int(self.config.get('auto_spawn_seconds', 15)))
         self.barfight = 1 if str(self.config.get('barfight', 0)) not in ("0", "False", "false", "") else 0
+        self.barfight_auto_minutes = max(0, int(self.config.get('barfight_auto_minutes', 0) or 0))
+        self.barfight_auto_players = max(1, int(self.config.get('barfight_auto_players', 2) or 2))
         self.barfight_spawn = str(self.config.get('barfight_spawn', '') or '').replace('"', '')
         self.barfight_rally = str(self.config.get('barfight_rally', '') or '').replace('"', '')
         self.admins = str(self.config.get('admins', '') or '').replace('"', '')
@@ -79,6 +86,8 @@ class plugin:
         # by the service below instead.
         self.instance.register_startup_cvar("g_socialAutoSpawn", str(self.auto_spawn))
         self.instance.register_startup_cvar("g_barFightEnable", str(self.barfight))
+        self.instance.register_startup_cvar("g_barFightAutoMinutes", str(self.barfight_auto_minutes))
+        self.instance.register_startup_cvar("g_barFightAutoPlayers", str(self.barfight_auto_players))
 
         if self.instance.has_plugin("auto_message") and self.enabled:
             self.instance.config['plugins']['auto_message']['messages'].append(
@@ -128,7 +137,9 @@ class plugin:
                                    ("g_socialDuels", "1" if self.duels else "0"),
                                    ("g_socialRoundTime", str(self.round_seconds)),
                                    ("g_socialAutoSpawn", str(self.auto_spawn)),
-                                   ("g_barFightEnable", str(self.barfight))):
+                                   ("g_barFightEnable", str(self.barfight)),
+                                   ("g_barFightAutoMinutes", str(self.barfight_auto_minutes)),
+                                   ("g_barFightAutoPlayers", str(self.barfight_auto_players))):
                     self.instance.cvar(key, value)
                     time.sleep(0.25)
                 # These have spaces: rcon only, never startup cvars (they'd
