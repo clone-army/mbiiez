@@ -229,7 +229,7 @@ class plugin:
             messages.append("^5Beat the dealer: ^7!blackjack <credits> ^5deals you a hand (up to "
                             + self.cvars.get("g_blackjackMaxBet", "50") + "). Blackjack pays 3:2.")
         if self.bet_enabled:
-            messages.append("^5Want bets on your duel? Bow at someone (^7K^5), they bow back, then type ^7!bets start ^5in the first 10s.")
+            messages.append("^5Want bets on your duel? Bow at someone (^7K^5), they bow back, then type ^7!bet start ^5in the first 10s.")
             messages.append("^5You're both frozen while everyone bets - ^7!bet <fighter> <credits> ^5backs a fighter, winners share the losers' bets.")
         if self.bartender_enabled:
             messages.append("^5Got a question? ^7!bartender <anything> ^5- the bartender's heard it all. "
@@ -323,7 +323,7 @@ class plugin:
             commands.append("!blackjack <credits> - a hand against the dealer, up to "
                             + self.cvars.get("g_blackjackMaxBet", "50") + " credits; !bj hit, stand or double")
         if self.bet_enabled:
-            commands.append("!bet - bet on duels; duellists type !bets start in the first 10 seconds")
+            commands.append("!bet - bet on duels; duellists type !bet start in the first 10 seconds")
         if self.raffle_enabled:
             commands.append("!raffle - the raffle, drawn every " + self.raffle_interval + " minutes")
         commands.append("!emotes - sit, dance, hug and more")
