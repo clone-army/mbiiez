@@ -51,6 +51,8 @@ Everything is a cvar, set through `cvars`:
 | `g_betWinBonus` | `"20"` | Flat bonus a winning bet earns on top of its share of the losing bets, capped at the stake (`"0"` = none) |
 | `g_betLoserRefund` | `"25"` | If nobody backed the winner, losing bets get this percent back (the rest is gone) |
 | `g_betMax` | `"100"` | Most one player can bet on one duel (`"0"` = no limit) |
+| `g_economyBlackjackEnable` | `"0"` | `!blackjack <credits>`: a hand against the dealer; blackjack pays 3:2 |
+| `g_blackjackMaxBet` | `"50"` | Most credits one blackjack hand can bet |
 | `g_economyChanceEnable` | `"0"` | `!chance <player> <credits>`: they pick red or blue, the server rolls, winning colour takes the pot |
 | `g_raffleIntervalMinutes` | `"60"` | Minutes between draws, on the clock (60 = on the hour) |
 | `g_raffleOpenMinutes` | `"10"` | Minutes before each draw that tickets go on sale |

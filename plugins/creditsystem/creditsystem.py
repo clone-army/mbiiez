@@ -29,6 +29,7 @@ class plugin:
     #   g_economyRaffleEnable  - !raffle (requires the master switch too)
     #   g_economyChanceEnable  - !chance red/blue challenges (requires the master switch too)
     #   g_economyBetEnable     - !bet on duels (requires the master switch too)
+    #   g_economyBlackjackEnable - !blackjack against the house (requires the master switch too)
     #   g_economyBartenderEnable - !bartender, the AI bartender: not a cvar to
     #                            set, it's on when the plugin config has a
     #                            "bartender" block with an "api_key"
@@ -48,6 +49,8 @@ class plugin:
         "g_jukeboxCooldown": "60",
         "g_economyPazaakEnable": "0",
         "g_economyChanceEnable": "0",
+        "g_economyBlackjackEnable": "0",
+        "g_blackjackMaxBet": "50",
         "g_economyBetEnable": "0",
         "g_betWindowSeconds": "30",
         "g_betMax": "100",
@@ -172,6 +175,7 @@ class plugin:
         self.pazaak_enabled = cvars.get("g_economyPazaakEnable") == "1"
         self.chance_enabled = cvars.get("g_economyChanceEnable") == "1"
         self.bet_enabled = cvars.get("g_economyBetEnable") == "1"
+        self.blackjack_enabled = cvars.get("g_economyBlackjackEnable") == "1"
         self.raffle_enabled = cvars.get("g_economyRaffleEnable") == "1"
         self.raffle_interval = cvars.get("g_raffleIntervalMinutes", "60")
         self.cvars = cvars
@@ -221,6 +225,9 @@ class plugin:
             messages.append("^5Feeling lucky? ^7!pazaak <player> <credits> ^5challenges someone to Pazaak - winner takes the pot.")
         if self.chance_enabled:
             messages.append("^5Red or blue? ^7!chance <player> <credits> ^5- they pick a colour, the server rolls, winner takes the pot.")
+        if self.blackjack_enabled:
+            messages.append("^5Beat the dealer: ^7!blackjack <credits> ^5deals you a hand (up to "
+                            + self.cvars.get("g_blackjackMaxBet", "50") + "). Blackjack pays 3:2.")
         if self.bet_enabled:
             messages.append("^5Want bets on your duel? Bow at someone (^7K^5), they bow back, then type ^7!bets start ^5in the first 10s.")
             messages.append("^5You're both frozen while everyone bets - ^7!bet <fighter> <credits> ^5backs a fighter, winners share the losers' bets.")
@@ -250,6 +257,7 @@ class plugin:
                 self.instance.cvar("g_economyPazaakEnable", "1" if self.pazaak_enabled else "0")
                 self.instance.cvar("g_economyChanceEnable", "1" if self.chance_enabled else "0")
                 self.instance.cvar("g_economyBetEnable", "1" if self.bet_enabled else "0")
+                self.instance.cvar("g_economyBlackjackEnable", "1" if self.blackjack_enabled else "0")
                 self.instance.cvar("g_economyRaffleEnable", "1" if self.raffle_enabled else "0")
                 self.instance.cvar("g_economyBartenderEnable", "1" if self.bartender_enabled else "0")
             except Exception as e:
@@ -311,6 +319,9 @@ class plugin:
             commands.append("!pazaak <player> <credits> - challenge someone to Pazaak")
         if self.chance_enabled:
             commands.append("!chance <player> <credits> - red or blue coin flip")
+        if self.blackjack_enabled:
+            commands.append("!blackjack <credits> - a hand against the dealer, up to "
+                            + self.cvars.get("g_blackjackMaxBet", "50") + " credits; !bj hit, stand or double")
         if self.bet_enabled:
             commands.append("!bet - bet on duels; duellists type !bets start in the first 10 seconds")
         if self.raffle_enabled:
