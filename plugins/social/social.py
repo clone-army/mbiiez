@@ -108,16 +108,22 @@ class plugin:
 
         while(True):
             try:
-                self.instance.cvar("g_socialMode", "1" if self.enabled else "0")
-                self.instance.cvar("g_socialRespawnTime", str(self.respawn_seconds))
-                self.instance.cvar("g_socialDuels", "1" if self.duels else "0")
-                self.instance.cvar("g_socialRoundTime", str(self.round_seconds))
-                # rcon directly: instance.cvar() would also make it a startup cvar.
+                # Spaced out: the engine takes about 10 rcon commands a second
+                # from one address and silently drops the rest, which lost
+                # the later settings in this batch.
+                for key, value in (("g_socialMode", "1" if self.enabled else "0"),
+                                   ("g_socialRespawnTime", str(self.respawn_seconds)),
+                                   ("g_socialDuels", "1" if self.duels else "0"),
+                                   ("g_socialRoundTime", str(self.round_seconds)),
+                                   ("g_socialAutoSpawn", str(self.auto_spawn)),
+                                   ("g_barFightEnable", str(self.barfight))):
+                    self.instance.cvar(key, value)
+                    time.sleep(0.25)
+                # These have spaces: rcon only, never startup cvars (they'd
+                # break the launch command line).
                 for name, part in zip(("g_socialNpcs", "g_socialNpcs2", "g_socialNpcs3", "g_socialNpcs4"), self._npc_chunks()):
                     self.instance.console.rcon('set {} "{}"'.format(name, part), True)
-                self.instance.cvar("g_socialAutoSpawn", str(self.auto_spawn))
-                self.instance.cvar("g_barFightEnable", str(self.barfight))
-                # Has spaces: rcon only, never a startup cvar (see g_socialNpcs).
+                    time.sleep(0.25)
                 self.instance.console.rcon('set g_barFightSpawn "{}"'.format(self.barfight_spawn), True)
             except Exception as e:
                 self.instance.exception_handler.log(e)
