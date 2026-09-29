@@ -16,6 +16,28 @@ MBII_BIN="${MBII_BIN:-mbii}"
 LOG_FILE="/tmp/mbii_update.log"
 : > "$LOG_FILE"
 
+# Instances updated while players were on - restarted by a later run, once
+# they're empty. "mbii restart" refuses (exit 3) to restart a populated
+# server, so an update never kicks anyone.
+PENDING_DIR="$SCRIPT_DIR/.pending_restart"
+mkdir -p "$PENDING_DIR"
+
+restart_when_empty() {
+    local name="$1"
+    if $MBII_BIN -i "$name" restart >> "$LOG_FILE" 2>&1; then
+        rm -f "$PENDING_DIR/$name"
+        echo "→ Restarted instance: $name" | tee -a "$LOG_FILE"
+    else
+        touch "$PENDING_DIR/$name"
+        echo "→ $name has players - will restart it once it's empty" | tee -a "$LOG_FILE"
+    fi
+}
+
+for marker in "$PENDING_DIR"/*; do
+    [[ -e "$marker" ]] || continue
+    restart_when_empty "$(basename "$marker")"
+done
+
 get_running_instances() {
     local output
     if ! output="$($MBII_BIN -i 2>&1)"; then
@@ -70,7 +92,10 @@ if (( update_count > 1 )); then
 
     # Copy engine library if needed (only after update)
     if [[ -f "$mbii_dir/jampgamei386.nopp.so" ]]; then
-        cp "$mbii_dir/jampgamei386.nopp.so" "$mbii_dir/jampgamei386.so"
+        # Copy then rename: overwriting the .so in place would change it
+        # under every server still running it.
+        cp "$mbii_dir/jampgamei386.nopp.so" "$mbii_dir/jampgamei386.so.new"
+        mv -f "$mbii_dir/jampgamei386.so.new" "$mbii_dir/jampgamei386.so"
         echo "→ Copied engine library" | tee -a "$LOG_FILE"
     fi
 
@@ -118,8 +143,7 @@ if (( update_count > 1 )); then
             for name in "${TARGETS[@]}"; do
                 cfg="$config_dir/$name.json"
                 if [[ -f "$cfg" ]]; then
-                    echo "→ Restarting instance: $name" | tee -a "$LOG_FILE"
-                    $MBII_BIN -i "$name" restart >> "$LOG_FILE" 2>&1
+                    restart_when_empty "$name"
                 else
                     echo "⚠ Instance config not found: $name (skipping)" | tee -a "$LOG_FILE"
                 fi

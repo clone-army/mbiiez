@@ -18,3 +18,4 @@ web_secret.key
 homepaths/
 nohup.out
 *.bak-*
+.pending_restart/

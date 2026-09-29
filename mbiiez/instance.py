@@ -440,13 +440,31 @@ class instance:
     def listbans(self):
         self.console.rcon("g_banips")
            
-    # True / False is server empty       
+    # How many humans are on the server, or None if it didn't answer.
+    # Read from status's own "players : N humans, M bots" line, asked up to
+    # three times: a server that's hitching or rate-limiting rcon mustn't
+    # read as empty.
+    def humans_count(self):
+        for attempt in range(3):
+            try:
+                status = self.console.rcon("status notrunc")
+            except Exception:
+                status = None
+            match = re.search(r"players\s*:\s*(\d+)\s+humans", status or "")
+            if match:
+                return int(match.group(1))
+            time.sleep(1)
+        return None
+
+    # True only if the server is certainly empty: nobody on, or not running
+    # at all. Unknown (no answer) counts as busy - everything that restarts
+    # a server on its own (scheduled restarter, update.sh, build.sh, map
+    # rotation) relies on this never letting a populated server through.
     def is_empty(self):
-        if(self.players_count() > 0):
-            return False
-        else:
+        if not self.server_running():
             return True
-           
+        return self.humans_count() == 0
+
     # Int of the number of players in game        
     def players_count(self):
         return len(self.players())
@@ -840,10 +858,16 @@ class instance:
             output.append(f"{bcolors.CYAN}Uptime: {bcolors.ENDC}{info['uptime']}")
             output.append(f"{bcolors.CYAN}Version: {bcolors.ENDC}{self.version()}")
 
-            if info['players_count'] > 0:
-                output.append(f"{bcolors.CYAN}Players: {bcolors.ENDC}{bcolors.GREEN}{info['players_count']}/32{bcolors.ENDC}")
+            # Humans, from status's own count (the reboot script and anything
+            # else parsing this line decide on it); "?" if the server didn't
+            # answer, which they read as busy rather than empty.
+            humans = self.humans_count()
+            if humans is None:
+                output.append(f"{bcolors.CYAN}Players: {bcolors.ENDC}{bcolors.YELLOW}?/32 (server didn't answer){bcolors.ENDC}")
+            elif humans > 0:
+                output.append(f"{bcolors.CYAN}Players: {bcolors.ENDC}{bcolors.GREEN}{humans}/32{bcolors.ENDC}")
             else:
-                output.append(f"{bcolors.CYAN}Players: {bcolors.ENDC}{bcolors.RED}{info['players_count']}/32{bcolors.ENDC}")
+                output.append(f"{bcolors.CYAN}Players: {bcolors.ENDC}{bcolors.RED}{humans}/32{bcolors.ENDC}")
         else:
             output.append(f"{bcolors.RED}Server is not running.{bcolors.ENDC}")
         output.append("------------------------------------")
@@ -886,35 +910,40 @@ class instance:
             return "Unknown"
 
 
- # Stop the instance
+ # Stop the instance. Returns False if it refused.
+    #
+    # A running server with anyone on it (or that won't say who's on it) is
+    # only ever stopped with force=True - the web panel's buttons and
+    # "--force" on the command line - or after a "y" at the prompt in a
+    # terminal. Anything automated (cron's update.sh, the scheduled
+    # restarter, the Discord bot) gets False instead, never a kicked server.
     def stop(self, force = False):
-    
-        if(self.server_running()):   
-            try:
-                players = self.players()
-            except Exception:
-                # Engine wedged / RCON dead — just stop.
-                players = []
-            confirm = 'n'
-            
-            # Check if we're being called from a web interface context
-            # by checking if stdin is not a TTY (terminal)
-            import sys
-            is_web_context = not sys.stdin.isatty()
-            
-            if len(players) >= 2 and not force and not is_web_context:
-                confirm = input(bcolors.RED + "There are more than 2 active players. Are you sure you want to stop the instance? (y/n): " + bcolors.ENDC).lower()
 
-            if len(players) < 2 or confirm == 'y' or is_web_context:
-                self.process_handler.stop_all()
+        if(self.server_running()):
+            if not force:
+                humans = self.humans_count()
+                import sys
+                if humans is None or humans > 0:
+                    who = "players on it" if humans else "no answer about who's on it"
+                    if not sys.stdin.isatty():
+                        self.log_handler.log("Refusing to stop {} without force: {}.".format(self.name, who))
+                        return False
+                    confirm = input(bcolors.RED + "{} has {}. Stop it anyway? (y/n): ".format(self.name, who) + bcolors.ENDC).lower()
+                    if confirm != 'y':
+                        return False
 
-                if os.path.exists(self.config['server']['log_path']):
-                    os.remove(self.config['server']['log_path'])
+            self.process_handler.stop_all()
+
+            if os.path.exists(self.config['server']['log_path']):
+                os.remove(self.config['server']['log_path'])
         else:
             self.process_handler.stop_all()
-       
-    # Stop then start the instance
-    def restart(self):     
-        self.stop()
+        return True
+
+    # Stop then start the instance. Returns False if stop() refused.
+    def restart(self, force = False):
+        if self.stop(force) is False:
+            return False
         time.sleep(2)
         self.start()
+        return True

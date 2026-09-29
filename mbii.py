@@ -112,9 +112,13 @@ class main:
 
             target_method = getattr(inst, command)
             if params:
-                target_method(*params)
+                result = target_method(*params)
             else:
-                target_method()
+                result = target_method()
+            # stop/restart refused (players on): exit 3 so scripts can tell.
+            if command in ['stop', 'restart'] and result is False:
+                print("{} not {}: players are on (use --force to override).".format(instance_name, "stopped" if command == "stop" else "restarted"))
+                exit(3)
             exit()
 
         if(args.instances):
