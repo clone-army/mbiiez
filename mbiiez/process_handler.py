@@ -181,6 +181,32 @@ class process_handler:
             return p['pid']
         return 0
 
+    def _own_screen_sessions(self, include_dead=False):
+        """This instance's screen sessions, as screen -ls names them
+        ("12345.mb2_legends"). Matched on the exact name: "mb2_legends" is a
+        prefix of "mb2_legends2", and both screen -S and a substring check
+        treated them as the same session - so stopping or checking legends
+        killed or counted legends2's."""
+        screen_name = "mb2_{}".format(self.instance.name)
+        result = subprocess.run(["screen", "-ls"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+        sessions = []
+        for line in result.stdout.decode("utf-8", errors="replace").splitlines():
+            parts = line.split()
+            if not parts or "." not in parts[0]:
+                continue
+            if parts[0].split(".", 1)[1] != screen_name:
+                continue
+            if "(Dead" in line and not include_dead:
+                continue
+            sessions.append(parts[0])
+        return sessions
+
+    def _quit_own_screens(self):
+        for session in self._own_screen_sessions(include_dead=True):
+            os.system("screen -S {} -X quit >/dev/null 2>&1".format(session))
+        # The wrapper itself, by its exact launch command (see instance.py).
+        os.system("pkill -9 -f '^SCREEN -dmS mb2_{} ' >/dev/null 2>&1".format(self.instance.name))
+
     def process_status_name(self, name):
         """ 
         Is a process running by its name
@@ -189,18 +215,8 @@ class process_handler:
         # screen -ls uses tabs between columns, so we do a plain Python substring
         # check rather than relying on whitespace in a grep pattern.
         if name in ("OpenJK", "Dedicated Server"):
-            screen_name = "mb2_{}".format(self.instance.name)
-            result = subprocess.run(
-                ["screen", "-ls"],
-                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL
-            )
-            output = result.stdout.decode("utf-8", errors="replace")
-            # A dead screen still shows the name but has "(Dead" on the same line.
-            # Only count it as running if the name appears on a line without "(Dead".
-            for line in output.splitlines():
-                if screen_name in line and "(Dead" not in line:
-                    return True
-            return False
+            # Only this instance's own live session (a dead one shows "(Dead").
+            return len(self._own_screen_sessions()) > 0
 
         pr = db().select("processes",{"instance": self.instance.name, "name": name})
      
@@ -247,8 +263,7 @@ class process_handler:
         cfg_file = self.instance.config['server'].get('server_config_file')
         if cfg_file:
             os.system("pkill -9 -f 'exec {}' >/dev/null 2>&1".format(cfg_file))
-        os.system("screen -S {} -X quit >/dev/null 2>&1".format(screen_name))
-        os.system("pkill -9 -f 'screen.*{}' >/dev/null 2>&1".format(screen_name))
+        self._quit_own_screens()
         os.system("screen -wipe >/dev/null 2>&1")
 
         # The RTVRTM plugin's "RTVRTM Service" DB entry is only the fork wrapper's PID —
@@ -276,8 +291,7 @@ class process_handler:
                 port = self.instance.config['server'].get('port')
                 if port:
                     os.system("fuser -k -n udp {} >/dev/null 2>&1".format(port))
-                os.system("pkill -9 -f 'screen.*{}' >/dev/null 2>&1".format(screen_name))
-                os.system("screen -S {} -X quit >/dev/null 2>&1".format(screen_name))
+                self._quit_own_screens()
             return False
         else:
             for p in pr:
