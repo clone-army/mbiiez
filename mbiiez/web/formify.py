@@ -334,7 +334,15 @@ def describe_field_spec(spec, config_dict, plugin_name):
 
         elif field_type == "number":
             node["kind"] = "number"
-            node["value"] = value if isinstance(value, (int, float)) else 0
+            # Cvar values are usually stored as strings ("5"); show them as
+            # the number they are rather than 0, which saving would write.
+            if isinstance(value, str):
+                try:
+                    number = float(value)
+                    value = int(number) if number.is_integer() else number
+                except ValueError:
+                    value = 0
+            node["value"] = value if isinstance(value, (int, float)) and not isinstance(value, bool) else 0
 
         elif field_type == "password":
             node["kind"] = "password"

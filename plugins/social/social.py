@@ -26,6 +26,9 @@ class plugin:
                      "label": "Duels (bow at someone to challenge)"},
                     {"path": ["round_minutes"], "key": "round_minutes", "type": "number", "default": 0,
                      "label": "Round Length (minutes, 0 = map default)"},
+                    {"path": ["cvars", "g_inactivitySpec"], "key": "g_inactivitySpec", "type": "number", "default": 0,
+                     "label": "Move Idle Players to Spectator After (seconds, 0 = never)",
+                     "help": "MBII's g_inactivitySpec. Social servers usually leave it at 0 so people can sit and chat."},
                 ],
             },
         ]

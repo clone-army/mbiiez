@@ -156,6 +156,109 @@ class plugin:
         "g_barCost_doctor_vodka": "40",
     }
 
+    # Labels for the Config page (web_config_sections), by section. Every
+    # default_cvars key appears in exactly one; shop and bar prices are
+    # listed from default_cvars itself.
+    CONFIG_SECTIONS = [
+        ("Economy", [
+            ("g_creditSystemEnable", "bool", "Credit System (accounts, earning credits, !balance, !gift)"),
+            ("g_economyRegisterBonus", "number", "Welcome Bonus for Registering (credits)"),
+            ("g_economyDailyBonus", "number", "Daily Login Bonus (credits, first !login in 24h on any server; 0 = off)"),
+            ("g_economyShopEnable", "bool", "Shop (!buy)"),
+            ("g_economyBountyEnable", "bool", "Bounties (!bounty)"),
+        ]),
+        ("Economy: Bar", [
+            ("g_economyBarEnable", "bool", "Bar (!bar drinks)"),
+            ("g_barTabMinutes", "number", "Bar Tab Window (minutes)"),
+            ("g_barPassOutDrinks", "number", "Drinks in the Window to Pass Out"),
+            ("g_barPoisoningDrinks", "number", "Drinks in the Window for Alcohol Poisoning (death)"),
+            ("g_barSpiceOverdose", "number", "Spice in the Window to Overdose (death)"),
+        ]),
+        ("Economy: Jukebox", [
+            ("g_economyJukeboxEnable", "bool", "Jukebox (!jukebox)"),
+            ("g_jukeboxCost", "number", "Cost of a Track (credits)"),
+            ("g_jukeboxCooldown", "number", "Seconds Before the Track Can Be Changed"),
+        ]),
+        ("Economy: Games", [
+            ("g_economyPazaakEnable", "bool", "Pazaak (!pazaak, player vs player)"),
+            ("g_economyChanceEnable", "bool", "Chance (!chance, red or blue)"),
+            ("g_economyBlackjackEnable", "bool", "Blackjack (!blackjack, against the house)"),
+            ("g_blackjackMaxBet", "number", "Blackjack Maximum Bet (credits)"),
+        ]),
+        ("Economy: Duel Betting", [
+            ("g_economyBetEnable", "bool", "Duel Betting (!bet)"),
+            ("g_betWindowSeconds", "number", "Betting Window (seconds, fighters frozen)"),
+            ("g_betMax", "number", "Maximum Bet on a Fight (credits)"),
+            ("g_betWinBonus", "number", "Win Bonus (credits, up to the stake)"),
+            ("g_betLoserRefund", "number", "Refund to Losers When Nobody Backed the Winner (%)"),
+        ]),
+        ("Economy: Raffle", [
+            ("g_economyRaffleEnable", "bool", "Raffle (!raffle)"),
+            ("g_raffleIntervalMinutes", "number", "Minutes Between Draws"),
+            ("g_raffleOpenMinutes", "number", "Minutes Tickets Are on Sale Before a Draw"),
+            ("g_raffleTicketPrice", "number", "Ticket Price (credits)"),
+            ("g_raffleMinEntrants", "number", "Minimum Entrants (fewer = everyone refunded)"),
+        ]),
+        ("Economy: AI Bartender", [
+            ("g_bartenderCost", "number", "Cost of a Question (credits)"),
+            ("g_bartenderCooldown", "number", "Seconds Between One Player's Questions"),
+            ("g_bartenderDailyCap", "number", "Most Questions Answered a Day (0 = no cap)"),
+            ("g_bartenderPublic", "bool", "Everyone Sees Questions and Answers (off = only the asker)"),
+        ]),
+    ]
+
+    @staticmethod
+    def web_hide_default_card():
+        return True
+
+    @staticmethod
+    def web_config_sections(instance_name, instance_config):
+        defaults = plugin.default_cvars
+
+        def field(key, kind, label):
+            spec = {"path": ["cvars", key], "key": key, "label": label, "help": key}
+            if kind == "bool":
+                spec.update({"type": "bool_select", "default": defaults.get(key, "0")})
+            else:
+                spec.update({"type": "number", "default": int(defaults.get(key, "0"))})
+            return spec
+
+        sections = []
+        for title, rows in plugin.CONFIG_SECTIONS:
+            fields = [field(key, kind, label) for key, kind, label in rows]
+            if title == "Economy: AI Bartender":
+                fields = [
+                    {"path": ["bartender", "api_key"], "key": "api_key", "type": "password",
+                     "label": "Anthropic API Key (blank = no bartender)"},
+                    {"path": ["bartender", "enabled"], "key": "enabled", "type": "bool_select", "default": 1,
+                     "label": "Bartender On (when there's a key)"},
+                    {"path": ["bartender", "model"], "key": "model", "type": "text",
+                     "default": plugin.BARTENDER_MODEL, "label": "Claude Model"},
+                    {"path": ["bartender", "max_tokens"], "key": "max_tokens", "type": "number", "default": 120,
+                     "label": "Longest Answer (tokens)"},
+                    {"path": ["bartender", "personality"], "key": "personality", "type": "textarea",
+                     "label": "Extra Personality Notes (optional)"},
+                ] + fields
+            sections.append({"label": title, "path": [], "fields": fields})
+
+        drinks = [field("g_barCost_" + d, "number", name + " (credits, 0 = off the menu)")
+                  for d, name, _ in plugin.BAR_MENU]
+        sections.append({"label": "Economy: Bar Prices", "path": [], "fields": drinks})
+
+        shop = [field(key, "number", key[len("g_shopCost_"):].replace("_", " ").title() + " (credits, 0 = not sold)")
+                for key in defaults if key.startswith("g_shopCost_")]
+        sections.append({"label": "Economy: Shop Prices", "path": [], "fields": shop})
+        return sections
+
+    @staticmethod
+    def _cvar_string(value):
+        # The Config page saves numbers and true/false; the engine wants strings.
+        if isinstance(value, bool):
+            return "1" if value else "0"
+        if isinstance(value, float) and value.is_integer():
+            return str(int(value))
+        return str(value)
+
     def __init__(self, instance):
         self.instance = instance
         self.config = self.instance.config['plugins'].get('creditsystem', {})
@@ -163,7 +266,7 @@ class plugin:
         # Start from defaults, then apply any per-instance overrides from the
         # plugin's "cvars" JSON config key.
         cvars = dict(self.default_cvars)
-        cvars.update(self.config.get('cvars', {}))
+        cvars.update({k: self._cvar_string(v) for k, v in (self.config.get('cvars', {}) or {}).items()})
         for key, value in cvars.items():
             self.instance.register_plugin_cvar(key, value)
 
@@ -184,7 +287,7 @@ class plugin:
         self.bartender = self.config.get('bartender', {}) or {}
         self.bartender_enabled = (self.economy_enabled
                                   and bool(self.bartender.get('api_key'))
-                                  and self.bartender.get('enabled', True))
+                                  and self._cvar_string(self.bartender.get('enabled', 1)) not in ("0", "false", "False", ""))
 
         if self.instance.has_plugin("auto_message") and self.economy_enabled:
             msgs = self.instance.config['plugins']['auto_message']['messages']

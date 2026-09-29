@@ -271,6 +271,11 @@ class instance:
 
     def register_plugin_cvar(self, key, value):
         """Register a CVar to be written into the generated server config."""
+        # Config page saves can be true/false or 5.0; the engine wants 1/0 and 5.
+        if isinstance(value, bool):
+            value = "1" if value else "0"
+        elif isinstance(value, float) and value.is_integer():
+            value = int(value)
         self.plugin_cvars[str(key)] = str(value)
 
     def _apply_plugin_cvars(self):
