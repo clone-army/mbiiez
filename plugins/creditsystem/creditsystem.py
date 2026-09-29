@@ -596,15 +596,21 @@ class plugin:
                 rows = []
 
         rows.sort(key=lambda r: r[1], reverse=True)
+        admins = plugin._read_admins()
 
         return [
             {
                 "type": "table",
                 "title": "Registered Accounts",
-                "help": "Shared across every instance on this box - accounts and balances aren't per-server. Click a row to fill in the Give Credits form below.",
+                "help": ("Shared across every instance on this box - accounts and balances aren't per-server. Click a row to fill "
+                         "in the Give Credits form below. Admin: can start bar fights and record NPC routes on social servers "
+                         "while logged in (takes effect within seconds, on every server)."),
                 "searchable": True,
-                "columns": ["Handle", "Credits"],
-                "rows": [[handle, credits] for handle, credits in rows],
+                "columns": ["Handle", "Credits", "Admin"],
+                "rows": [[handle, credits, {"toggle": {"action": "set_admin", "key": handle,
+                                                       "checked": handle.lower() in admins,
+                                                       "title": "Admin on social servers"}}]
+                         for handle, credits in rows],
                 "row_action": {"fill_form": "give_credits", "fill_field": "player", "value_column": 0},
             },
             {
@@ -628,8 +634,48 @@ class plugin:
             },
         ]
 
+    ADMINS_FILE = "economy_admins.dat"
+
+    @staticmethod
+    def _admins_path():
+        return os.path.join(settings.locations.mbii_path, plugin.ADMINS_FILE)
+
+    @staticmethod
+    def _read_admins():
+        """Lower-cased handles in economy_admins.dat (one a line) - the
+        engine reads the same file to decide who's an admin."""
+        try:
+            with open(plugin._admins_path(), "r", encoding="utf-8", errors="ignore") as f:
+                return set(w.lower() for w in f.read().split())
+        except FileNotFoundError:
+            return set()
+
+    @staticmethod
+    def _set_admin(handle, on):
+        import fcntl
+        path = plugin._admins_path()
+        fd = os.open(path, os.O_RDWR | os.O_CREAT, 0o644)
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX)
+            with os.fdopen(fd, "r+", encoding="utf-8", errors="ignore") as f:
+                handles = [w for w in f.read().split() if w.lower() != handle.lower()]
+                if on:
+                    handles.append(handle)
+                f.seek(0)
+                f.write("".join(h + "\n" for h in handles))
+                f.truncate()
+        except Exception as e:
+            return False, "Could not update admins: {}".format(e)
+        return True, "{} is {} an admin.".format(handle, "now" if on else "no longer")
+
     @staticmethod
     def web_action(instance_name, action_name, form_data):
+        if action_name == "set_admin":
+            form_data = form_data or {}
+            handle = str(form_data.get("key", "")).strip()
+            if not handle or len(handle) > 23 or not all(c.isalnum() or c == "_" for c in handle):
+                return False, "Not a valid account handle."
+            return plugin._set_admin(handle, str(form_data.get("on", "")) == "1")
         if action_name != "give_credits":
             return False, "Unknown action."
 
