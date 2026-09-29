@@ -30,8 +30,8 @@ class plugin:
                      "label": "Put Joiners In Automatically After (seconds, 0 = off)",
                      "help": "Anyone not in the game this long after joining is spawned as !spawn would. Not people who chose to spectate."},
                     {"path": ["npcs"], "key": "npcs", "type": "text", "default": "",
-                     "label": "NPCs on the Map (type x y z yaw; separate several with ;)",
-                     "help": "e.g. bartender 4008 -550 -1769 169. Stand on the spot and type /viewpos for x y z (take 36 off z) and the facing."},
+                     "label": "NPCs on the Map (type x y z yaw pose; separate several with ;)",
+                     "help": "e.g. bartender 4008 -550 -1769 169 bartend. Pose: sit, idle, bartend, roam, or none. /viewpos on the spot gives x y z (take ~30 off z) and the facing."},
                     {"path": ["cvars", "g_inactivitySpec"], "key": "g_inactivitySpec", "type": "number", "default": 0,
                      "label": "Move Idle Players to Spectator After (seconds, 0 = never)",
                      "help": "MBII's g_inactivitySpec. Social servers usually leave it at 0 so people can sit and chat."},
@@ -79,6 +79,20 @@ class plugin:
                     "^5Fancy a fight? Face any player and bow (^7K^5). If they bow back, it's a duel to the death - any class, any weapon."
                 )
 
+    def _npc_chunks(self):
+        """The NPC list split over the four g_socialNpcs cvars (255
+        characters each), at ';' boundaries; always four entries."""
+        chunks, current = [], ""
+        for entry in [e.strip() for e in self.npcs.replace('"', '').split(";") if e.strip()]:
+            if current and len(current) + 1 + len(entry) > 240:
+                chunks.append(current)
+                current = entry
+            else:
+                current = entry if not current else current + ";" + entry
+        if current:
+            chunks.append(current)
+        return (chunks + ["", "", "", ""])[:4]
+
     def register(self):
         self.instance.process_handler.register_service("Social Mode Service", self.social_service)
 
@@ -92,7 +106,8 @@ class plugin:
                 self.instance.cvar("g_socialDuels", "1" if self.duels else "0")
                 self.instance.cvar("g_socialRoundTime", str(self.round_seconds))
                 # rcon directly: instance.cvar() would also make it a startup cvar.
-                self.instance.console.rcon('set g_socialNpcs "{}"'.format(self.npcs.replace('"', '')), True)
+                for name, part in zip(("g_socialNpcs", "g_socialNpcs2", "g_socialNpcs3", "g_socialNpcs4"), self._npc_chunks()):
+                    self.instance.console.rcon('set {} "{}"'.format(name, part), True)
                 self.instance.cvar("g_socialAutoSpawn", str(self.auto_spawn))
             except Exception as e:
                 self.instance.exception_handler.log(e)

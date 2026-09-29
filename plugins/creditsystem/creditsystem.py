@@ -404,7 +404,7 @@ class plugin:
         ("mustafar_magma", "Mustafar Magma", "you're on fire (just for show) for a minute"),
         ("ion_fizz", "Ion Fizz", "you crackle with electricity for a minute"),
         ("death_stick", "Death Stick", "a buzz, smoke and hiccups - you'll want to go home and rethink your life"),
-        ("spice", "Spice", "floaty, spinny and hazy for 45 seconds"),
+        ("spice", "Spice", "floaty, woozy and seeing red for 45 seconds - three in five minutes is an overdose"),
         ("nurse_wine", "Nurse Wine", "cures every drink effect and clears your tab"),
         ("doctor_vodka", "Doctor Vodka", "one of everything on the menu, all at once"),
     ]
