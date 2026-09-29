@@ -69,3 +69,34 @@ Values are strings, as they're written straight into the server config.
 
 **Give Credits works for online players too**: a logged-in session picks up changes to its stored balance
 within about 5 seconds (and before any `!balance`, `!buy` or `!bar`), and tells the player they were topped up.
+
+## AI bartender (`!bartender`)
+
+Players ask the Cantina's bartender anything with `!bartender <question>` (or `!barkeep`) and a grumpy Mos Eisley
+barkeep answers in chat, knowing the drinks menu, prices and every economy command that's switched on here. It uses
+Claude's cheapest model (`claude-haiku-4-5-20251001`) through the Anthropic API, and is on only when there's a key:
+
+```json
+"creditsystem": {
+    "bartender": {
+        "api_key": "sk-ant-...",
+        "model": "claude-haiku-4-5-20251001",
+        "max_tokens": 120,
+        "personality": ""
+    }
+}
+```
+
+| Key | Default | Meaning |
+|---|---|---|
+| `api_key` | | Anthropic API key; blank or missing = no bartender |
+| `enabled` | `true` | `false` turns it off without removing the key |
+| `model` | `claude-haiku-4-5-20251001` | Any Claude model ID |
+| `max_tokens` | `120` | Longest answer; chat only fits a couple of sentences anyway |
+| `personality` | | Extra character notes added to the bartender's instructions |
+
+Each question costs the player `g_bartenderCost` credits (default 5), refunded if the API fails or doesn't answer
+within 60 seconds. `g_bartenderCooldown` (60) is the wait between one player's questions, `g_bartenderDailyCap` (300)
+the most this server answers a day, and `g_bartenderPublic` (1) shows questions and answers to everyone (0 = only
+the asker). The bartender remembers a player's last 3 exchanges for 15 minutes. At roughly $0.001 a question, the
+daily cap keeps the bill at a few dollars a month at most; set a spend limit in the Anthropic console as a backstop.
