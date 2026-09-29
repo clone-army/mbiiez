@@ -29,6 +29,10 @@ class plugin:
                     {"path": ["auto_spawn_seconds"], "key": "auto_spawn_seconds", "type": "number", "default": 15,
                      "label": "Put Joiners In Automatically After (seconds, 0 = off)",
                      "help": "Anyone not in the game this long after joining is spawned as !spawn would. Not people who chose to spectate."},
+                    {"path": ["barfight"], "key": "barfight", "type": "bool_select", "default": 0,
+                     "label": "Bar Fights (!barfight)"},
+                    {"path": ["barfight_spawn"], "key": "barfight_spawn", "type": "text", "default": "",
+                     "label": "Bar Fight Spawn Point (x y z yaw, on the floor)"},
                     {"path": ["npcs"], "key": "npcs", "type": "text", "default": "",
                      "label": "NPCs on the Map (type x y z yaw pose; separate several with ;)",
                      "help": "e.g. bartender 4008 -550 -1769 169 bartend. Pose: sit, idle, bartend, roam, or none. /viewpos on the spot gives x y z (take ~30 off z) and the facing."},
@@ -51,6 +55,8 @@ class plugin:
         self.round_seconds = max(0, int(self.config.get('round_minutes', 0))) * 60
         self.npcs = str(self.config.get('npcs', '') or '')
         self.auto_spawn = max(0, int(self.config.get('auto_spawn_seconds', 15)))
+        self.barfight = 1 if str(self.config.get('barfight', 0)) not in ("0", "False", "false", "") else 0
+        self.barfight_spawn = str(self.config.get('barfight_spawn', '') or '').replace('"', '')
 
         self.instance.register_startup_cvar("g_socialMode", "1" if self.enabled else "0")
         self.instance.register_startup_cvar("g_socialRespawnTime", str(self.respawn_seconds))
@@ -60,6 +66,7 @@ class plugin:
         # command line (quoted inside screen's bash -c "..."). Set over rcon
         # by the service below instead.
         self.instance.register_startup_cvar("g_socialAutoSpawn", str(self.auto_spawn))
+        self.instance.register_startup_cvar("g_barFightEnable", str(self.barfight))
 
         if self.instance.has_plugin("auto_message") and self.enabled:
             self.instance.config['plugins']['auto_message']['messages'].append(
@@ -109,6 +116,9 @@ class plugin:
                 for name, part in zip(("g_socialNpcs", "g_socialNpcs2", "g_socialNpcs3", "g_socialNpcs4"), self._npc_chunks()):
                     self.instance.console.rcon('set {} "{}"'.format(name, part), True)
                 self.instance.cvar("g_socialAutoSpawn", str(self.auto_spawn))
+                self.instance.cvar("g_barFightEnable", str(self.barfight))
+                # Has spaces: rcon only, never a startup cvar (see g_socialNpcs).
+                self.instance.console.rcon('set g_barFightSpawn "{}"'.format(self.barfight_spawn), True)
             except Exception as e:
                 self.instance.exception_handler.log(e)
 
