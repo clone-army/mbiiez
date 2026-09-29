@@ -157,6 +157,7 @@ class plugin:
         "g_barCost_spice": "20",
         "g_barCost_nurse_wine": "15",
         "g_barCost_doctor_vodka": "40",
+        "g_barCost_blaster_brew": "12",
     }
 
     # Labels for the Config page (web_config_sections), by section. Every
@@ -407,6 +408,7 @@ class plugin:
         ("spice", "Spice", "floaty, woozy and seeing red for 45 seconds - three in five minutes is an overdose"),
         ("nurse_wine", "Nurse Wine", "cures every drink effect and clears your tab"),
         ("doctor_vodka", "Doctor Vodka", "one of everything on the menu, all at once"),
+        ("blaster_brew", "Blaster Brew", "your trigger finger twitches - your weapon fires in random bursts for a minute"),
     ]
 
     def _bartender_system_prompt(self):
