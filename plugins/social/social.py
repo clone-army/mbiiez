@@ -35,6 +35,8 @@ class plugin:
                      "label": "Bar Fight Spawn Point (x y z yaw, on the floor)"},
                     {"path": ["barfight_rally"], "key": "barfight_rally", "type": "text", "default": "",
                      "label": "Bar Fight Rally Point (x y z yaw - where they head first)"},
+                    {"path": ["barfight_spawn_route"], "key": "barfight_spawn_route", "type": "text", "default": "",
+                     "label": "Bar Fight Spawn Route (a !wp route whose points they spawn at)"},
                     {"path": ["barfight_routes"], "key": "barfight_routes", "type": "text", "default": "",
                      "label": "Bar Fight Attack Routes (!wp route names, space separated - used instead of the rally point)"},
                     {"path": ["admins"], "key": "admins", "type": "text", "default": "",
@@ -66,6 +68,7 @@ class plugin:
         self.barfight_rally = str(self.config.get('barfight_rally', '') or '').replace('"', '')
         self.admins = str(self.config.get('admins', '') or '').replace('"', '')
         self.barfight_routes = str(self.config.get('barfight_routes', '') or '').replace('"', '')
+        self.barfight_spawn_route = str(self.config.get('barfight_spawn_route', '') or '').replace('"', '')
 
         self.instance.register_startup_cvar("g_socialMode", "1" if self.enabled else "0")
         self.instance.register_startup_cvar("g_socialRespawnTime", str(self.respawn_seconds))
@@ -140,6 +143,8 @@ class plugin:
                 self.instance.console.rcon('set g_socialAdmins "{}"'.format(self.admins), True)
                 time.sleep(0.25)
                 self.instance.console.rcon('set g_barFightRoutes "{}"'.format(self.barfight_routes), True)
+                time.sleep(0.25)
+                self.instance.console.rcon('set g_barFightSpawnRoute "{}"'.format(self.barfight_spawn_route), True)
             except Exception as e:
                 self.instance.exception_handler.log(e)
 
