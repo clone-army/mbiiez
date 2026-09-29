@@ -48,6 +48,8 @@ class plugin:
         "g_economyJukeboxEnable": "0",
         "g_jukeboxCost": "10",
         "g_jukeboxCooldown": "60",
+        "g_jukeboxAutoplay": "0",
+        "g_jukeboxAutoplayMax": "300",
         "g_economyPazaakEnable": "0",
         "g_economyChanceEnable": "0",
         "g_economyBlackjackEnable": "0",
@@ -180,6 +182,8 @@ class plugin:
             ("g_economyJukeboxEnable", "bool", "Jukebox (!jukebox)"),
             ("g_jukeboxCost", "number", "Cost of a Track (credits)"),
             ("g_jukeboxCooldown", "number", "Seconds Before the Track Can Be Changed"),
+            ("g_jukeboxAutoplay", "bool", "Autoplay Random Tracks When Nobody's Pick Is Playing"),
+            ("g_jukeboxAutoplayMax", "number", "Longest a Random Track Plays (seconds, 0 = whole track)"),
         ]),
         ("Economy: Games", [
             ("g_economyPazaakEnable", "bool", "Pazaak (!pazaak, player vs player)"),

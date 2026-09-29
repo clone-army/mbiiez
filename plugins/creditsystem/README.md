@@ -43,6 +43,8 @@ Everything is a cvar, set through `cvars`:
 | `g_economyBarEnable` | `"0"` | The `!bar` drinks menu |
 | `g_economyJukeboxEnable` | `"0"` | The `!jukebox`: pay to change the music for everyone |
 | `g_jukeboxCost` | `"10"` | Price of a jukebox track |
+| `g_jukeboxAutoplay` | `"0"` | Random tracks whenever nobody's pick is playing; picks play in full, then random carries on |
+| `g_jukeboxAutoplayMax` | `"300"` | Longest a random track plays, in seconds (`"0"` = the whole track) |
 | `g_jukeboxCooldown` | `"60"` | Seconds a track plays before anyone can change it |
 | `g_economyPazaakEnable` | `"0"` | `!pazaak <player> <credits>`: Pazaak against another player, winner takes the pot |
 | `g_economyRaffleEnable` | `"0"` | The `!raffle` |
