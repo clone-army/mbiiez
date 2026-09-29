@@ -26,6 +26,9 @@ class plugin:
                      "label": "Duels (bow at someone to challenge)"},
                     {"path": ["round_minutes"], "key": "round_minutes", "type": "number", "default": 0,
                      "label": "Round Length (minutes, 0 = map default)"},
+                    {"path": ["auto_spawn_seconds"], "key": "auto_spawn_seconds", "type": "number", "default": 15,
+                     "label": "Put Joiners In Automatically After (seconds, 0 = off)",
+                     "help": "Anyone not in the game this long after joining is spawned as !spawn would. Not people who chose to spectate."},
                     {"path": ["npcs"], "key": "npcs", "type": "text", "default": "",
                      "label": "NPCs on the Map (type x y z yaw; separate several with ;)",
                      "help": "e.g. bartender 4008 -550 -1769 169. Stand on the spot and type /viewpos for x y z (take 36 off z) and the facing."},
@@ -47,12 +50,14 @@ class plugin:
         self.duels = int(self.config.get('duels', 1))
         self.round_seconds = max(0, int(self.config.get('round_minutes', 0))) * 60
         self.npcs = str(self.config.get('npcs', '') or '')
+        self.auto_spawn = max(0, int(self.config.get('auto_spawn_seconds', 15)))
 
         self.instance.register_startup_cvar("g_socialMode", "1" if self.enabled else "0")
         self.instance.register_startup_cvar("g_socialRespawnTime", str(self.respawn_seconds))
         self.instance.register_startup_cvar("g_socialDuels", "1" if self.duels else "0")
         self.instance.register_startup_cvar("g_socialRoundTime", str(self.round_seconds))
         self.instance.register_startup_cvar("g_socialNpcs", self.npcs)
+        self.instance.register_startup_cvar("g_socialAutoSpawn", str(self.auto_spawn))
 
         if self.instance.has_plugin("auto_message") and self.enabled:
             self.instance.config['plugins']['auto_message']['messages'].append(
@@ -65,7 +70,7 @@ class plugin:
                 "^5Type ^7!help ^5for every command on this server."
             )
             self.instance.config['plugins']['auto_message']['messages'].append(
-                "^5Stuck in spectator? Type ^7!spawn ^5and we'll get you into the game."
+                "^5Stuck in spectator? Type ^7!spawn ^5and we'll get you in. ^7!kill ^5to respawn."
             )
             if self.duels:
                 self.instance.config['plugins']['auto_message']['messages'].append(
@@ -85,6 +90,7 @@ class plugin:
                 self.instance.cvar("g_socialDuels", "1" if self.duels else "0")
                 self.instance.cvar("g_socialRoundTime", str(self.round_seconds))
                 self.instance.cvar("g_socialNpcs", self.npcs)
+                self.instance.cvar("g_socialAutoSpawn", str(self.auto_spawn))
             except Exception as e:
                 self.instance.exception_handler.log(e)
 
