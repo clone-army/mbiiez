@@ -56,7 +56,9 @@ class plugin:
         self.instance.register_startup_cvar("g_socialRespawnTime", str(self.respawn_seconds))
         self.instance.register_startup_cvar("g_socialDuels", "1" if self.duels else "0")
         self.instance.register_startup_cvar("g_socialRoundTime", str(self.round_seconds))
-        self.instance.register_startup_cvar("g_socialNpcs", self.npcs)
+        # Not a startup cvar: its value has spaces, which break the launch
+        # command line (quoted inside screen's bash -c "..."). Set over rcon
+        # by the service below instead.
         self.instance.register_startup_cvar("g_socialAutoSpawn", str(self.auto_spawn))
 
         if self.instance.has_plugin("auto_message") and self.enabled:
@@ -89,7 +91,8 @@ class plugin:
                 self.instance.cvar("g_socialRespawnTime", str(self.respawn_seconds))
                 self.instance.cvar("g_socialDuels", "1" if self.duels else "0")
                 self.instance.cvar("g_socialRoundTime", str(self.round_seconds))
-                self.instance.cvar("g_socialNpcs", self.npcs)
+                # rcon directly: instance.cvar() would also make it a startup cvar.
+                self.instance.console.rcon('set g_socialNpcs "{}"'.format(self.npcs.replace('"', '')), True)
                 self.instance.cvar("g_socialAutoSpawn", str(self.auto_spawn))
             except Exception as e:
                 self.instance.exception_handler.log(e)
