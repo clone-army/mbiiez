@@ -113,6 +113,35 @@ Then:
 
 ---
 
+## Backing up and rebuilding the server
+
+Everything that isn't in git - instance configs, the web panel's accounts,
+player accounts and credits, admins, bans, stats, Holotable scenarios and
+accounts, NPC routes, the boot / reboot scripts and root's crontab - is saved
+by one script:
+
+```sh
+sudo ./server-backup.sh                 # a backup now, in /root/mbiiez-backups/
+sudo ./server-backup.sh --install-cron  # and every night at 04:30 (newest 14 kept)
+```
+
+Copy the newest `mbii-state-*.tar.gz` somewhere off the server now and then.
+
+To rebuild on a fresh Debian/Ubuntu box, one script does the lot - MBIIEZ's
+installer, the caded engine (clone-army/OpenJK, built and installed as
+`/usr/bin/caded.i386`), [Holotable](https://github.com/clone-army/holotable),
+restoring the backup, the cron jobs and starting everything:
+
+```sh
+git clone -b test https://github.com/clone-army/mbiiez /root/mbiiez
+cd /root/mbiiez
+sudo ./server-setup.sh --restore /path/to/mbii-state-XXXX.tar.gz
+```
+
+(If the repos are private, `export GITHUB_TOKEN=<token>` first.) Without
+`--restore` it installs the software only. Open the web panel, Holotable and
+game ports in the firewall afterwards.
+
 ## Instances
 
 An **instance** is one game server: its own name (like `open`, `duel`, `legends`), port, game mode, plugins
