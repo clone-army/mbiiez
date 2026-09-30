@@ -24,3 +24,4 @@ the web panel).
 | `gungame/` | Gun Game | yes |
 | `killstreak/` | Kill streak callouts | yes |
 | `stats/` | `!stats` and the Stats page | yes |
+| `holotable/` | Holotable NPC scenarios (`!ht`) | yes |
