@@ -9,6 +9,9 @@ class plugin:
     plugin_name = "Stats"
     plugin_author = "Louis Varley"
     plugin_url = ""
+    plugin_uses = ["accounts"]
+    plugin_engine = "caded"
+    plugin_description = "!stats and the Stats page. Tracks logged-in players by their account (Accounts), everyone else by name."
 
     instance = None
     plugin_config = None
@@ -47,7 +50,7 @@ class plugin:
 
     # ------------------------------------------------------------------
     # Web UI extension hooks (see mbiiez/plugin_loader.py). Static/optional,
-    # same contract as plugins/creditsystem/creditsystem.py.
+    # same contract as mbiiez/accounts_store.py.
     # ------------------------------------------------------------------
 
     @staticmethod

@@ -2,10 +2,14 @@
 {% import 'partials/form-field.html' as formfield %}
 {% block content %}
 <div class="page-header">
-  <h3 class="page-title">{{ view_bag.menu.label if view_bag.menu else 'Plugin' }} - {{ view_bag.instance }}</h3>
+  <h3 class="page-title">{{ view_bag.menu.label if view_bag.menu else 'Plugin' }}{% if not view_bag.global %} - {{ view_bag.instance }}{% endif %}</h3>
   <nav aria-label="breadcrumb">
     <ol class="breadcrumb">
+      {% if view_bag.global %}
+      <li class="breadcrumb-item">Every server</li>
+      {% else %}
       <li class="breadcrumb-item"><a href="/instance?instance={{ view_bag.instance }}">Instance</a></li>
+      {% endif %}
       <li class="breadcrumb-item active" aria-current="page">{{ view_bag.menu.label if view_bag.menu else view_bag.slug }}</li>
     </ol>
   </nav>
@@ -103,6 +107,9 @@
 (function () {
   const INSTANCE_NAME = {{ view_bag.instance|tojson }};
   const SLUG = {{ view_bag.slug|tojson }};
+  // Where this page's actions go: its instance's plugin, or (a page for
+  // every server) the plugin's own.
+  const ACTION_BASE = {% if view_bag.global %}'/plugins/' + encodeURIComponent({{ view_bag.plugin_name|tojson }}) + '/' + encodeURIComponent(SLUG) + '/action/'{% else %}'/plugin/' + encodeURIComponent(INSTANCE_NAME) + '/' + encodeURIComponent(SLUG) + '/action/'{% endif %};
 
   // Search box above a searchable table: filters rows by substring match
   // across every cell, case-insensitive.
@@ -169,7 +176,7 @@
     box.addEventListener('change', function () {
       const wanted = box.checked;
       box.disabled = true;
-      fetch('/plugin/' + encodeURIComponent(INSTANCE_NAME) + '/' + encodeURIComponent(SLUG) + '/action/' + encodeURIComponent(box.dataset.action), {
+      fetch(ACTION_BASE + encodeURIComponent(box.dataset.action), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key: box.dataset.key, on: wanted ? '1' : '0' })
@@ -194,7 +201,7 @@
       const data = {};
       new FormData(form).forEach(function (value, key) { data[key] = value; });
 
-      fetch('/plugin/' + encodeURIComponent(INSTANCE_NAME) + '/' + encodeURIComponent(SLUG) + '/action/' + encodeURIComponent(action), {
+      fetch(ACTION_BASE + encodeURIComponent(action), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)

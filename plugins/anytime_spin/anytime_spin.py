@@ -25,6 +25,7 @@ class plugin:
     plugin_author = "MBIIEZ"
     plugin_version = "1.0"
     plugin_url = ""
+    plugin_description = "MBII's !spin on any day, not just Sundays."
     
     def __init__(self, instance):
         self.instance = instance

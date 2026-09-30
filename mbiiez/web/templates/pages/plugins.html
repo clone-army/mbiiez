@@ -1,0 +1,156 @@
+{% extends 'base.html' %}
+{% block content %}
+<style>
+  .plugin-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; }
+  .plugin-tile { border: 1px solid var(--bs-border-color); border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 6px; transition: border-color .15s, background .15s; }
+  .plugin-tile.on { border-color: var(--bs-primary); background: rgba(var(--bs-primary-rgb), 0.06); }
+  .plugin-tile.problem { border-color: var(--bs-danger); }
+  .plugin-tile .form-switch .form-check-input { width: 2.6em; height: 1.35em; cursor: pointer; }
+  .plugin-tile h6 { margin: 0; font-weight: 600; }
+  .plugin-tile .desc { font-size: .9rem; color: var(--bs-secondary-color); flex: 1; }
+  .plugin-tile .badges .badge { font-weight: normal; margin-right: 4px; }
+  .plugin-group-title { font-size: .8rem; text-transform: uppercase; letter-spacing: .08em; color: var(--bs-secondary-color); margin: 22px 0 8px; }
+</style>
+
+<div class="page-header">
+  <h3 class="page-title">Plugins - {{ view_bag.instance }}</h3>
+  <nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item"><a href="/instance?instance={{ view_bag.instance }}">Instance</a></li>
+      <li class="breadcrumb-item active" aria-current="page">Plugins</li>
+    </ol>
+  </nav>
+</div>
+
+<div class="alert alert-info py-2 d-flex flex-wrap align-items-center gap-2">
+  <span>Engine: <code>{{ view_bag.engine or 'none' }}</code>{% if view_bag.engine_description %} - {{ view_bag.engine_description }}{% endif %}.</span>
+  <span class="text-muted">Turning a plugin on turns on what it needs. Changes apply when the server next restarts. Each plugin's own settings are on the <a href="/config?instance={{ view_bag.instance }}">Settings</a> page.</span>
+</div>
+
+{% for group in view_bag.groups %}
+<div class="plugin-group-title">{{ group.title }}</div>
+<div class="plugin-grid">
+  {% for card in group.cards %}
+  <div class="plugin-tile {% if card.enabled %}on{% endif %}" data-tile="{{ card.name }}">
+    <div class="d-flex align-items-center gap-2">
+      <div class="form-check form-switch m-0">
+        <input type="checkbox" class="form-check-input plugin-switch" role="switch" data-plugin="{{ card.name }}" id="p-{{ card.name }}" {% if card.enabled %}checked{% endif %}>
+      </div>
+      <label for="p-{{ card.name }}" class="m-0" style="cursor:pointer"><h6>{{ card.label }}</h6></label>
+    </div>
+    <div class="desc">{{ card.description or 'No description.' }}</div>
+    <div class="badges">
+      {% for r in card.requires %}<span class="badge text-bg-info" title="Needs the {{ r.label }} plugin on too">needs {{ r.label }}</span>{% endfor %}
+      {% for r in card.uses %}<span class="badge text-bg-secondary" title="Does more with {{ r.label }} on, but works without it">uses {{ r.label }}</span>{% endfor %}
+      {% if card.engine %}<span class="badge text-bg-dark" title="Only runs on this engine">{{ card.engine }}.i386</span>{% endif %}
+    </div>
+    <div class="small text-danger plugin-problem" data-problem="{{ card.name }}" style="display:none"></div>
+  </div>
+  {% endfor %}
+</div>
+{% endfor %}
+
+<div class="sticky-save-bar my-4 d-flex align-items-center gap-3">
+  <button id="plugins-save" class="btn btn-primary" disabled>Save</button>
+  <span id="plugins-state" class="text-muted small">No changes.</span>
+</div>
+
+<script type="application/json" id="original-config-json">{{ view_bag.config_content|safe }}</script>
+<script>
+(function () {
+  const INSTANCE = {{ view_bag.instance|tojson }};
+  const ENGINE = {{ view_bag.engine|tojson }};
+  const META = {{ view_bag.meta|tojson }};
+  const original = JSON.parse(document.getElementById('original-config-json').textContent);
+  const box = (n) => document.querySelector('.plugin-switch[data-plugin="' + n + '"]');
+  const label = (n) => (META[n] ? META[n].label : n);
+  const family = (e) => { e = (e || '').toLowerCase(); for (const f of ['caded', 'mbiided', 'openjkded']) if (e.startsWith(f)) return f; return e.split('.')[0]; };
+  let dirty = false;
+
+  function setOn(n, on) {
+    const b = box(n);
+    if (!b || b.checked === on) return false;
+    b.checked = on;
+    return true;
+  }
+  function requirementsOn(n, added) {
+    (META[n] ? META[n].requires : []).forEach((r) => { if (setOn(r, true)) added.push(label(r)); requirementsOn(r, added); });
+  }
+  function dependents(n, out) {
+    Object.keys(META).forEach((o) => {
+      const b = box(o);
+      if (b && b.checked && META[o].requires.includes(n) && !out.includes(o)) { out.push(o); dependents(o, out); }
+    });
+    return out;
+  }
+  // Changed = any switch differs from what's saved.
+  function changedFromSaved() {
+    const saved = Object.keys(original.plugins || {});
+    return Object.keys(META).some((n) => box(n) && box(n).checked !== saved.includes(n));
+  }
+  function refresh() {
+    dirty = changedFromSaved();
+    Object.keys(META).forEach((n) => {
+      const b = box(n), tile = document.querySelector('[data-tile="' + n + '"]'), p = document.querySelector('[data-problem="' + n + '"]');
+      if (!b) return;
+      const problems = [];
+      if (META[n].engine && family(ENGINE) !== META[n].engine) problems.push('Needs the ' + META[n].engine + '.i386 engine, so it won\'t start on this server.');
+      if (b.checked) META[n].requires.forEach((r) => { if (!box(r) || !box(r).checked) problems.push('Needs ' + label(r) + ' on too.'); });
+      tile.classList.toggle('on', b.checked);
+      tile.classList.toggle('problem', b.checked && problems.length > 0);
+      p.textContent = problems.join(' ');
+      p.style.display = problems.length ? '' : 'none';
+    });
+    document.getElementById('plugins-save').disabled = !dirty;
+    document.getElementById('plugins-state').textContent = dirty ? 'Unsaved changes.' : 'No changes.';
+  }
+  document.querySelectorAll('.plugin-switch').forEach((b) => b.addEventListener('change', () => {
+    const n = b.dataset.plugin;
+    if (b.checked) {
+      const added = [];
+      requirementsOn(n, added);
+      if (added.length) mbiiToast('Also turned on, which ' + label(n) + ' needs: ' + added.join(', ') + '.', 'info');
+    } else {
+      const deps = dependents(n, []);
+      if (deps.length) {
+        const names = deps.map(label).join(', ');
+        if (!confirm(names + ' need' + (deps.length === 1 ? 's ' : ' ') + label(n) + '. Turn ' + (deps.length === 1 ? 'it' : 'them') + ' off too?')) {
+          b.checked = true;
+          return;
+        }
+        deps.forEach((d) => setOn(d, false));
+      }
+    }
+    refresh();
+  }));
+
+  // Saves the whole config with just the plugin list changed: a plugin
+  // turned on gets an empty block (its defaults), one turned off loses its
+  // block - as the Settings page's switches do.
+  document.getElementById('plugins-save').addEventListener('click', () => {
+    const cfg = JSON.parse(JSON.stringify(original));
+    const plugins = {};
+    Object.keys(cfg.plugins || {}).forEach((n) => { if (!box(n) || box(n).checked) plugins[n] = cfg.plugins[n]; });
+    Object.keys(META).forEach((n) => { if (box(n) && box(n).checked && !(n in plugins)) plugins[n] = {}; });
+    cfg.plugins = plugins;
+    const btn = document.getElementById('plugins-save');
+    btn.disabled = true;
+    fetch('/config/save', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ instance: INSTANCE, content: JSON.stringify(cfg, null, 2) })
+    }).then((r) => r.json()).then((d) => {
+      if (d.success) {
+        mbiiToast('Saved ' + INSTANCE + '. Restart it for plugin changes to take effect.', 'success');
+        document.getElementById('original-config-json').textContent = JSON.stringify(cfg);
+        Object.assign(original, cfg);
+      } else {
+        mbiiToast('Not saved: ' + (d.error || d.message || 'failed'), 'danger');
+      }
+      refresh();
+    }).catch((e) => { mbiiToast('Not saved: ' + e, 'danger'); refresh(); });
+  });
+  window.addEventListener('beforeunload', (e) => { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
+  refresh();
+})();
+</script>
+{% endblock %}

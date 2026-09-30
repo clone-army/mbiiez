@@ -19,7 +19,13 @@ the web panel).
 | `anytime_spin/` | MBII `!spin` on any day | |
 | `ai/` | AI chat assistant (OpenRouter) | |
 | `discord_bot/` | Discord chat relay (experimental) | |
-| `creditsystem/` | Economy: credits, shop, bounties, accounts | yes |
+| `accounts/` | Player accounts, logins, admins - the Accounts page | yes |
+| `credits/` | Credits, `!balance`, `!gift` - the Credits page (needs accounts) | yes |
+| `shop/` | `!buy` (needs credits) | yes |
+| `bounties/` | `!bounty` (needs credits) | yes |
+| `bar/` | `!bar` drinks and the AI bartender (needs credits) | yes |
+| `jukebox/` | `!jukebox` (needs credits) | yes |
+| `casino/` | Blackjack, pazaak, chance, betting, raffle (needs credits) | yes |
 | `chaos/` | Chaos Mode | yes |
 | `gungame/` | Gun Game | yes |
 | `killstreak/` | Kill streak callouts | yes |

@@ -11,6 +11,7 @@ class plugin:
     plugin_name = "Discord Bot"
     plugin_author = "Your Name"
     plugin_url = ""
+    plugin_description = "Relays in-game chat to a Discord channel (experimental)."
     
     def __init__(self, instance):
         self.instance = instance

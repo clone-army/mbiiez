@@ -6,6 +6,8 @@ class plugin:
     plugin_name = "Gun Game"
     plugin_author = "Louis Varley"
     plugin_url = ""
+    plugin_engine = "caded"
+    plugin_description = "Gun Game: each kill moves you to the next weapon."
 
     instance = None
     plugin_config = None

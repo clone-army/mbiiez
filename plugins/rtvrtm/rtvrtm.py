@@ -118,6 +118,7 @@ class plugin:
     plugin_author = "klax / Cthulhu (Python3 port + MBIIEZ integration)"
     plugin_version = "3.6c"
     plugin_url = ""
+    plugin_description = "Rock the Vote / Rock the Mode: players vote to change map or mode."
     
     @staticmethod
     def web_hide_default_card():

@@ -6,6 +6,9 @@ class plugin:
     plugin_name = "Social Mode"
     plugin_author = "Louis Varley"
     plugin_url = ""
+    plugin_uses = ["accounts"]
+    plugin_engine = "caded"
+    plugin_description = "Social mode: no damage outside duels, spawn any time, emotes, cantina NPCs and bar fights. Admins (Accounts) start bar fights and record NPC routes."
 
     @staticmethod
     def web_hide_default_card():

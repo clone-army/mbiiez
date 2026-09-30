@@ -47,6 +47,7 @@ class plugin:
     plugin_name = "Auto Messages"
     plugin_author = "Louis Varley"
     plugin_url = ""
+    plugin_description = "Rotating server messages - other plugins add a line each about themselves."
 
     @staticmethod
     def web_hide_default_card():

@@ -10,6 +10,8 @@ For what the included plugins do, see the [README](README.md#included-plugins).
 
 ## Contents
 
+- [Dependencies and engines](#dependencies-and-engines)
+
 - [Quick start](#quick-start)
 - [How plugins are found and loaded](#how-plugins-are-found-and-loaded)
 - [The plugin class](#the-plugin-class)
@@ -223,7 +225,7 @@ Three ways to set a cvar, depending on when it has to be in place:
 | A `"cvars"` object in the plugin's config | Written into the generated server config automatically | Letting admins set any cvar from JSON with no code at all |
 | `instance.cvar(key, value)` | Immediately, over RCON | Changing things while running |
 
-The included feature plugins (`chaos`, `killstreak`, `stats`, `creditsystem`) combine them:
+The included feature plugins (`chaos`, `killstreak`, `stats`, `credits`...) combine them:
 
 1. set the cvar once at startup (`register_startup_cvar`), and
 2. run a service that re-applies it with `instance.cvar()` every ~60 seconds, so a stray manual `rcon set`
@@ -247,6 +249,44 @@ def reassert(self):
 ```
 
 ---
+
+## Dependencies and engines
+
+A plugin says what it needs as class attributes, next to `plugin_name`:
+
+```python
+class plugin:
+    plugin_name = "Holotable"
+    plugin_description = "One line shown on the Plugins page."
+    plugin_requires = ["accounts"]   # plugins that must be on too
+    plugin_uses = ["accounts"]       # plugins it does more with, if they're on
+    plugin_engine = "caded"          # engine family it needs (None / left out = any)
+```
+
+- **At start-up** plugins are loaded requirements first. One whose requirements aren't on, or whose engine
+  isn't the instance's, doesn't start - `[Skipped] Plugin X not started: needs the Accounts plugin` in the
+  start-up output and the instance log - and neither does anything that needs it.
+- **On the Plugins page** (each instance's own menu) and the Settings page, each plugin shows what it needs,
+  what it uses and its engine. Turning a plugin on turns on what it needs; turning off something others
+  need asks first and turns them off too. A plugin that can't run on the instance's engine says so.
+- **Engines** are families by file name: `caded*.i386` (`caded.i386`, `caded-test.i386`...) is `caded`,
+  `mbiided*.i386` is `mbiided`, `openjkded*.i386` is `openjkded`. The engine picker lists every
+  `*ded*.i386` in `/usr/bin` (`plugin_loader.list_engines()`).
+- `mbiiez/plugin_loader.py`: `get_plugin_requirements()`, `plugin_problems()`, `resolve_load_order()`.
+
+### Split and renamed plugins
+
+When a plugin is split or renamed, `mbiiez/plugin_migrations.py` turns the old config shape into the new one.
+Instances and the web panel apply it as they read a config, so an old config still works; `python3 -m
+mbiiez.plugin_migrations` rewrites the files once (keeping `*.pre-split.bak` copies). The Credit System
+(`creditsystem`) became **accounts**, **credits**, **shop**, **bounties**, **bar**, **jukebox** and
+**casino** this way.
+
+### Plugins built on engine cvars
+
+Plugins that just switch caded features on and own some settings (accounts, credits, shop...) subclass
+`mbiiez.economy_plugin.CvarPlugin`: `switches` (cvars it turns on), `default_cvars`, `sections` (Settings
+page fields, each with an optional help line), `section_hints` and `announce()` (Auto Messages lines).
 
 ## Web panel integration
 
@@ -394,8 +434,32 @@ def web_page(instance_name, instance_config):
 | `config_form` | Settings fields (same specs as above) bound to the instance's config, with a sticky Save bar, Ctrl+S and the same save path as the Settings page. |
 | `error` | A red message box (`message`) |
 
-Only put data an admin should see in tables. For example, the Economy page shows account handles and
+Only put data an admin should see in tables. For example, the Credits page shows account handles and
 balances but never the password hashes stored beside them.
+
+### Pages for every server (`web_global_menu` / `web_global_page`)
+
+Some things aren't one instance's - accounts and balances are shared by every server. A plugin can add
+top-level menu items (under Bans, for admins) with three optional static hooks:
+
+```python
+@staticmethod
+def web_global_menu():
+    return [{"label": "Accounts", "icon": "fa-id-card", "slug": "accounts"}]
+
+@staticmethod
+def web_global_page(slug):
+    return [...sections, exactly as web_page() returns...]
+
+@staticmethod
+def web_global_action(slug, action_name, form_data):
+    return True, "Done."
+```
+
+They show while the plugin is on for at least one instance (or always, with `plugin_global_always = True`).
+Pages live at `/plugins/<plugin>/<slug>`; their tables, toggles and action forms post to
+`/plugins/<plugin>/<slug>/action/<name>`. The Accounts and Credits pages are built this way
+(`plugins/accounts`, `plugins/credits`; the shared file handling is `mbiiez/accounts_store.py`).
 
 ### Actions (`web_action`)
 
@@ -414,7 +478,7 @@ def web_action(instance_name, action_name, form_data):
 Validate everything in `form_data`: it comes straight from the browser. Return `(True, message)` or
 `(False, message)`; the message is shown to the admin, and successful actions go into the audit log. If you
 edit a file the engine also writes (like `economy_accounts.dat`), take the same file lock the engine uses:
-see `_apply_credit_delta` in `plugins/creditsystem/creditsystem.py`.
+see `mbiiez/accounts_store.py`.
 
 ### Mod page actions (`web_mod_actions`)
 

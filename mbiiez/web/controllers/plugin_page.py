@@ -1,7 +1,7 @@
 import os
 import json
 
-from mbiiez import plugin_loader, settings
+from mbiiez import plugin_loader, plugin_migrations, settings
 from mbiiez.web import formify
 from mbiiez.web import maps_catalog
 
@@ -16,7 +16,7 @@ def load_instance_config(instance_name):
         return None
     try:
         with open(config_path, "r", encoding="utf-8") as f:
-            return json.load(f)
+            return plugin_migrations.migrate(json.load(f))[0]
     except Exception:
         return None
 
@@ -30,6 +30,27 @@ def find_menu_entry(instance_name, instance_config, slug):
         if entry and entry.get("slug") == slug:
             return plugin_name, entry
     return None, None
+
+
+def all_instance_configs():
+    configs = {}
+    try:
+        names = [f[:-5] for f in os.listdir(settings.locations.config_path) if f.endswith(".json")]
+    except OSError:
+        names = []
+    for name in names:
+        cfg = load_instance_config(name)
+        if cfg is not None:
+            configs[name] = cfg
+    return configs
+
+
+def find_global_entry(plugin_name, slug):
+    """The global menu entry plugin_name offers for slug, if it's in use."""
+    for entry in plugin_loader.global_menus(all_instance_configs()):
+        if entry.get("plugin") == plugin_name and entry.get("slug") == slug:
+            return entry
+    return None
 
 
 class controller:
@@ -90,6 +111,25 @@ class controller:
             except Exception:
                 self.controller_bag["config_content"] = json.dumps(instance_config, indent=2)
             self.controller_bag["maps_catalog"] = maps_catalog.get_maps()
+
+    @staticmethod
+    def global_page(plugin_name, slug):
+        """A plugin page that isn't any one instance's (web_global_page)."""
+        bag = {"instance": None, "slug": slug, "plugin_name": plugin_name, "menu": None, "sections": [],
+               "error": None, "config_content": None, "maps_catalog": [], "global": True}
+        entry = find_global_entry(plugin_name, slug)
+        if not entry:
+            bag["error"] = "No plugin in use provides the page '{}'.".format(slug)
+            return bag
+        bag["menu"] = entry
+        bag["sections"] = plugin_loader.call_web_global_page(plugin_name, slug) or []
+        return bag
+
+    @staticmethod
+    def run_global_action(plugin_name, slug, action_name, form_data):
+        if not find_global_entry(plugin_name, slug):
+            return False, "No plugin in use provides the page '{}'.".format(slug)
+        return plugin_loader.call_web_global_action(plugin_name, slug, action_name, form_data)
 
     @staticmethod
     def run_action(instance, slug, action_name, form_data):

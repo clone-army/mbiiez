@@ -314,7 +314,7 @@ def _required_role_for_path(path, method):
     if path.startswith("/admin"):
         return "admin"
 
-    if path.startswith("/plugin/"):
+    if path.startswith("/plugin/") or path.startswith("/plugins/") or path.startswith("/instance-plugins"):
         return "admin"
 
     if any(path.startswith(prefix) for prefix in admin_prefixes):
@@ -368,6 +368,25 @@ def _list_instances_cached():
 
 
 _plugin_menu_cache = {"expires": 0.0, "menus": {}}
+
+
+_global_menu_cache = {"expires": 0.0, "menus": []}
+
+
+def _global_menus_cached():
+    """Menu items plugins add outside any instance (web_global_menu), from
+    the plugins on for at least one instance."""
+    now = time.time()
+    if now < _global_menu_cache["expires"]:
+        return _global_menu_cache["menus"]
+    try:
+        from mbiiez.web.controllers.plugin_page import all_instance_configs
+        menus = plugin_loader.global_menus(all_instance_configs())
+    except Exception:
+        menus = []
+    _global_menu_cache["menus"] = menus
+    _global_menu_cache["expires"] = now + INSTANCE_LIST_CACHE_SECONDS
+    return menus
 
 
 def _plugin_menus_cached():
@@ -487,6 +506,7 @@ def include_instances_and_auth():
         setup_required=_setup_required(),
         users_count=len(users),
         plugin_menus=_plugin_menus_cached() if _role_allows(_current_role(), "admin") else {},
+        global_plugin_menus=_global_menus_cached() if _role_allows(_current_role(), "admin") else [],
     )
 
 
@@ -1008,6 +1028,31 @@ def config():
     instance = request.args.get("instance")
     c = config_c(instance)
     return config_v(c).render()
+
+
+@app.route("/instance-plugins", methods=["GET"])
+@require_role("admin")
+def instance_plugins():
+    instance = request.args.get("instance", "")
+    if instance not in _list_instances_cached():
+        abort(404)
+    return render_template("pages/plugins.html", view_bag=config_c.plugins_page(instance))
+
+
+@app.route("/plugins/<plugin_name>/<slug>", methods=["GET"])
+@require_role("admin")
+def global_plugin_page(plugin_name, slug):
+    return render_template("pages/plugin.html", view_bag=plugin_page_c.global_page(plugin_name, slug))
+
+
+@app.route("/plugins/<plugin_name>/<slug>/action/<action_name>", methods=["POST"])
+@require_role("admin")
+def global_plugin_action(plugin_name, slug, action_name):
+    data = request.get_json(silent=True) or {}
+    success, message = plugin_page_c.run_global_action(plugin_name, slug, action_name, data)
+    if success:
+        _audit("plugin_action", None, f"plugin={plugin_name};slug={slug};action={action_name}")
+    return jsonify({"success": success, "message": message})
 
 
 @app.route("/plugin/<instance_name>/<slug>", methods=["GET"])

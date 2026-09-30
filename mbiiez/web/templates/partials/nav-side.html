@@ -29,6 +29,9 @@
                                 <li>
                                     <a href="/config?instance={{ instance|lower }}" class="{% if request.path.startswith('/config') and is_active_instance %}active{% endif %}"><i class="fas fa-cog"></i> Settings</a>
                                 </li>
+                                <li>
+                                    <a href="/instance-plugins?instance={{ instance|lower }}" class="{% if request.path.startswith('/instance-plugins') and is_active_instance %}active{% endif %}"><i class="fas fa-puzzle-piece"></i> Plugins</a>
+                                </li>
                                 {% for menu_item in plugin_menus.get(instance, []) %}
                                 <li>
                                     <a href="/plugin/{{ instance|lower }}/{{ menu_item.slug }}" class="{% if request.path == '/plugin/' + instance|lower + '/' + menu_item.slug %}active{% endif %}"><i class="fas {{ menu_item.icon|default('fa-puzzle-piece') }}"></i> {{ menu_item.label }}</a>
@@ -55,6 +58,13 @@
                 <li>
                     <a href="/bans" class="{% if request.path.startswith('/bans') %}active{% endif %}"><i class="fas fa-ban"></i> Bans</a>
                 </li>
+                {% endif %}
+                {% if can_admin %}
+                {% for item in global_plugin_menus %}
+                <li>
+                    <a href="/plugins/{{ item.plugin }}/{{ item.slug }}" class="{% if request.path == '/plugins/' + item.plugin + '/' + item.slug %}active{% endif %}"><i class="fas {{ item.icon|default('fa-puzzle-piece') }}"></i> {{ item.label }}</a>
+                </li>
+                {% endfor %}
                 {% endif %}
                 {% if can_admin %}
                 <li>

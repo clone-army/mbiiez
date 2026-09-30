@@ -29,6 +29,8 @@ PORT_RANGE = range(29070, 29090)
 # Engines the wizard offers, in order of preference - whichever of them are
 # actually installed in /usr/bin. caded.i386 is built from clone-army/OpenJK;
 # a fresh install.sh box only has mbiided.i386 and openjkded.i386.
+from mbiiez import plugin_loader
+
 KNOWN_ENGINES = ["caded.i386", "mbiided.i386", "openjkded.i386"]
 NAME_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,23}$")
 
@@ -122,7 +124,7 @@ def wizard_bag():
             "plugins": sorted((cfg.get("plugins", {}) or {}).keys()),
         })
 
-    engines = [e for e in KNOWN_ENGINES if os.path.exists(os.path.join("/usr/bin", e))] or KNOWN_ENGINES
+    engines = plugin_loader.list_engines() or KNOWN_ENGINES
     return {
         "sources": sources,
         "ports": ports_overview(),
@@ -165,7 +167,7 @@ def create_instance(data):
         return False, "Unknown game mode '%s'." % mode
 
     engine = str(data.get("engine", ""))
-    if engine not in KNOWN_ENGINES:
+    if engine not in plugin_loader.list_engines():
         return False, "Unknown engine '%s'." % engine
     if not os.path.exists(os.path.join("/usr/bin", engine)):
         return False, "Engine %s isn't installed in /usr/bin on this server." % engine

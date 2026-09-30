@@ -230,7 +230,7 @@
                   data-bs-toggle="collapse" data-bs-target="#config-section-plugins">
             <span class="flex-grow-1 text-start">
               <span class="fw-semibold">Plugins</span>
-              <span class="text-muted small d-block d-sm-inline ms-sm-2">Turn plugins on or off for this instance and edit their own settings.</span>
+              <span class="text-muted small d-block d-sm-inline ms-sm-2">Settings for plugins without their own section - turn plugins on and off on the Plugins page.</span>
             </span>
             <span class="badge bg-secondary fw-normal ms-2">{{ view_bag.plugin_cards|length }}</span>
           </button>
@@ -244,7 +244,12 @@
                        data-plugin-toggle="{{ card.name }}" {% if card.enabled %}checked{% endif %}>
                 <label class="form-check-label fw-semibold">{{ card.label }}</label>
                 {% if card.author %}<span class="text-muted small ms-2">by {{ card.author }}</span>{% endif %}
+                {% for r in card.requires %}<span class="badge text-bg-info fw-normal ms-1" title="Needs the {{ r.label }} plugin on too">needs {{ r.label }}</span>{% endfor %}
+                {% for r in card.uses %}<span class="badge text-bg-secondary fw-normal ms-1" title="Does more with {{ r.label }} on, but works without it">uses {{ r.label }}</span>{% endfor %}
+                {% if card.engine %}<span class="badge text-bg-dark fw-normal ms-1" title="Only runs on this engine">{{ card.engine }}.i386</span>{% endif %}
               </div>
+              {% if card.description %}<div class="text-muted small ps-4">{{ card.description }}</div>{% endif %}
+              <div class="ps-4 small text-danger plugin-problem" data-plugin-problem="{{ card.name }}" style="display:none"></div>
               <div class="ps-4 pt-1 plugin-options" data-plugin-options="{{ card.name }}" {% if not card.enabled %}style="display:none"{% endif %}>
                 {% if card.hide_body %}
                   <div class="text-muted small">Configured in its own section(s) above instead of here - see {{ card.label }}.</div>
@@ -394,6 +399,11 @@
 (function () {
   const INSTANCE_NAME = {{ view_bag.instance|tojson }};
   const ALL_PLUGIN_NAMES = {{ view_bag.plugin_cards | map(attribute='name') | list | tojson }};
+  // Each plugin's label, the plugins it needs, and the engine it needs.
+  const PLUGIN_META = {
+    {% for card in view_bag.plugin_cards %}{{ card.name|tojson }}: { label: {{ card.label|tojson }}, requires: {{ card.requires|map(attribute='name')|list|tojson }}, engine: {{ card.engine|tojson }} },
+    {% endfor %}
+  };
   const formTab = document.getElementById('form-tab');
 
   let dirty = false;
@@ -484,14 +494,83 @@
   MbiiezConfigForm.initRtmModeFields(formTab);
   MbiiezConfigForm.initDependsOn(formTab);
 
-  // Plugin enable/disable toggles show/hide their options panel
+  // Plugin enable/disable toggles show/hide their options panel. Turning
+  // one on turns on what it needs; turning off something others need asks
+  // first and turns them off too. Problems (a requirement off, the wrong
+  // engine) show under each card.
+  function pluginBox(name) { return document.querySelector('.plugin-toggle[data-plugin-toggle="' + name + '"]'); }
+  function setPlugin(name, on) {
+    const cb = pluginBox(name);
+    if (!cb || cb.checked === on) return false;
+    cb.checked = on;
+    const panel = document.querySelector('[data-plugin-options="' + name + '"]');
+    if (panel) panel.style.display = on ? '' : 'none';
+    return true;
+  }
+  function engineFamily(e) {
+    e = (e || '').toLowerCase();
+    for (const f of ['caded', 'mbiided', 'openjkded']) if (e.startsWith(f)) return f;
+    return e.split('.')[0];
+  }
+  function currentEngine() {
+    const el = document.querySelector('[data-path="server.engine"]');
+    return el ? el.value : '';
+  }
+  function checkPlugins() {
+    const engine = currentEngine();
+    Object.keys(PLUGIN_META).forEach(function (name) {
+      const meta = PLUGIN_META[name], cb = pluginBox(name), box = document.querySelector('[data-plugin-problem="' + name + '"]');
+      if (!cb || !box) return;
+      const problems = [];
+      if (meta.engine && engineFamily(engine) !== meta.engine) problems.push('Needs the ' + meta.engine + '.i386 engine - this server runs ' + (engine || 'none') + ', so it won\'t start.');
+      if (cb.checked) meta.requires.forEach(function (r) { const rb = pluginBox(r); if (!rb || !rb.checked) problems.push('Needs ' + (PLUGIN_META[r] ? PLUGIN_META[r].label : r) + ' on too.'); });
+      box.textContent = problems.join(' ');
+      box.style.display = problems.length ? '' : 'none';
+    });
+  }
+  function turnOnWithRequirements(name, added) {
+    (PLUGIN_META[name] ? PLUGIN_META[name].requires : []).forEach(function (r) {
+      if (setPlugin(r, true)) added.push(PLUGIN_META[r] ? PLUGIN_META[r].label : r);
+      turnOnWithRequirements(r, added);
+    });
+  }
+  function dependentsOf(name, out) {
+    Object.keys(PLUGIN_META).forEach(function (other) {
+      const cb = pluginBox(other);
+      if (cb && cb.checked && PLUGIN_META[other].requires.indexOf(name) >= 0 && out.indexOf(other) < 0) {
+        out.push(other);
+        dependentsOf(other, out);
+      }
+    });
+    return out;
+  }
   document.querySelectorAll('.plugin-toggle').forEach(function (cb) {
     cb.addEventListener('change', function () {
-      const panel = document.querySelector('[data-plugin-options="' + cb.dataset.pluginToggle + '"]');
+      const name = cb.dataset.pluginToggle;
+      const panel = document.querySelector('[data-plugin-options="' + name + '"]');
+      if (cb.checked) {
+        const added = [];
+        turnOnWithRequirements(name, added);
+        if (added.length) mbiiToast('Also turned on, which ' + PLUGIN_META[name].label + ' needs: ' + added.join(', ') + '.', 'info');
+      } else {
+        const deps = dependentsOf(name, []);
+        if (deps.length) {
+          const labels = deps.map(function (d) { return PLUGIN_META[d].label; }).join(', ');
+          if (!confirm(labels + ' need' + (deps.length === 1 ? 's ' : ' ') + PLUGIN_META[name].label + '. Turn ' + (deps.length === 1 ? 'it' : 'them') + ' off too?')) {
+            cb.checked = true;
+            return;
+          }
+          deps.forEach(function (d) { setPlugin(d, false); });
+        }
+      }
       if (panel) panel.style.display = cb.checked ? '' : 'none';
+      checkPlugins();
       markDirty();
     });
   });
+  const engineField = document.querySelector('[data-path="server.engine"]');
+  if (engineField) engineField.addEventListener('change', checkPlugins);
+  checkPlugins();
 
   // --- smod rights picker ---
   // Ported from https://puppytine.github.io/ (mbsmod.js, public domain) -

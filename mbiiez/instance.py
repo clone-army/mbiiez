@@ -13,6 +13,7 @@ from mbiiez.bcolors import bcolors
 from mbiiez.helpers import helpers
 from mbiiez.testing import testing
 from mbiiez.conf import conf
+from mbiiez import plugin_migrations
 from mbiiez.console import console
 from mbiiez.db import db
 from mbiiez.launcher import launcher
@@ -60,6 +61,11 @@ class instance:
             print("No Instance config for {}".format(name))
             exit()
             
+        # Plugins since split or renamed (the Credit System, say) - see
+        # mbiiez/plugin_migrations.py.
+        self.config, _ = plugin_migrations.migrate(self.config)
+        self.conf.config = self.config
+
         self.plugins = self.config['plugins']
         self.plugins_registered = []
 

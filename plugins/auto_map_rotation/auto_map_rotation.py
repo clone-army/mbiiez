@@ -47,6 +47,7 @@ class plugin:
     plugin_name = "Auto Map Rotation"
     plugin_author = "Louis Varley"
     plugin_url = ""
+    plugin_description = "Moves an empty server on to the next map every so often."
 
     @staticmethod
     def web_hide_default_card():

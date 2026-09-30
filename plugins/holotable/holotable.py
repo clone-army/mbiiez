@@ -6,6 +6,9 @@ class plugin:
     plugin_name = "Holotable"
     plugin_author = "Louis Varley"
     plugin_url = "https://github.com/clone-army/holotable"
+    plugin_requires = ["accounts"]
+    plugin_engine = "caded"
+    plugin_description = "Holotable NPC scenarios for the map that's on: !ht lists them, admins !ht <n> play / !ht stop."
 
     @staticmethod
     def web_hide_default_card():

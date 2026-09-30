@@ -1,13 +1,13 @@
 # Holotable Plugin
 
 **Requires the `caded.i386` engine** from [clone-army/OpenJK](https://github.com/clone-army/OpenJK).
-On any other engine it does nothing.
+On any other engine it doesn't start. Needs the **Accounts** plugin.
 
 Turns on [Holotable](https://github.com/clone-army/holotable) scenarios for this server: NPC scenarios built on
 the Holotable web app (a top-down map of any map to place spawns, routes and trigger areas on) and saved into
 the game folder's `holotable/`. Works on any server, social or not.
 
-In game, once logged in (the Credit System's `!login`, so this server needs that plugin too):
+In game, once logged in (the **Accounts** plugin's `!login` - turned on with it):
 
 | Command | |
 |---|---|
@@ -17,7 +17,7 @@ In game, once logged in (the Credit System's `!login`, so this server needs that
 | `!ht stop` | End it (admins) |
 
 rcon `ht`, `ht <n> play` and `ht stop` do the same without logging in. Admins are the accounts ticked on the
-Economy page (and a social server's own admins).
+Accounts page (and a social server's own admins).
 
 This plugin sets `g_holotable` at startup and re-applies it every minute.
 

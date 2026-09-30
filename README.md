@@ -41,7 +41,7 @@ Every instance names the dedicated-server binary it runs with (`"engine"` in its
 | `mbiided.i386` | Bundled in this repo; `install.sh` copies it to `/usr/bin` | Standard MBII dedicated server, none of the extra features. |
 | `openjkded.i386` | Stock 2018 OpenJK build downloaded by `install.sh` | Plain OpenJK. |
 
-> **Several plugins only work with `caded.i386`.** Credit System, Chaos Mode, Gun Game, Kill Streaks and Stats
+> **Several plugins only work with `caded.i386`.** Accounts, Credits (and the Shop, Bounties, Cantina Bar, Jukebox and Casino built on it), Social Mode, Holotable, Chaos Mode, Gun Game, Kill Streaks and Stats
 > don't add features themselves: they switch features on and off in our engine with cvars
 > (`g_creditSystemEnable`, `g_chaosEnable`, `g_gungame`, `g_killstreakEnable`, `g_statsEnable`...). On any
 > other engine those cvars don't exist and the plugins do nothing. See [Included plugins](#included-plugins).
@@ -332,6 +332,9 @@ Enable a plugin by adding its key under `plugins` in the instance config (or tic
 **Plugins marked *caded* need the [`caded.i386` engine](#the-engine-cadedi386-and-our-openjk-fork)** and do
 nothing on other engines.
 
+Turn plugins on and off on each instance's **Plugins** page, which shows what each one needs (other plugins,
+and the engine) and turns requirements on for you. See [PLUGINS.md](PLUGINS.md#dependencies-and-engines).
+
 | Plugin (config key) | Engine | What it does |
 |---|---|---|
 | **[RTVRTM](plugins/rtvrtm/readme.md)** (`rtvrtm`) | any | Rock the Vote / Rock the Mode: players vote to change map (`!rtv`) or game mode (`!rtm`), with nominations, runoff votes, extend options, cooldowns, admin-called votes and round/time-limit votes. Has its own RTV, RTM and General sections in Settings. |
@@ -341,8 +344,14 @@ nothing on other engines.
 | **[Anytime Spin](plugins/anytime_spin/README.md)** (`anytime_spin`) | any | MBII's own `!spin` normally only works on Sundays. This makes the engine always think it's Sunday (`LD_PRELOAD` of `fake_sunday_32.so`). Turn spin on with `game.enable_spin` / `game.spin_cooldown`. |
 | **[AI Assistant](plugins/ai/README.md)** (`ai`) | any | An in-game chat assistant (`!ai <question>` by default) backed by [OpenRouter](https://openrouter.ai), with optional death commentary. Settings: `enabled`, `openrouter_api_key`, `model`, `ai_name`, `command`, `cooldown_seconds`, `max_tokens`, `temperature`, `public_replies`, `death_commentary`, `instruction`. |
 | **[Discord Bot](plugins/discord_bot/README.md)** (`discord_bot`) | any | *Experimental.* Relays in-game chat to a Discord channel whose name ends in `server-<instance>-chat`. Setting: `token`. |
-| **[Credit System](plugins/creditsystem/README.md)** (`creditsystem`) | ***caded*** | The economy: players earn credits for kills while logged in (`!register`, `!login`), check them with `!balance`, spend them in the `!buy` shop and put bounties on each other (`!bounty`). Shop, bounty and each shop item's price can be switched on/off or set individually through `cvars`. Adds an **Economy** page listing accounts, where admins can give or take credits. |
-| **[Holotable](plugins/holotable/README.md)** (`holotable`) | ***caded*** | Lets the server run [Holotable](https://github.com/clone-army/holotable) NPC scenarios for the map that's on: `!ht` lists them, admins `!ht <n> play` / `!ht stop`. Needs the Credit System too, for logging in. Setting: `enabled`. |
+| **[Accounts](plugins/accounts/README.md)** (`accounts`) | ***caded*** | Player accounts (`!register`, `!login`), shared by every server, and who's an admin. Adds the **Accounts** page. Needed by Credits and Holotable. |
+| **[Credits](plugins/credits/README.md)** (`credits`) | ***caded*** | Earning credits while logged in, `!balance`, `!gift`, welcome and daily bonuses. Adds the **Credits** page. Needs Accounts. |
+| **[Shop](plugins/shop/README.md)** (`shop`) | ***caded*** | `!buy` - weapons, gadgets, size changes and ammo, each priced. Needs Credits. |
+| **[Bounties](plugins/bounties/README.md)** (`bounties`) | ***caded*** | `!bounty` - credits on someone's head. Needs Credits. |
+| **[Cantina Bar](plugins/bar/README.md)** (`bar`) | ***caded*** | `!bar` drinks, and with an Anthropic key the `!bartender` AI. Needs Credits. |
+| **[Jukebox](plugins/jukebox/README.md)** (`jukebox`) | ***caded*** | `!jukebox` - pay to pick the music; random autoplay. Needs Credits. |
+| **[Casino](plugins/casino/README.md)** (`casino`) | ***caded*** | Blackjack, pazaak, chance, duel betting and a raffle, each switchable. Needs Credits. |
+| **[Holotable](plugins/holotable/README.md)** (`holotable`) | ***caded*** | Lets the server run [Holotable](https://github.com/clone-army/holotable) NPC scenarios for the map that's on: `!ht` lists them, admins `!ht <n> play` / `!ht stop`. Needs Accounts. Setting: `enabled`. |
 | **[Chaos Mode](plugins/chaos/README.md)** (`chaos`) | ***caded*** | Every `cooldown` seconds (default 20), everyone gets a random prize. Settings: `enabled`, `cooldown`. |
 | **[Gun Game](plugins/gungame/README.md)** (`gungame`) | ***caded*** | Everyone moves up a fixed weapon ladder, one step per kill. Settings live in `game`: `gungame_enable`, `gungame_announce`, `gungame_restrict_classes`. |
 | **[Kill Streaks](plugins/killstreak/README.md)** (`killstreak`) | ***caded*** | Server-wide callouts for kill streaks, reset each round. Setting: `enabled`. |
