@@ -68,7 +68,12 @@ class controller:
 
     @staticmethod
     def get_bans(inst):
-        """Parse banned IPs from g_banips output."""
+        """The shared ban list (mbiiez.bansync) - the same on every server."""
+        try:
+            from mbiiez import bansync
+            return [b["ip"] for b in bansync.list_bans()]
+        except Exception:
+            pass
         try:
             output = inst.rconResponse("g_banips") or ""
             ips = re.findall(r"\b(?:\d{1,3}\.){3}\d{1,3}\b", output)

@@ -1,0 +1,143 @@
+{% extends 'base.html' %}
+{% block content %}
+<style>
+  .bans-card {
+    border: 0;
+    box-shadow: 0 8px 22px rgba(31, 44, 62, 0.08);
+  }
+  .bans-table td {
+    vertical-align: middle;
+  }
+  .bans-note {
+    min-width: 180px;
+  }
+</style>
+
+<div class="page-header mb-4">
+  <h3 class="page-title mb-1">Bans</h3>
+  <div class="text-muted">One ban list for every server. A ban or unban here, on a server's Mod page, or in game (SMOD / rcon addip) reaches every server within a minute; stopped servers pick it up when they start.</div>
+</div>
+
+<div id="status" class="mb-3"></div>
+
+<div class="row">
+  <div class="col-xl-4 col-lg-5 mb-4">
+    <div class="card bans-card h-100">
+      <div class="card-body">
+        <h5 class="card-title mb-3">Ban an IP</h5>
+        <form id="add-ban-form" autocomplete="off">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">IP address</label>
+            <input type="text" id="add-ip" class="form-control" placeholder="1.2.3.4" required>
+          </div>
+          <div class="mb-4">
+            <label class="form-label fw-semibold">Note</label>
+            <input type="text" id="add-note" class="form-control" maxlength="200" placeholder="Who and why (optional)">
+          </div>
+          <button type="submit" class="btn btn-danger w-100">Ban on every server</button>
+        </form>
+      </div>
+    </div>
+  </div>
+  <div class="col-xl-8 col-lg-7 mb-4">
+    <div class="card bans-card h-100">
+      <div class="card-body">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+          <h5 class="card-title mb-0">Banned IPs <span class="badge bg-secondary">{{ view_bag.bans|length }}</span></h5>
+          <input type="search" id="ban-search" class="form-control form-control-sm" style="max-width: 220px;" placeholder="Search">
+        </div>
+        <div class="table-responsive">
+          <table class="table table-hover bans-table mb-0">
+            <thead>
+              <tr><th>IP</th><th>Note</th><th>Added</th><th></th></tr>
+            </thead>
+            <tbody id="bans-body">
+              {% for ban in view_bag.bans %}
+              <tr data-search="{{ (ban.ip ~ ' ' ~ ban.note ~ ' ' ~ ban.by)|lower }}">
+                <td class="text-nowrap"><code>{{ ban.ip }}</code></td>
+                <td>
+                  <div class="input-group input-group-sm bans-note">
+                    <input type="text" class="form-control" maxlength="200" value="{{ ban.note }}" data-ip="{{ ban.ip }}">
+                    <button class="btn btn-outline-secondary" type="button" onclick="saveNote(this)">Save</button>
+                  </div>
+                </td>
+                <td class="small text-muted text-nowrap">{{ ban.added_text }}<br>{{ ban.by }}</td>
+                <td class="text-end"><button class="btn btn-sm btn-success" data-ip="{{ ban.ip }}" onclick="unban(this)">Unban</button></td>
+              </tr>
+              {% else %}
+              <tr><td colspan="4" class="text-muted">Nobody's banned.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function setStatus(msg, ok = true) {
+  const el = document.getElementById('status');
+  el.className = 'alert ' + (ok ? 'alert-success' : 'alert-danger');
+  el.textContent = msg;
+}
+
+async function postJson(url, payload) {
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || !data.success) {
+    throw new Error(data.error || 'Request failed.');
+  }
+  return data;
+}
+
+document.getElementById('add-ban-form').addEventListener('submit', async function (e) {
+  e.preventDefault();
+  const ip = document.getElementById('add-ip').value.trim();
+  const note = document.getElementById('add-note').value.trim();
+  try {
+    await postJson('/bans/add', { ip: ip, note: note });
+    location.reload();
+  } catch (err) {
+    setStatus(err.message, false);
+  }
+});
+
+async function unban(button) {
+  const ip = button.dataset.ip;
+  if (!confirm('Unban ' + ip + ' on every server?')) return;
+  button.disabled = true;
+  try {
+    await postJson('/bans/remove', { ip: ip });
+    location.reload();
+  } catch (err) {
+    button.disabled = false;
+    setStatus(err.message, false);
+  }
+}
+
+async function saveNote(button) {
+  const input = button.parentElement.querySelector('input');
+  button.disabled = true;
+  try {
+    await postJson('/bans/note', { ip: input.dataset.ip, note: input.value });
+    setStatus('Note saved for ' + input.dataset.ip + '.');
+  } catch (err) {
+    setStatus(err.message, false);
+  } finally {
+    button.disabled = false;
+  }
+}
+
+document.getElementById('ban-search').addEventListener('input', function () {
+  const q = this.value.trim().toLowerCase();
+  document.querySelectorAll('#bans-body tr[data-search]').forEach(function (row) {
+    row.style.display = (!q || row.dataset.search.includes(q)) ? '' : 'none';
+  });
+});
+</script>
+{% endblock %}

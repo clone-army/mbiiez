@@ -10,7 +10,7 @@ from functools import wraps
 from flask import Flask, abort, g, jsonify, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from mbiiez import settings, plugin_loader
+from mbiiez import settings, plugin_loader, bansync
 from mbiiez.db import db
 
 # Web Tools
@@ -293,6 +293,7 @@ def _required_role_for_path(path, method):
     mod_prefixes = [
         "/mod",
         "/rcon",
+        "/bans",
     ]
 
     if path.startswith("/instance/") and path.endswith("/command"):
@@ -916,7 +917,7 @@ def mod_kick():
 @require_role("mod")
 def mod_ban():
     data = request.get_json() or {}
-    success, msg = mod_c.ban_player(data["instance"], data["ip"])
+    success, msg = bansync.add_ban(data.get("ip"), by="{} (web, from {})".format(_current_user(), data.get("instance", "")))
     if success:
         _audit("mod_ban", data.get("instance"), data.get("ip", ""))
     return {"success": success, "error": None if success else msg}
@@ -926,7 +927,7 @@ def mod_ban():
 @require_role("mod")
 def mod_unban():
     data = request.get_json() or {}
-    success, msg = mod_c.unban_ip(data["instance"], data["ip"])
+    success, msg = bansync.remove_ban(data.get("ip"))
     if success:
         _audit("mod_unban", data.get("instance"), data.get("ip", ""))
     return {"success": success, "error": None if success else msg}
@@ -940,6 +941,43 @@ def mod_tell():
     if success:
         _audit("mod_tell", data.get("instance"), f"to={data.get('player_id', '')}")
     return {"success": success, "error": None if success else msg}
+
+
+@app.route("/bans", methods=["GET"])
+@require_role("mod")
+def bans_page():
+    bans = bansync.list_bans()
+    for b in bans:
+        b["added_text"] = time.strftime("%Y-%m-%d %H:%M", time.localtime(b.get("added", 0))) if b.get("added") else ""
+    return render_template("pages/bans.html", view_bag={"bans": bans})
+
+
+@app.route("/bans/add", methods=["POST"])
+@require_role("mod")
+def bans_add():
+    data = request.get_json(silent=True) or {}
+    success, msg = bansync.add_ban(data.get("ip"), str(data.get("note", ""))[:200], by="{} (web)".format(_current_user()))
+    if success:
+        _audit("ban_add", details="{} {}".format(data.get("ip", ""), data.get("note", ""))[:200])
+    return {"success": success, "message": msg, "error": None if success else msg}
+
+
+@app.route("/bans/remove", methods=["POST"])
+@require_role("mod")
+def bans_remove():
+    data = request.get_json(silent=True) or {}
+    success, msg = bansync.remove_ban(data.get("ip"))
+    if success:
+        _audit("ban_remove", details=str(data.get("ip", "")))
+    return {"success": success, "message": msg, "error": None if success else msg}
+
+
+@app.route("/bans/note", methods=["POST"])
+@require_role("mod")
+def bans_note():
+    data = request.get_json(silent=True) or {}
+    success, msg = bansync.set_note(data.get("ip"), data.get("note", ""))
+    return {"success": success, "message": msg, "error": None if success else msg}
 
 
 @app.route("/rcon", methods=["GET"])
@@ -1194,4 +1232,5 @@ def web_update():
 
 
 if __name__ == "__main__":
+    bansync.start_background()
     app.run(debug=False, host="0.0.0.0", port=settings.web_service.port, use_reloader=False)
