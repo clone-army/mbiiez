@@ -14,9 +14,10 @@ In game, once logged in (the **Accounts** plugin's `!login` - turned on with it)
 | `!ht` | List the scenarios for the map that's on |
 | `!ht <n>` | About scenario *n* |
 | `!ht <n> play` | Run it (admins) |
+| `!ht restart` | Reload the running one from its file and start it over - after saving a change (admins) |
 | `!ht stop` | End it (admins) |
 
-rcon `ht`, `ht <n> play` and `ht stop` do the same without logging in. Admins are the accounts ticked on the
+rcon `ht`, `ht <n> play`, `ht restart` and `ht stop` do the same without logging in. Admins are the accounts ticked on the
 Accounts page (and a social server's own admins).
 
 This plugin sets `g_holotable` at startup and re-applies it every minute.
