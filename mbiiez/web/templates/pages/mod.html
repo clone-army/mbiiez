@@ -161,7 +161,7 @@ function showTellModal(playerId, playerName) {
       body: JSON.stringify({ instance: '{{ view_bag.instance }}', player_id: playerId, message: msg })
     }).then(r => r.json()).then(data => {
       if (!data.success) {
-        alert(data.error || 'Failed to send message');
+        mbiiToast(data.error || 'Failed to send message', 'danger');
         return;
       }
       modal.hide();
@@ -177,7 +177,7 @@ function banPlayer(ip) {
     body: JSON.stringify({ instance: '{{ view_bag.instance }}', ip })
   }).then(r => r.json()).then(data => {
     if (!data.success) {
-      alert(data.error || 'Ban failed');
+      mbiiToast(data.error || 'Ban failed', 'danger');
       return;
     }
     location.reload();
@@ -191,7 +191,7 @@ function kickPlayer(id) {
     body: JSON.stringify({ instance: '{{ view_bag.instance }}', player_id: id })
   }).then(r => r.json()).then(data => {
     if (!data.success) {
-      alert(data.error || 'Kick failed');
+      mbiiToast(data.error || 'Kick failed', 'danger');
       return;
     }
     location.reload();
@@ -204,7 +204,7 @@ function unbanIp(ip) {
     body: JSON.stringify({ instance: '{{ view_bag.instance }}', ip })
   }).then(r => r.json()).then(data => {
     if (!data.success) {
-      alert(data.error || 'Unban failed');
+      mbiiToast(data.error || 'Unban failed', 'danger');
       return;
     }
     location.reload();

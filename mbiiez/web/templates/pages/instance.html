@@ -145,14 +145,15 @@ function sendCommand(cmd) {
       if (cmd === 'start' || cmd === 'restart') {
         // For start/restart, show message and start monitoring
         // DON'T remove spinner yet - keep it until server is detected
-        alert(data.output);
+        mbiiToast(data.output, 'info');
         monitorServerStartup(instance, btn, btns);
       } else if (cmd === 'stop') {
         // Stop: Show message and reload after brief delay
         setButtonSpinner(btn, false);
         btns.forEach(b => b.disabled = false);
-        alert(data.output);
+        mbiiToast(data.output, 'success');
         setTimeout(() => {
+          mbiiToastAfterRedirect(data.output, 'success');
           location.reload();
         }, 2000);
       }
@@ -160,14 +161,14 @@ function sendCommand(cmd) {
       setButtonSpinner(btn, false);
       btns.forEach(b => b.disabled = false);
       console.log('Error: ' + data.error);
-      alert('Error: ' + data.error);
+      mbiiToast('Error: ' + data.error, 'danger');
     }
   })
   .catch(e => {
     setButtonSpinner(btn, false);
     btns.forEach(b => b.disabled = false);
     if (reloadTimeout) clearTimeout(reloadTimeout);
-    alert('Error: ' + e);
+    mbiiToast('Error: ' + e, 'danger');
   });
 }
 
@@ -184,6 +185,7 @@ function monitorServerStartup(instance, btn, btns) {
         if (data.running) {
           // Server is running, wait 2 seconds for full initialization, then reload
           setTimeout(() => {
+            mbiiToastAfterRedirect(instance + ' is up.', 'success');
             setButtonSpinner(btn, false);
             btns.forEach(b => b.disabled = false);
             location.reload();
@@ -195,7 +197,7 @@ function monitorServerStartup(instance, btn, btns) {
           // Timeout reached, stop spinner and reload page anyway
           setButtonSpinner(btn, false);
           btns.forEach(b => b.disabled = false);
-          alert('Server startup monitoring timed out. Reloading page...');
+          mbiiToastAfterRedirect("Couldn't see " + instance + ' come up within 90 seconds - check its status.', 'warning');
           location.reload();
         }
       })
