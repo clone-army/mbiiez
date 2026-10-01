@@ -1,0 +1,161 @@
+<style>
+  .st-card { border: 0; box-shadow: 0 8px 22px rgba(31, 44, 62, 0.08); }
+  .st-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 14px; }
+  .st-tools .form-control { max-width: 260px; }
+  .st-table th { white-space: nowrap; cursor: pointer; user-select: none; }
+  .st-table th.st-num, .st-table td.st-num { text-align: right; font-variant-numeric: tabular-nums; }
+  .st-table th .st-arrow { display: inline-block; width: 1em; opacity: .35; }
+  .st-table th.st-sorted .st-arrow { opacity: 1; }
+  .st-table td { vertical-align: middle; }
+  /* Names as the game draws them: on a dark strip, so white and black codes both read. */
+  .st-name { display: inline-block; padding: 2px 8px; border-radius: 4px; background: #1b1f27; color: #fff;
+             font-weight: 600; white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+  .st-badge { font-size: .75rem; }
+  .st-empty { display: none; }
+  .st-summary { font-size: .85rem; opacity: .75; margin-left: auto; }
+</style>
+
+<div class="card st-card mb-4">
+  <div class="card-body">
+    <h5 class="card-title mb-1">Player stats</h5>
+    <div class="text-muted small mb-3">Kills, deaths, suicides and playtime, shared across every server. <b>Registered</b> players were logged into their account (<code>!login</code>) at the time, so they're kept by account whatever name they use; everyone else is kept by name. <b>Last seen</b> is matched by name against connection logs, so it can be blank for an account whose owner plays under another name.</div>
+
+    <div class="st-tools">
+      <div class="btn-group btn-group-sm" role="group" aria-label="Show">
+        <input type="radio" class="btn-check" name="st-who" id="st-all" value="all" checked>
+        <label class="btn btn-outline-primary" for="st-all">Everyone</label>
+        <input type="radio" class="btn-check" name="st-who" id="st-reg" value="reg">
+        <label class="btn btn-outline-primary" for="st-reg">Registered</label>
+        <input type="radio" class="btn-check" name="st-who" id="st-unreg" value="unreg">
+        <label class="btn btn-outline-primary" for="st-unreg">Not registered</label>
+      </div>
+      <input type="search" class="form-control form-control-sm" id="st-search" placeholder="Search names">
+      <span class="st-summary" id="st-summary"></span>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table table-hover table-sm st-table mb-0">
+        <thead>
+          <tr>
+            <th data-key="plain">Name <span class="st-arrow"></span></th>
+            <th data-key="registered">Registered <span class="st-arrow"></span></th>
+            <th data-key="kills" class="st-num">Kills <span class="st-arrow"></span></th>
+            <th data-key="deaths" class="st-num">Deaths <span class="st-arrow"></span></th>
+            <th data-key="suicides" class="st-num">Suicides <span class="st-arrow"></span></th>
+            <th data-key="kd" class="st-num">K/D <span class="st-arrow"></span></th>
+            <th data-key="playtime" class="st-num">Playtime <span class="st-arrow"></span></th>
+            <th data-key="seen">Last seen <span class="st-arrow"></span></th>
+          </tr>
+        </thead>
+        <tbody id="st-body"></tbody>
+      </table>
+    </div>
+    <div class="text-muted st-empty mt-3" id="st-empty">Nobody matches.</div>
+  </div>
+</div>
+
+<script>
+(function () {
+  const ROWS = {{ data.rows|tojson }};
+  // The game's colour codes, ^0 to ^9 (shared/qcommon/q_color.c).
+  const Q3 = ['#000000', '#ff0000', '#00ff00', '#ffff00', '#4d6bff', '#00ffff', '#ff00ff', '#ffffff', '#ff8000', '#808080'];
+
+  ROWS.forEach(function (r) {
+    r.kd = r.deaths > 0 ? r.kills / r.deaths : r.kills;
+    r.registered = r.registered === true ? 1 : r.registered === false ? 0 : -1;
+  });
+
+  function coloured(name) {
+    const wrap = document.createElement('span');
+    wrap.className = 'st-name';
+    wrap.title = name.replace(/\^[0-9]/g, '');
+    let colour = Q3[7];
+    name.split(/(\^[0-9])/).forEach(function (part) {
+      const m = /^\^([0-9])$/.exec(part);
+      if (m) { colour = Q3[Number(m[1])]; return; }
+      if (!part) return;
+      const s = document.createElement('span');
+      s.style.color = colour;
+      if (colour === Q3[0]) s.style.textShadow = '0 0 2px rgba(255, 255, 255, .8)'; // black, still readable
+      s.textContent = part;
+      wrap.appendChild(s);
+    });
+    return wrap;
+  }
+
+  function hours(sec) {
+    const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60);
+    return h + 'h ' + m + 'm';
+  }
+
+  let sortKey = 'kills', sortDir = -1;
+  const body = document.getElementById('st-body');
+  const search = document.getElementById('st-search');
+
+  function cell(content, cls) {
+    const td = document.createElement('td');
+    if (cls) td.className = cls;
+    if (content instanceof Node) td.appendChild(content); else td.textContent = content;
+    return td;
+  }
+
+  function render() {
+    const who = document.querySelector('input[name="st-who"]:checked').value;
+    const q = search.value.trim().toLowerCase();
+    const list = ROWS.filter(function (r) {
+      if (who === 'reg' && r.registered !== 1) return false;
+      if (who === 'unreg' && r.registered !== 0) return false;
+      return !q || r.plain.toLowerCase().indexOf(q) >= 0;
+    });
+    list.sort(function (a, b) {
+      let x = a[sortKey], y = b[sortKey];
+      if (typeof x === 'string') { x = x.toLowerCase(); y = y.toLowerCase(); }
+      if (x < y) return -sortDir;
+      if (x > y) return sortDir;
+      return b.kills - a.kills;
+    });
+    const frag = document.createDocumentFragment();
+    list.forEach(function (r) {
+      const tr = document.createElement('tr');
+      const badge = document.createElement('span');
+      badge.className = 'badge st-badge ' + (r.registered === 1 ? 'bg-success' : r.registered === 0 ? 'bg-secondary' : 'bg-light text-dark');
+      badge.textContent = r.registered === 1 ? 'Yes' : r.registered === 0 ? 'No' : '?';
+      tr.append(
+        cell(coloured(r.name)), cell(badge),
+        cell(r.kills.toLocaleString(), 'st-num'), cell(r.deaths.toLocaleString(), 'st-num'),
+        cell(r.suicides.toLocaleString(), 'st-num'), cell(r.kd.toFixed(2), 'st-num'),
+        cell(hours(r.playtime), 'st-num'), cell(r.seen || '-', 'small text-muted text-nowrap')
+      );
+      frag.appendChild(tr);
+    });
+    body.replaceChildren(frag);
+    document.getElementById('st-empty').style.display = list.length ? 'none' : 'block';
+    const reg = list.filter(function (r) { return r.registered === 1; }).length;
+    document.getElementById('st-summary').textContent =
+      list.length + ' of ' + ROWS.length + ' players' + (who === 'all' ? ' (' + reg + ' registered)' : '');
+    document.querySelectorAll('.st-table th').forEach(function (th) {
+      const on = th.dataset.key === sortKey;
+      th.classList.toggle('st-sorted', on);
+      th.querySelector('.st-arrow').textContent = on ? (sortDir < 0 ? '▼' : '▲') : '▽';
+      th.setAttribute('aria-sort', on ? (sortDir < 0 ? 'descending' : 'ascending') : 'none');
+    });
+  }
+
+  document.querySelectorAll('.st-table th').forEach(function (th) {
+    th.addEventListener('click', function () {
+      const key = th.dataset.key;
+      if (key === sortKey) {
+        sortDir = -sortDir;
+      } else {
+        sortKey = key;
+        // Names A-Z; everything else biggest / newest first.
+        sortDir = (key === 'plain') ? 1 : -1;
+      }
+      render();
+    });
+  });
+  document.querySelectorAll('input[name="st-who"]').forEach(function (r) { r.addEventListener('change', render); });
+  search.addEventListener('input', render);
+  render();
+})();
+</script>
