@@ -31,8 +31,7 @@ def scenarios():
         if isinstance(data, dict):
             found.append({"id": f[:-5], "map": str(data.get("map", "") or ""),
                           "name": str(data.get("name") or f[:-5]),
-                          "description": str(data.get("description", "") or ""),
-                          "regulars": len(data.get("regulars") or []) if isinstance(data.get("regulars"), list) else 0})
+                          "description": str(data.get("description", "") or "")})
     return sorted(found, key=lambda s: (s["map"].lower(), s["name"].lower()))
 
 
@@ -48,7 +47,7 @@ def auto_settings(cfg):
         "restart": 0 if str(cfg.get("auto_restart", 1)).lower() in ("0", "false", "") else 1,
         # map -> "all" (the default: new ones too) or the scenario ids ticked
         "maps": maps,
-        # map -> the scenario whose regulars hang about whenever no other is on
+        # map -> the scenario that plays quietly whenever no other is on
         "backgrounds": {str(k): str(v) for k, v in (cfg.get("backgrounds") or {}).items() if v}
                        if isinstance(cfg.get("backgrounds"), dict) else {},
     }

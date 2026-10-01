@@ -81,11 +81,11 @@
         <select class="form-select form-select-sm ht-bg-select" id="bg-{{ m.map }}">
           <option value="">None</option>
           {% for s in m.scenarios %}
-          <option value="{{ s.id }}" {% if s.id == m.background %}selected{% endif %}>{{ s.name }}{% if s.regulars %} ({{ s.regulars }} regular{{ '' if s.regulars == 1 else 's' }}){% else %} (no regulars){% endif %}</option>
+          <option value="{{ s.id }}" {% if s.id == m.background %}selected{% endif %}>{{ s.name }}</option>
           {% endfor %}
         </select>
       </div>
-      <div class="col-12 form-text mt-0">Its regulars hang about whenever nothing else is on - they step out for a scenario and come back after. Never picked as an event below.</div>
+      <div class="col-12 form-text mt-0">Plays quietly whenever nothing else is on - looping, its time limit ignored. Another scenario puts it away, and it's back a few seconds after that one ends. Never picked as an event below.</div>
     </div>
     <div class="small fw-semibold mt-3">Events</div>
     <div class="form-check form-switch mt-1">
@@ -174,7 +174,7 @@
     }
     if (bg) {
       const opt = block.querySelector('.ht-bg-select option:checked');
-      text = 'Background: ' + opt.textContent.replace(/ \(.*\)$/, '') + (text ? ' · ' + text : '');
+      text = 'Background: ' + opt.textContent + (text ? ' · ' + text : '');
     }
     out.textContent = text;
   }
