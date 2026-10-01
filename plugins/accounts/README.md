@@ -8,7 +8,7 @@ every server. Other plugins build on it - **Credits** (and so everything that sp
 need it; **Social** and **Stats** use it when it's on.
 
 Adds the **Accounts** page to the web panel (outside any one instance - accounts are shared): every account,
-who's an admin (tick the box - admins run `!barfight`, `!wp` and `!ht play`), and unlocking accounts that got
+who's an admin (tick the box - admins run `!wp` and `!ht play`), and unlocking accounts that got
 locked by wrong PINs.
 
 Engine: `g_accountsEnable 1` (set by this plugin).

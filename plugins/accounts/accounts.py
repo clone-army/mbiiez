@@ -42,7 +42,7 @@ class plugin(CvarPlugin):
                 "type": "table",
                 "title": "Accounts",
                 "help": ("Every player account, shared by all servers (one file in the game folder). Admin: can run "
-                         "!barfight, record NPC routes (!wp) and play Holotable scenarios (!ht) while logged in - "
+                         "record NPC routes (!wp) and play Holotable scenarios (!ht) while logged in - "
                          "takes effect within seconds, everywhere. PINs are never shown. Click a row to fill in the "
                          "forms below."),
                 "searchable": True,

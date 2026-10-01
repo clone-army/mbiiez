@@ -21,6 +21,27 @@ def load_instance_config(instance_name):
         return None
 
 
+def render_template_sections(plugin_name, sections, **context):
+    """A "template" section is a Jinja file in the plugin's own folder
+    (its "template", e.g. "page.html"), rendered with the section's "data" -
+    for pages a table or form can't do. Turned into its HTML here."""
+    from flask import render_template_string
+    _, module_path = plugin_loader.find_plugin_module_path(plugin_name)
+    for section in sections:
+        if section.get("type") != "template":
+            continue
+        name = os.path.basename(str(section.get("template", "")))
+        path = os.path.join(os.path.dirname(module_path or ""), name)
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                source = f.read()
+            section["html"] = render_template_string(source, data=section.get("data", {}), **context)
+        except Exception as e:
+            section["type"] = "error"
+            section["message"] = "Couldn't show {}: {}".format(name, e)
+    return sections
+
+
 def find_menu_entry(instance_name, instance_config, slug):
     """Find which enabled plugin (if any) owns the given nav slug, returning
     (plugin_name, menu_entry) or (None, None)."""
@@ -83,6 +104,7 @@ class controller:
         self.controller_bag["plugin_name"] = plugin_name
         self.controller_bag["menu"] = entry
         sections = plugin_loader.call_web_page(plugin_name, instance, instance_config) or []
+        render_template_sections(plugin_name, sections, instance=instance)
 
         # A "config_form" section binds straight to this instance's JSON
         # config (same field-spec schema as web_config_sections() - see
@@ -122,7 +144,7 @@ class controller:
             bag["error"] = "No plugin in use provides the page '{}'.".format(slug)
             return bag
         bag["menu"] = entry
-        bag["sections"] = plugin_loader.call_web_global_page(plugin_name, slug) or []
+        bag["sections"] = render_template_sections(plugin_name, plugin_loader.call_web_global_page(plugin_name, slug) or [])
         return bag
 
     @staticmethod

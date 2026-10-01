@@ -240,8 +240,11 @@ def describe_field_spec(spec, config_dict, plugin_name):
     }
 
     Widget kinds: text, password, textarea, number, percent, bool_select,
-    checkbox, select, choice, composite, rtm_modes, map_list, list. For
-    "choice", "options" is [[value, label], ...]. For "composite", "parts"
+    checkbox, select, choice, composite, rtm_modes, map_list, list,
+    checklist. For "choice" and "checklist", "options" is [[value, label],
+    ...]; a checklist saves the ticked values as one space-separated string,
+    and an option with value "all" stands for every one (the rest greyed out
+    while it's ticked). For "composite", "parts"
     is a list of {"label", "help", "kind": "choice"|"number"|"text",
     "options", "min", "default", "match", "show_when": {"part": i,
     "in": [...]}}. An unrecognised or omitted "type" falls
@@ -337,6 +340,12 @@ def describe_field_spec(spec, config_dict, plugin_name):
             node["unknown"] = code != 0 and code not in RTM_MODE_CODES
             node["mode_names"] = RTM_MODE_NAMES
             node["codes"] = {",".join(str(m) for m in modes): c for c, modes in RTM_MODE_CODES.items()}
+
+        elif field_type == "checklist":
+            node["kind"] = "checklist"
+            node["value"] = "" if value is None else str(value)
+            node["selected"] = node["value"].split()
+            node["options"] = [[str(v), label] for v, label in spec.get("options", [])]
 
         elif field_type == "map_list":
             node["kind"] = "maplist"

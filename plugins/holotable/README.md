@@ -20,18 +20,48 @@ In game, once logged in (the **Accounts** plugin's `!login` - turned on with it)
 rcon `ht`, `ht <n> play`, `ht restart` and `ht stop` do the same without logging in. Admins are the accounts ticked on the
 Accounts page (and a social server's own admins).
 
-This plugin sets `g_holotable` at startup and re-applies it every minute.
+## Playing by themselves
+
+Each server with the plugin on gets a **Holotable** page under it in the web panel:
+
+- **When scenarios play** - *Only when asked* (`!ht`), *Random, every so often* (every so many minutes after the
+  last one ended, once enough players are in - the cantina's bar fights), or *Every round* (one starts as each round
+  begins, picked at random if a map has several).
+- **Restart a running scenario when the round restarts** - a new round clears every NPC; with this on, whatever was
+  running starts again.
+- **Scenarios by map** - every map in the server's rotation (and, folded away, the other maps that have scenarios),
+  with *All of them (new ones too)* or the ones ticked.
+
+They play in the mode the server's in (no map reload). One that comes with a round doesn't stretch the round clock.
+
+The plugin writes the ticked scenario ids to `holotable_auto.txt` in the instance's own game folder
+(`homepaths/<instance>/MBII/`), where the engine reads them, and sets `g_holotable`, `g_holotableAuto`,
+`g_holotableAutoMinutes`, `g_holotableAutoPlayers` and `g_holotableAutoRestart`. A save on the page applies
+straight away; the plugin also re-applies everything every minute, so a scenario made on Holotable since is
+picked up without a restart.
 
 ## Configuration
 
 ```json
 "plugins": {
-    "holotable": { "enabled": 1 }
+    "holotable": {
+        "enabled": 1,
+        "auto": "round",
+        "auto_minutes": 30,
+        "auto_players": 2,
+        "auto_restart": 1,
+        "maps": { "mb2_jeditemple": ["clone_ambush", "children"], "mb2_dotf": "all" }
+    }
 }
 ```
 
 | Key | Default | Meaning |
 |---|---|---|
 | `enabled` | `1` | Allow Holotable scenarios on this server |
+| `auto` | `"off"` | `"off"`, `"timer"` (random, every `auto_minutes`) or `"round"` (every round) |
+| `auto_minutes` | `30` | Timer: minutes after the last scenario ended |
+| `auto_players` | `2` | Players needed for one to start by itself |
+| `auto_restart` | `1` | Start a running scenario again when the round restarts |
+| `maps` | `{}` | Per map: `"all"` or a list of scenario ids. A map not listed is `"all"`. |
 
 Also editable under **Settings → Holotable** in the web panel.

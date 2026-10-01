@@ -32,6 +32,9 @@
   {% if section.type == 'error' %}
   <div class="alert alert-danger">{{ section.message }}</div>
 
+  {% elif section.type == 'template' %}
+  {{ section.html|safe }}
+
   {% elif section.type == 'table' %}
   <div class="card mb-4">
     <div class="card-body">
@@ -230,6 +233,7 @@
     var chipApi = MbiiezConfigForm.initChipWidgets(configFormRoot);
     MbiiezConfigForm.initCompositeFields(configFormRoot);
     MbiiezConfigForm.initRtmModeFields(configFormRoot);
+    MbiiezConfigForm.initChecklistFields(configFormRoot);
     MbiiezConfigForm.initDependsOn(configFormRoot);
 
     var saveBtn = document.getElementById('config-form-save');

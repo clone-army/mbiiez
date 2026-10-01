@@ -1,0 +1,226 @@
+<style>
+  .ht-card { border: 0; box-shadow: 0 8px 22px rgba(31, 44, 62, 0.08); }
+  .ht-modes { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+  .ht-mode { position: relative; border: 2px solid rgba(127, 127, 127, 0.25); border-radius: 10px; padding: 14px 16px; cursor: pointer; transition: border-color .15s, background-color .15s; }
+  .ht-mode:hover { border-color: rgba(13, 110, 253, 0.5); }
+  .ht-mode input { position: absolute; opacity: 0; pointer-events: none; }
+  .ht-mode.active { border-color: #0d6efd; background: rgba(13, 110, 253, 0.06); }
+  .ht-mode .ht-mode-title { font-weight: 600; margin-bottom: 4px; }
+  .ht-mode .ht-mode-title i { width: 1.4em; color: #0d6efd; }
+  .ht-mode .ht-mode-text { font-size: .875rem; opacity: .75; }
+  .ht-map { border: 1px solid rgba(127, 127, 127, 0.2); border-radius: 10px; padding: 12px 16px; margin-bottom: 10px; }
+  .ht-map-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .ht-map-name { font-weight: 600; font-family: var(--bs-font-monospace, monospace); }
+  .ht-map-summary { margin-left: auto; font-size: .85rem; }
+  .ht-scenarios { margin-top: 10px; display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 6px 16px; }
+  .ht-scenarios .form-check-label small { display: block; opacity: .65; }
+  .ht-scenarios.ht-disabled { opacity: .5; }
+  .ht-save-bar { position: sticky; bottom: 0; z-index: 5; display: flex; align-items: center; gap: 12px; padding: 12px 0; background: var(--bs-body-bg, #fff); }
+</style>
+
+<form id="ht-form" autocomplete="off">
+  <div class="card ht-card mb-4">
+    <div class="card-body">
+      <h5 class="card-title mb-1">When scenarios play</h5>
+      <div class="text-muted small mb-3">Admins can always start one with <code>!ht &lt;n&gt; play</code>. These play one by themselves, in the mode the server's in (no map reload).</div>
+      <div class="ht-modes">
+        <label class="ht-mode" data-mode="off">
+          <input type="radio" name="mode" value="off" {% if data.mode == 'off' %}checked{% endif %}>
+          <div class="ht-mode-title"><i class="fas fa-hand-paper"></i> Only when asked</div>
+          <div class="ht-mode-text">Nothing starts by itself. Admins and scenario runners use <code>!ht</code>.</div>
+        </label>
+        <label class="ht-mode" data-mode="timer">
+          <input type="radio" name="mode" value="timer" {% if data.mode == 'timer' %}checked{% endif %}>
+          <div class="ht-mode-title"><i class="fas fa-dice"></i> Random, every so often</div>
+          <div class="ht-mode-text">A random ticked scenario for the map that's on breaks out every so often - like the cantina's bar fights.</div>
+        </label>
+        <label class="ht-mode" data-mode="round">
+          <input type="radio" name="mode" value="round" {% if data.mode == 'round' %}checked{% endif %}>
+          <div class="ht-mode-title"><i class="fas fa-flag-checkered"></i> Every round</div>
+          <div class="ht-mode-text">Each round starts with a ticked scenario for its map - picked at random if a map has more than one.</div>
+        </label>
+      </div>
+
+      <div class="row g-3 mt-2">
+        <div class="col-sm-6 col-lg-3" data-show-for="timer">
+          <label class="form-label fw-semibold" for="ht-minutes">Every (minutes)</label>
+          <input type="number" class="form-control" id="ht-minutes" name="minutes" min="1" max="1440" value="{{ data.minutes }}">
+          <div class="form-text">Counted from when the last one ended.</div>
+        </div>
+        <div class="col-sm-6 col-lg-3" data-show-for="timer round">
+          <label class="form-label fw-semibold" for="ht-players">Players needed</label>
+          <input type="number" class="form-control" id="ht-players" name="players" min="1" max="64" value="{{ data.players }}">
+          <div class="form-text">Fewer players in than this, and none start.</div>
+        </div>
+        <div class="col-lg-6 d-flex align-items-center">
+          <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" id="ht-restart" name="restart" {% if data.restart %}checked{% endif %}>
+            <label class="form-check-label" for="ht-restart">Restart a running scenario when the round restarts
+              <div class="form-text mt-0">A new round clears every NPC. With this on, whatever was running (however it started) starts again for the new round.</div>
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% macro map_block(m) %}
+  <div class="ht-map" data-map="{{ m.map }}">
+    <div class="ht-map-head">
+      <span class="ht-map-name">{{ m.map }}</span>
+      {% if m.in_rotation %}<span class="badge bg-primary">in rotation</span>{% endif %}
+      <span class="badge bg-secondary">{{ m.scenarios|length }} scenario{{ '' if m.scenarios|length == 1 else 's' }}</span>
+      <span class="ht-map-summary text-muted"></span>
+    </div>
+    {% if m.scenarios %}
+    <div class="form-check form-switch mt-2">
+      <input class="form-check-input ht-all" type="checkbox" id="all-{{ m.map }}" {% if m.all %}checked{% endif %}>
+      <label class="form-check-label" for="all-{{ m.map }}">All of them (new ones too)</label>
+    </div>
+    <div class="ht-scenarios">
+      {% for s in m.scenarios %}
+      <div class="form-check">
+        <input class="form-check-input ht-pick" type="checkbox" id="s-{{ s.id }}" value="{{ s.id }}" data-name="{{ s.name }}"
+               {% if m.all or s.id in m.picked %}checked{% endif %}>
+        <label class="form-check-label" for="s-{{ s.id }}">{{ s.name }}{% if s.description %}<small>{{ s.description }}</small>{% endif %}</label>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-muted small mt-1">No scenarios for this map yet - <a href="#" class="ht-holotable-link" target="_blank" rel="noopener">make one on Holotable</a>.</div>
+    {% endif %}
+  </div>
+  {% endmacro %}
+
+  <div class="card ht-card mb-4">
+    <div class="card-body">
+      <h5 class="card-title mb-1">Scenarios by map</h5>
+      <div class="text-muted small mb-3">Tick the ones that can play on each map. Only the map that's on is ever used.</div>
+      {% for m in data.maps %}
+        {{ map_block(m) }}
+      {% else %}
+        <div class="text-muted">This server has no map rotation set.</div>
+      {% endfor %}
+
+      {% if data.others %}
+      <details class="mt-3">
+        <summary class="fw-semibold">Other maps with scenarios ({{ data.others|length }}) - not in this server's rotation</summary>
+        <div class="mt-3">
+          {% for m in data.others %}{{ map_block(m) }}{% endfor %}
+        </div>
+      </details>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="ht-save-bar">
+    <button type="submit" class="btn btn-primary" id="ht-save">Save</button>
+    <span id="ht-status" class="small"></span>
+  </div>
+</form>
+
+<script>
+(function () {
+  const form = document.getElementById('ht-form');
+  const status = document.getElementById('ht-status');
+
+  document.querySelectorAll('.ht-holotable-link').forEach(function (a) {
+    a.href = location.protocol + '//' + location.hostname + ':8090/';
+  });
+
+  function mode() {
+    const checked = form.querySelector('input[name="mode"]:checked');
+    return checked ? checked.value : 'off';
+  }
+
+  // What each map will do, in words, for the mode picked.
+  function summarise(block) {
+    const out = block.querySelector('.ht-map-summary');
+    const picks = Array.prototype.filter.call(block.querySelectorAll('.ht-pick'), function (c) { return c.checked; });
+    const all = block.querySelector('.ht-all');
+    const m = mode();
+    let text = '';
+    if (!block.querySelectorAll('.ht-pick').length) {
+      text = m === 'round' ? 'Rounds play normally' : '';
+    } else if (m === 'off') {
+      text = '';
+    } else if (!picks.length) {
+      text = m === 'round' ? 'Nothing ticked - rounds play normally' : 'Nothing ticked - none break out here';
+    } else {
+      const which = picks.length === 1 ? picks[0].dataset.name : 'one of ' + picks.length + (all && all.checked ? ' (and new ones)' : '') + ' at random';
+      text = (m === 'round' ? 'Each round: ' : 'Breaks out: ') + which;
+    }
+    out.textContent = text;
+  }
+
+  function refresh() {
+    const m = mode();
+    form.querySelectorAll('.ht-mode').forEach(function (card) {
+      card.classList.toggle('active', card.dataset.mode === m);
+    });
+    form.querySelectorAll('[data-show-for]').forEach(function (el) {
+      el.style.display = el.dataset.showFor.split(' ').indexOf(m) >= 0 ? '' : 'none';
+    });
+    form.querySelectorAll('.ht-map').forEach(function (block) {
+      const all = block.querySelector('.ht-all');
+      const list = block.querySelector('.ht-scenarios');
+      if (all && list) {
+        list.classList.toggle('ht-disabled', all.checked);
+        list.querySelectorAll('.ht-pick').forEach(function (c) {
+          if (all.checked) c.checked = true;
+          c.disabled = all.checked;
+        });
+      }
+      summarise(block);
+    });
+  }
+
+  form.addEventListener('change', refresh);
+  refresh();
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    const maps = {};
+    form.querySelectorAll('.ht-map').forEach(function (block) {
+      const all = block.querySelector('.ht-all');
+      if (!all) return;
+      maps[block.dataset.map] = all.checked ? 'all' :
+        Array.prototype.filter.call(block.querySelectorAll('.ht-pick'), function (c) { return c.checked; })
+          .map(function (c) { return c.value; });
+    });
+    const payload = {
+      mode: mode(),
+      minutes: document.getElementById('ht-minutes').value,
+      players: document.getElementById('ht-players').value,
+      restart: document.getElementById('ht-restart').checked ? 1 : 0,
+      maps: maps
+    };
+    const button = document.getElementById('ht-save');
+    button.disabled = true;
+    status.className = 'small text-muted';
+    status.textContent = 'Saving...';
+    fetch(location.pathname.replace(/\/$/, '') + '/action/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (result) {
+        status.className = 'small ' + (result.success ? 'text-success' : 'text-danger');
+        status.textContent = result.message || (result.success ? 'Saved.' : 'Failed.');
+      })
+      .catch(function (err) {
+        status.className = 'small text-danger';
+        status.textContent = String(err);
+      })
+      .finally(function () { button.disabled = false; });
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+      e.preventDefault();
+      form.requestSubmit();
+    }
+  });
+})();
+</script>

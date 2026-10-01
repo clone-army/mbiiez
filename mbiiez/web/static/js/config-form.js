@@ -220,6 +220,31 @@ window.MbiiezConfigForm = (function () {
     });
   }
 
+  // Checklists (formify "checklist"): ticked values -> one space-separated
+  // string. A ticked "all" box stands for every option, so the others are
+  // greyed out while it is.
+  function initChecklistFields(root) {
+    root.querySelectorAll('.checklist-field').forEach(function (field) {
+      const hidden = field.querySelector('input[type="hidden"][data-path]');
+      const boxes = field.querySelectorAll('.checklist-box');
+      const all = field.querySelector('.checklist-box[value="all"]');
+
+      function recalc(initial) {
+        const everything = all && all.checked;
+        const picked = [];
+        boxes.forEach(function (cb) {
+          if (cb !== all) cb.disabled = !!everything;
+          if (cb.checked && (!everything || cb === all)) picked.push(cb.value);
+        });
+        hidden.value = picked.join(' ');
+        if (!initial) hidden.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+
+      boxes.forEach(function (cb) { cb.addEventListener('change', function () { recalc(false); }); });
+      recalc(true);
+    });
+  }
+
   function applyBoolAs(value, boolAs) {
     if (boolAs === 'int01') return value ? 1 : 0;
     if (boolAs === 'str01') return value ? '1' : '0';
@@ -287,6 +312,7 @@ window.MbiiezConfigForm = (function () {
     initDependsOn: initDependsOn,
     initCompositeFields: initCompositeFields,
     initRtmModeFields: initRtmModeFields,
+    initChecklistFields: initChecklistFields,
     buildConfig: buildConfig,
   };
 })();

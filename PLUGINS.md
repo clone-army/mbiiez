@@ -433,6 +433,7 @@ def web_page(instance_name, instance_config):
 | `action_form` | A small form posted to your `web_action`. The result appears under the form. |
 | `config_form` | Settings fields (same specs as above) bound to the instance's config, with a sticky Save bar, Ctrl+S and the same save path as the Settings page. |
 | `error` | A red message box (`message`) |
+| `template` | Your own page: a Jinja file in your plugin's folder (`template`, e.g. `"page.html"`), rendered with `data` (and `instance`). For what a table or form can't do - see `plugins/holotable/page.html`. Post its forms to `location.pathname + '/action/<name>'` (your `web_action`). |
 
 Only put data an admin should see in tables. For example, the Credits page shows account handles and
 balances but never the password hashes stored beside them.

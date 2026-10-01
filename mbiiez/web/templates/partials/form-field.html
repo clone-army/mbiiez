@@ -142,6 +142,24 @@
       {% if node.unknown %}<span class="text-danger">Stored value {{ node.value }} isn't a known RTM code - tick the modes you want to replace it.</span>{% endif %}
     </div>
   </div>
+{% elif node.kind == 'checklist' %}
+  {# Ticked values -> one space-separated string; config-form.js
+     (initChecklistFields) keeps the hidden input in sync. #}
+  <div class="mb-2 checklist-field"{{ deps|safe }}>
+    <label class="form-label small mb-0">{{ node.label }}</label>
+    <input type="hidden" data-path="{{ node.path }}" data-type="text" value="{{ node.value }}">
+    <div class="d-flex flex-wrap gap-3">
+      {% for opt in node.options %}
+      <div class="form-check">
+        <input type="checkbox" class="form-check-input checklist-box" id="{{ node.path }}-opt-{{ loop.index0 }}" value="{{ opt[0] }}" {% if opt[0] in node.selected %}checked{% endif %}>
+        <label class="form-check-label small" for="{{ node.path }}-opt-{{ loop.index0 }}">{{ opt[1] }}</label>
+      </div>
+      {% else %}
+      <span class="small text-muted">Nothing to pick yet.</span>
+      {% endfor %}
+    </div>
+    {% if node.help %}<div class="form-text">{{ node.help }}</div>{% endif %}
+  </div>
 {% elif node.kind == 'checkbox' %}
   <div class="form-check form-switch mb-2"{{ deps|safe }}>
     <input type="checkbox" class="form-check-input" role="switch" data-path="{{ node.path }}" data-type="checkbox" data-bool-as="{{ node.bool_as }}" {% if node.value %}checked{% endif %}>

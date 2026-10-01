@@ -6,9 +6,9 @@ class plugin:
     plugin_name = "Social Mode"
     plugin_author = "Louis Varley"
     plugin_url = ""
-    plugin_uses = ["accounts"]
+    plugin_uses = ["accounts", "holotable"]
     plugin_engine = "caded"
-    plugin_description = "Social mode: no damage outside duels, spawn any time, emotes, cantina NPCs and bar fights. Admins (Accounts) start bar fights and record NPC routes."
+    plugin_description = "Social mode: no damage outside duels, spawn any time, emotes and cantina NPCs. Admins (Accounts) record NPC routes. Fights in the cantina are Holotable scenarios - set them on the server's Holotable page."
 
     @staticmethod
     def web_hide_default_card():
@@ -32,21 +32,6 @@ class plugin:
                     {"path": ["auto_spawn_seconds"], "key": "auto_spawn_seconds", "type": "number", "default": 15,
                      "label": "Put Joiners In Automatically After (seconds, 0 = off)",
                      "help": "Anyone not in the game this long after joining is spawned as !spawn would. Not people who chose to spectate."},
-                    {"path": ["barfight"], "key": "barfight", "type": "bool_select", "default": 0,
-                     "label": "Bar Fights (!barfight)"},
-                    {"path": ["barfight_auto_minutes"], "key": "barfight_auto_minutes", "type": "number", "default": 0,
-                     "label": "Random Bar Fight Every (minutes, 0 = only !barfight)",
-                     "help": "Counted from the end of the last fight. Only when enough players are in (below)."},
-                    {"path": ["barfight_auto_players"], "key": "barfight_auto_players", "type": "number", "default": 2,
-                     "label": "Players Needed for a Random Bar Fight"},
-                    {"path": ["barfight_spawn"], "key": "barfight_spawn", "type": "text", "default": "",
-                     "label": "Bar Fight Spawn Point (x y z yaw, on the floor)"},
-                    {"path": ["barfight_rally"], "key": "barfight_rally", "type": "text", "default": "",
-                     "label": "Bar Fight Rally Point (x y z yaw - where they head first)"},
-                    {"path": ["barfight_spawn_route"], "key": "barfight_spawn_route", "type": "text", "default": "",
-                     "label": "Bar Fight Spawn Route (a !wp route whose points they spawn at)"},
-                    {"path": ["barfight_routes"], "key": "barfight_routes", "type": "text", "default": "",
-                     "label": "Bar Fight Attack Routes (!wp route names, space separated - used instead of the rally point)"},
                     {"path": ["admins"], "key": "admins", "type": "text", "default": "",
                      "label": "Admins (economy accounts that can record NPC routes with !wp, space separated)"},
                     {"path": ["npcs"], "key": "npcs", "type": "text", "default": "",
@@ -71,14 +56,7 @@ class plugin:
         self.round_seconds = max(0, int(self.config.get('round_minutes', 0))) * 60
         self.npcs = str(self.config.get('npcs', '') or '')
         self.auto_spawn = max(0, int(self.config.get('auto_spawn_seconds', 15)))
-        self.barfight = 1 if str(self.config.get('barfight', 0)) not in ("0", "False", "false", "") else 0
-        self.barfight_auto_minutes = max(0, int(self.config.get('barfight_auto_minutes', 0) or 0))
-        self.barfight_auto_players = max(1, int(self.config.get('barfight_auto_players', 2) or 2))
-        self.barfight_spawn = str(self.config.get('barfight_spawn', '') or '').replace('"', '')
-        self.barfight_rally = str(self.config.get('barfight_rally', '') or '').replace('"', '')
         self.admins = str(self.config.get('admins', '') or '').replace('"', '')
-        self.barfight_routes = str(self.config.get('barfight_routes', '') or '').replace('"', '')
-        self.barfight_spawn_route = str(self.config.get('barfight_spawn_route', '') or '').replace('"', '')
 
         self.instance.register_startup_cvar("g_socialMode", "1" if self.enabled else "0")
         self.instance.register_startup_cvar("g_socialRespawnTime", str(self.respawn_seconds))
@@ -88,9 +66,6 @@ class plugin:
         # command line (quoted inside screen's bash -c "..."). Set over rcon
         # by the service below instead.
         self.instance.register_startup_cvar("g_socialAutoSpawn", str(self.auto_spawn))
-        self.instance.register_startup_cvar("g_barFightEnable", str(self.barfight))
-        self.instance.register_startup_cvar("g_barFightAutoMinutes", str(self.barfight_auto_minutes))
-        self.instance.register_startup_cvar("g_barFightAutoPlayers", str(self.barfight_auto_players))
 
         if self.instance.has_plugin("auto_message") and self.enabled:
             self.instance.config['plugins']['auto_message']['messages'].append(
@@ -139,10 +114,7 @@ class plugin:
                                    ("g_socialRespawnTime", str(self.respawn_seconds)),
                                    ("g_socialDuels", "1" if self.duels else "0"),
                                    ("g_socialRoundTime", str(self.round_seconds)),
-                                   ("g_socialAutoSpawn", str(self.auto_spawn)),
-                                   ("g_barFightEnable", str(self.barfight)),
-                                   ("g_barFightAutoMinutes", str(self.barfight_auto_minutes)),
-                                   ("g_barFightAutoPlayers", str(self.barfight_auto_players))):
+                                   ("g_socialAutoSpawn", str(self.auto_spawn))):
                     self.instance.cvar(key, value)
                     time.sleep(0.25)
                 # These have spaces: rcon only, never startup cvars (they'd
@@ -150,15 +122,7 @@ class plugin:
                 for name, part in zip(("g_socialNpcs", "g_socialNpcs2", "g_socialNpcs3", "g_socialNpcs4"), self._npc_chunks()):
                     self.instance.console.rcon('set {} "{}"'.format(name, part), True)
                     time.sleep(0.25)
-                self.instance.console.rcon('set g_barFightSpawn "{}"'.format(self.barfight_spawn), True)
-                time.sleep(0.25)
-                self.instance.console.rcon('set g_barFightRally "{}"'.format(self.barfight_rally), True)
-                time.sleep(0.25)
                 self.instance.console.rcon('set g_socialAdmins "{}"'.format(self.admins), True)
-                time.sleep(0.25)
-                self.instance.console.rcon('set g_barFightRoutes "{}"'.format(self.barfight_routes), True)
-                time.sleep(0.25)
-                self.instance.console.rcon('set g_barFightSpawnRoute "{}"'.format(self.barfight_spawn_route), True)
             except Exception as e:
                 self.instance.exception_handler.log(e)
 
