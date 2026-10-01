@@ -1,0 +1,255 @@
+<style>
+  .ac-card { border: 0; box-shadow: 0 8px 22px rgba(31, 44, 62, 0.08); }
+  .ac-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 14px; }
+  .ac-tools .form-control { max-width: 240px; }
+  .ac-summary { font-size: .85rem; opacity: .75; margin-left: auto; }
+  .ac-table th[data-key] { white-space: nowrap; cursor: pointer; user-select: none; }
+  .ac-table th .ac-arrow { display: inline-block; width: 1em; opacity: .35; }
+  .ac-table th.ac-sorted .ac-arrow { opacity: 1; }
+  .ac-table td { vertical-align: middle; }
+  .ac-num { text-align: right; font-variant-numeric: tabular-nums; }
+  .ac-handle { font-weight: 600; }
+  .ac-actions { white-space: nowrap; text-align: right; }
+  .ac-actions .btn { margin-left: 4px; }
+</style>
+
+<div class="card ac-card mb-4">
+  <div class="card-body">
+    <h5 class="card-title mb-1">Accounts</h5>
+    <div class="text-muted small mb-3">Every player account (<code>!register</code> / <code>!login</code>), shared by all servers. <b>Admins</b> can record NPC routes (<code>!wp</code>) and play Holotable scenarios (<code>!ht</code>) while logged in. Changes reach every server within a few seconds. PINs are never shown - only changed.</div>
+
+    <div class="ac-tools">
+      <div class="btn-group btn-group-sm" role="group" aria-label="Show">
+        <input type="radio" class="btn-check" name="ac-who" id="ac-all" value="all" checked>
+        <label class="btn btn-outline-primary" for="ac-all">Everyone</label>
+        <input type="radio" class="btn-check" name="ac-who" id="ac-admins" value="admins">
+        <label class="btn btn-outline-primary" for="ac-admins">Admins</label>
+        <input type="radio" class="btn-check" name="ac-who" id="ac-locked" value="locked">
+        <label class="btn btn-outline-primary" for="ac-locked">Locked / wrong PINs</label>
+      </div>
+      <input type="search" class="form-control form-control-sm" id="ac-search" placeholder="Search handles">
+      <span class="ac-summary" id="ac-summary"></span>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table table-hover table-sm ac-table mb-0">
+        <thead>
+          <tr>
+            <th data-key="handle">Handle <span class="ac-arrow"></span></th>
+            <th data-key="credits" class="ac-num">Credits <span class="ac-arrow"></span></th>
+            <th data-key="admin">Admin <span class="ac-arrow"></span></th>
+            <th data-key="status">Status <span class="ac-arrow"></span></th>
+            <th class="text-end">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="ac-body"></tbody>
+      </table>
+    </div>
+    <div class="text-muted mt-3" id="ac-empty" style="display:none">Nobody matches.</div>
+  </div>
+</div>
+
+<div class="modal fade" id="ac-modal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <form class="modal-content" id="ac-form" autocomplete="off">
+      <div class="modal-header">
+        <h5 class="modal-title" id="ac-title"></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body" id="ac-fields"></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="ac-submit"></button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+(function () {
+  const ROWS = {{ data.rows|tojson }};
+  const BASE = location.pathname.replace(/\/$/, '') + '/action/';
+  const body = document.getElementById('ac-body');
+  const search = document.getElementById('ac-search');
+  let sortKey = 'handle', sortDir = 1;
+
+  function post(action, payload) {
+    return fetch(BASE + encodeURIComponent(action), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    }).then(function (r) { return r.json(); }).then(function (res) {
+      if (!res.success) throw new Error(res.message || 'Failed.');
+      return res.message;
+    });
+  }
+
+  // Done: the message after the page reloads with the new data.
+  function doneReload(message) {
+    mbiiToastAfterRedirect(message, 'success');
+    location.reload();
+  }
+
+  // --- The dialog: credits, PIN, delete ---
+  const modalEl = document.getElementById('ac-modal');
+  const modal = new bootstrap.Modal(modalEl);
+  const form = document.getElementById('ac-form');
+  let pending = null;
+
+  function el(tag, attrs, text) {
+    const e = document.createElement(tag);
+    Object.keys(attrs || {}).forEach(function (k) { e.setAttribute(k, attrs[k]); });
+    if (text) e.textContent = text;
+    return e;
+  }
+
+  function openDialog(opts) {
+    pending = opts;
+    document.getElementById('ac-title').textContent = opts.title;
+    const fields = document.getElementById('ac-fields');
+    fields.replaceChildren();
+    if (opts.text) fields.appendChild(el('p', { class: 'mb-3' }, opts.text));
+    if (opts.input) {
+      const id = 'ac-input';
+      fields.appendChild(el('label', { class: 'form-label fw-semibold', for: id }, opts.input.label));
+      const input = el('input', Object.assign({ class: 'form-control', id: id, required: 'required' }, opts.input.attrs));
+      fields.appendChild(input);
+      if (opts.input.help) fields.appendChild(el('div', { class: 'form-text' }, opts.input.help));
+      modalEl.addEventListener('shown.bs.modal', function focus() { input.focus(); modalEl.removeEventListener('shown.bs.modal', focus); });
+    }
+    const submit = document.getElementById('ac-submit');
+    submit.textContent = opts.button;
+    submit.className = 'btn ' + (opts.danger ? 'btn-danger' : 'btn-primary');
+    submit.disabled = false;
+    modal.show();
+  }
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    if (!pending) return;
+    const input = document.getElementById('ac-input');
+    const submit = document.getElementById('ac-submit');
+    submit.disabled = true;
+    post(pending.action, pending.payload(input ? input.value.trim() : ''))
+      .then(doneReload)
+      .catch(function (err) { submit.disabled = false; mbiiToast(err.message, 'danger'); });
+  });
+
+  function credits(r) {
+    openDialog({
+      title: 'Credits - ' + r.handle, action: 'add_credits', button: 'Change credits',
+      text: r.handle + ' has ' + r.credits.toLocaleString() + ' credits.',
+      input: { label: 'Add (or take away, with a minus)', attrs: { type: 'number', step: '1', placeholder: 'e.g. 500 or -200' },
+               help: 'A server where they\'re logged in picks it up within a few seconds.' },
+      payload: function (v) { return { handle: r.handle, amount: v }; }
+    });
+  }
+
+  function pin(r) {
+    openDialog({
+      title: 'Change PIN - ' + r.handle, action: 'set_pin', button: 'Change PIN',
+      text: 'For when they\'ve forgotten it. Tell them the new one - it\'s needed for !login on every server. This also unlocks the account.',
+      input: { label: 'New PIN (4 digits)', attrs: { type: 'text', inputmode: 'numeric', pattern: '[0-9]{4}', maxlength: '4', placeholder: '1234' } },
+      payload: function (v) { return { handle: r.handle, pin: v }; }
+    });
+  }
+
+  function remove(r) {
+    openDialog({
+      title: 'Delete ' + r.handle + '?', action: 'delete', button: 'Delete account', danger: true,
+      text: 'Their ' + r.credits.toLocaleString() + ' credits' + (r.admin ? ' and admin rights' : '') + ' go with it, on every server. ' +
+            'Their stats stay. This can\'t be undone - they\'d have to !register again.',
+      payload: function () { return { handle: r.handle }; }
+    });
+  }
+
+  function unlock(r, button) {
+    button.disabled = true;
+    post('unlock', { handle: r.handle }).then(doneReload)
+      .catch(function (err) { button.disabled = false; mbiiToast(err.message, 'danger'); });
+  }
+
+  function setAdmin(r, box) {
+    const on = box.checked;
+    box.disabled = true;
+    post('set_admin', { key: r.handle, on: on ? '1' : '0' })
+      .then(function (msg) { r.admin = on; mbiiToast(msg, 'success'); render(); })
+      .catch(function (err) { box.checked = !on; mbiiToast(err.message, 'danger'); })
+      .finally(function () { box.disabled = false; });
+  }
+
+  // --- The table ---
+  function button(label, icon, cls, title, onClick) {
+    const b = el('button', { type: 'button', class: 'btn btn-sm ' + cls, title: title });
+    const i = el('i', { class: 'fas ' + icon });
+    b.appendChild(i);
+    if (label) b.appendChild(document.createTextNode(' ' + label));
+    b.addEventListener('click', function () { onClick(b); });
+    return b;
+  }
+
+  function render() {
+    const who = document.querySelector('input[name="ac-who"]:checked').value;
+    const q = search.value.trim().toLowerCase();
+    const list = ROWS.filter(function (r) {
+      if (who === 'admins' && !r.admin) return false;
+      if (who === 'locked' && !r.status) return false;
+      return !q || r.handle.toLowerCase().indexOf(q) >= 0;
+    });
+    list.sort(function (a, b) {
+      let x = a[sortKey], y = b[sortKey];
+      if (typeof x === 'string') { x = x.toLowerCase(); y = y.toLowerCase(); }
+      if (typeof x === 'boolean') { x = x ? 1 : 0; y = y ? 1 : 0; }
+      if (x < y) return -sortDir;
+      if (x > y) return sortDir;
+      return a.handle.toLowerCase() < b.handle.toLowerCase() ? -1 : 1;
+    });
+    const frag = document.createDocumentFragment();
+    list.forEach(function (r) {
+      const tr = document.createElement('tr');
+      const handle = el('td', { class: 'ac-handle' }, r.handle);
+      const cr = el('td', { class: 'ac-num' }, r.credits.toLocaleString());
+      const adm = el('td');
+      const sw = el('div', { class: 'form-check form-switch mb-0' });
+      const box = el('input', { class: 'form-check-input', type: 'checkbox', title: 'Admin on every server', 'aria-label': 'Admin' });
+      box.checked = !!r.admin;
+      box.addEventListener('change', function () { setAdmin(r, box); });
+      sw.appendChild(box);
+      adm.appendChild(sw);
+      const st = el('td', { class: 'small' + (r.status ? ' text-danger' : ' text-muted') }, r.status || 'OK');
+      const act = el('td', { class: 'ac-actions' });
+      act.appendChild(button('Credits', 'fa-coins', 'btn-outline-primary', 'Add or take away credits', function () { credits(r); }));
+      act.appendChild(button('PIN', 'fa-key', 'btn-outline-secondary', 'Change their PIN', function () { pin(r); }));
+      if (r.status) act.appendChild(button('Unlock', 'fa-unlock', 'btn-outline-success', 'Clear wrong PINs and the lockout', function (b) { unlock(r, b); }));
+      act.appendChild(button('', 'fa-trash', 'btn-outline-danger', 'Delete the account', function () { remove(r); }));
+      tr.append(handle, cr, adm, st, act);
+      frag.appendChild(tr);
+    });
+    body.replaceChildren(frag);
+    document.getElementById('ac-empty').style.display = list.length ? 'none' : 'block';
+    const total = list.reduce(function (n, r) { return n + r.credits; }, 0);
+    document.getElementById('ac-summary').textContent = list.length + ' of ' + ROWS.length + ' accounts · ' + total.toLocaleString() + ' credits';
+    document.querySelectorAll('.ac-table th[data-key]').forEach(function (th) {
+      const on = th.dataset.key === sortKey;
+      th.classList.toggle('ac-sorted', on);
+      th.querySelector('.ac-arrow').textContent = on ? (sortDir < 0 ? '▼' : '▲') : '▽';
+      th.setAttribute('aria-sort', on ? (sortDir < 0 ? 'descending' : 'ascending') : 'none');
+    });
+  }
+
+  document.querySelectorAll('.ac-table th[data-key]').forEach(function (th) {
+    th.addEventListener('click', function () {
+      if (th.dataset.key === sortKey) {
+        sortDir = -sortDir;
+      } else {
+        sortKey = th.dataset.key;
+        sortDir = sortKey === 'handle' ? 1 : -1; // handles A-Z; credits, admins, problems first
+      }
+      render();
+    });
+  });
+  document.querySelectorAll('input[name="ac-who"]').forEach(function (r) { r.addEventListener('change', render); });
+  search.addEventListener('input', render);
+  render();
+})();
+</script>

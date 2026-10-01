@@ -8,7 +8,7 @@ class plugin(CvarPlugin):
 
     plugin_name = "Accounts"
     plugin_description = ("Player accounts: !register and !login, shared by every server, and who's an admin. "
-                          "Other plugins build on it (Credits, Holotable...). Adds the Accounts page.")
+                          "Other plugins build on it (Credits, Holotable...). Adds the Accounts page: balances, admins, PINs.")
     config_key = "accounts"
     switches = {"g_accountsEnable": "1"}
     default_cvars = {"g_economyLoginReminder": "0"}
@@ -35,40 +35,30 @@ class plugin(CvarPlugin):
 
     @staticmethod
     def web_global_page(slug):
-        accounts = sorted(accounts_store.read_accounts(), key=lambda a: a["handle"].lower())
         admins = accounts_store.read_admins()
-        return [
-            {
-                "type": "table",
-                "title": "Accounts",
-                "help": ("Every player account, shared by all servers (one file in the game folder). Admin: can "
-                         "record NPC routes (!wp) and play Holotable scenarios (!ht) while logged in - "
-                         "takes effect within seconds, everywhere. PINs are never shown. Click a row to fill in the "
-                         "forms below."),
-                "searchable": True,
-                "columns": ["Handle", "Admin", "Status"],
-                "rows": [[a["handle"],
-                          {"toggle": {"action": "set_admin", "key": a["handle"], "checked": a["handle"].lower() in admins,
-                                      "title": "Admin on every server"}},
-                          accounts_store.locked_text(a)]
-                         for a in accounts],
-                "row_action": {"fill_form": "unlock", "fill_field": "handle", "value_column": 0},
-            },
-            {
-                "type": "action_form",
-                "title": "Unlock an Account",
-                "help": "Too many wrong PINs lock an account for a while (longer each time). This clears that.",
-                "action": "unlock",
-                "submit_label": "Unlock",
-                "fields": [{"name": "handle", "label": "Handle", "type": "text", "required": True}],
-            },
-        ]
+        rows = [{"handle": a["handle"], "credits": a["credits"], "admin": a["handle"].lower() in admins,
+                 "status": accounts_store.locked_text(a)}
+                for a in accounts_store.read_accounts()]
+        return [{"type": "template", "template": "page.html", "data": {"rows": rows}}]
 
     @staticmethod
     def web_global_action(slug, action_name, form_data):
         form_data = form_data or {}
         if action_name == "set_admin":
             return accounts_store.set_admin(str(form_data.get("key", "")).strip(), str(form_data.get("on", "")) == "1")
+        handle = str(form_data.get("handle", "")).strip()
         if action_name == "unlock":
-            return accounts_store.unlock(str(form_data.get("handle", "")).strip())
+            return accounts_store.unlock(handle)
+        if action_name == "add_credits":
+            try:
+                amount = int(str(form_data.get("amount", "")).strip())
+            except (TypeError, ValueError):
+                return False, "The amount must be a whole number."
+            if amount == 0:
+                return False, "The amount can't be 0."
+            return accounts_store.add_credits(handle, amount)
+        if action_name == "set_pin":
+            return accounts_store.set_pin(handle, form_data.get("pin", ""))
+        if action_name == "delete":
+            return accounts_store.delete_account(handle)
         return False, "Unknown action."

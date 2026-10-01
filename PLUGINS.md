@@ -435,8 +435,8 @@ def web_page(instance_name, instance_config):
 | `error` | A red message box (`message`) |
 | `template` | Your own page: a Jinja file in your plugin's folder (`template`, e.g. `"page.html"`), rendered with `data` (and `instance`). For what a table or form can't do - see `plugins/holotable/page.html`. Post its forms to `location.pathname + '/action/<name>'` (your `web_action`). |
 
-Only put data an admin should see in tables. For example, the Credits page shows account handles and
-balances but never the password hashes stored beside them.
+Only put data an admin should see in tables. For example, the Accounts page shows account handles and
+balances but never the PIN hashes stored beside them.
 
 ### Pages for every server (`web_global_menu` / `web_global_page`)
 
@@ -459,8 +459,9 @@ def web_global_action(slug, action_name, form_data):
 
 They show while the plugin is on for at least one instance (or always, with `plugin_global_always = True`).
 Pages live at `/plugins/<plugin>/<slug>`; their tables, toggles and action forms post to
-`/plugins/<plugin>/<slug>/action/<name>`. The Accounts and Credits pages are built this way
-(`plugins/accounts`, `plugins/credits`; the shared file handling is `mbiiez/accounts_store.py`).
+`/plugins/<plugin>/<slug>/action/<name>`. The Accounts and Player Stats pages are built this way
+(`plugins/accounts`, `plugins/stats`, both with a `template` section; the shared account file handling is
+`mbiiez/accounts_store.py`).
 
 ### Actions (`web_action`)
 

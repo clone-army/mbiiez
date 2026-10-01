@@ -7,9 +7,10 @@ logs back in. One file in the game folder (`economy_accounts.dat`) holds them al
 every server. Other plugins build on it - **Credits** (and so everything that spends credits) and **Holotable**
 need it; **Social** and **Stats** use it when it's on.
 
-Adds the **Accounts** page to the web panel (outside any one instance - accounts are shared): every account,
-who's an admin (tick the box - admins run `!wp` and `!ht play`), and unlocking accounts that got
-locked by wrong PINs.
+Adds the **Accounts** page to the web panel's main menu (accounts are shared by every server): every account with
+its credits, who's an admin (the switch - admins run `!wp` and `!ht play`) and whether it's locked by wrong PINs;
+searchable, filtered to admins or locked accounts, sorted by any column. Each account's buttons add or take away
+credits, change its PIN (hashed as the engine does; it unlocks the account too), unlock it, or delete it.
 
 Engine: `g_accountsEnable 1` (set by this plugin).
 

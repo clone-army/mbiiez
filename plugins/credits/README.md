@@ -6,7 +6,7 @@ Players earn credits while logged in - kills, rounds, games - check them with `!
 with `!gift <player> <credits>`. Balances live on the account, so they're the same on every server. What
 credits buy are their own plugins: **Shop**, **Bounties**, **Cantina Bar**, **Jukebox**, **Casino**.
 
-Adds the **Credits** page (outside any instance): every balance, and giving or taking credits.
+Balances, and giving or taking credits, are on the **Accounts** page (the Accounts plugin).
 
 Engine: `g_creditSystemEnable 1` (set by this plugin).
 

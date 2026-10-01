@@ -15,6 +15,8 @@ Writes take the same flock() the engine does, so they're safe alongside
 running servers.
 """
 import fcntl
+import hashlib
+import hmac
 import os
 import time
 
@@ -23,6 +25,8 @@ from mbiiez import settings
 ACCOUNTS_FILE = "economy_accounts.dat"
 ADMINS_FILE = "economy_admins.dat"
 HANDLE_MAX = 23   # ECONOMY_HANDLE_SIZE - 1 in the engine
+PIN_LEN = 4       # ECONOMY_PIN_LEN
+SALT_SIZE = 16    # ECONOMY_SALT_SIZE
 
 
 def accounts_path():
@@ -140,6 +144,51 @@ def unlock(handle):
     if not ok:
         return False, result
     return True, "{} is unlocked.".format(result[0])
+
+
+def set_pin(handle, pin):
+    """A new PIN (4 digits), hashed as the engine does - HMAC-MD5 keyed by a
+    fresh random salt (SV_EconomyHashPin) - and the account unlocked."""
+    pin = str(pin or "").strip()
+    if len(pin) != PIN_LEN or not pin.isdigit():
+        return False, "A PIN is {} digits.".format(PIN_LEN)
+    salt = os.urandom(SALT_SIZE)
+    digest = hmac.new(salt, pin.encode("ascii"), hashlib.md5).hexdigest()
+
+    def change(parts):
+        parts[1] = salt.hex()
+        parts[2] = digest
+        parts[4] = "0"
+        parts[5] = "0"
+    ok, result = _edit_account(handle, change)
+    if not ok:
+        return False, result
+    return True, "{}'s PIN is changed.".format(result[0])
+
+
+def delete_account(handle):
+    """Removes the account (and its admin flag). A player logged into it on a
+    server keeps playing, but nothing more is saved to it."""
+    if not valid_handle(handle):
+        return False, "Not a valid account handle."
+    try:
+        fd = os.open(accounts_path(), os.O_RDWR)
+    except FileNotFoundError:
+        return False, "No accounts yet - nobody has registered."
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX)
+        with os.fdopen(fd, "r+", encoding="utf-8", errors="ignore") as f:
+            lines = f.readlines()
+            keep = [line for line in lines if not (len(line.split()) == 6 and line.split()[0].lower() == handle.lower())]
+            if len(keep) == len(lines):
+                return False, "No account called '{}'.".format(handle)
+            f.seek(0)
+            f.writelines(keep)
+            f.truncate()
+    except Exception as e:
+        return False, "Could not update the accounts file: {}".format(e)
+    set_admin(handle, False)
+    return True, "{} is deleted.".format(handle)
 
 
 def locked_text(account):
