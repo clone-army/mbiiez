@@ -15,6 +15,8 @@
   .ht-scenarios { margin-top: 10px; display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 6px 16px; }
   .ht-scenarios .form-check-label small { display: block; opacity: .65; }
   .ht-scenarios.ht-disabled { opacity: .5; }
+  .ht-scenarios .ht-is-bg { opacity: .45; }
+  .ht-scenarios .ht-is-bg .form-check-label::after { content: " - the background"; font-style: italic; }
   .ht-save-bar { position: sticky; bottom: 0; z-index: 5; display: flex; align-items: center; gap: 12px; padding: 12px 0; background: var(--bs-body-bg, #fff); }
 </style>
 
@@ -73,7 +75,20 @@
       <span class="ht-map-summary text-muted"></span>
     </div>
     {% if m.scenarios %}
-    <div class="form-check form-switch mt-2">
+    <div class="ht-bg row g-2 align-items-center mt-1">
+      <label class="col-auto col-form-label col-form-label-sm fw-semibold" for="bg-{{ m.map }}"><i class="fas fa-mug-hot"></i> Background</label>
+      <div class="col-sm-6 col-lg-4">
+        <select class="form-select form-select-sm ht-bg-select" id="bg-{{ m.map }}">
+          <option value="">None</option>
+          {% for s in m.scenarios %}
+          <option value="{{ s.id }}" {% if s.id == m.background %}selected{% endif %}>{{ s.name }}{% if s.regulars %} ({{ s.regulars }} regular{{ '' if s.regulars == 1 else 's' }}){% else %} (no regulars){% endif %}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-12 form-text mt-0">Its regulars hang about whenever nothing else is on - they step out for a scenario and come back after. Never picked as an event below.</div>
+    </div>
+    <div class="small fw-semibold mt-3">Events</div>
+    <div class="form-check form-switch mt-1">
       <input class="form-check-input ht-all" type="checkbox" id="all-{{ m.map }}" {% if m.all %}checked{% endif %}>
       <label class="form-check-label" for="all-{{ m.map }}">All of them (new ones too)</label>
     </div>
@@ -134,13 +149,20 @@
   }
 
   // What each map will do, in words, for the mode picked.
+  function background(block) {
+    const sel = block.querySelector('.ht-bg-select');
+    return sel ? sel.value : '';
+  }
+
   function summarise(block) {
     const out = block.querySelector('.ht-map-summary');
-    const picks = Array.prototype.filter.call(block.querySelectorAll('.ht-pick'), function (c) { return c.checked; });
+    const bg = background(block);
+    const events = Array.prototype.filter.call(block.querySelectorAll('.ht-pick'), function (c) { return c.value !== bg; });
+    const picks = events.filter(function (c) { return c.checked; });
     const all = block.querySelector('.ht-all');
     const m = mode();
     let text = '';
-    if (!block.querySelectorAll('.ht-pick').length) {
+    if (!events.length) {
       text = m === 'round' ? 'Rounds play normally' : '';
     } else if (m === 'off') {
       text = '';
@@ -149,6 +171,10 @@
     } else {
       const which = picks.length === 1 ? picks[0].dataset.name : 'one of ' + picks.length + (all && all.checked ? ' (and new ones)' : '') + ' at random';
       text = (m === 'round' ? 'Each round: ' : 'Breaks out: ') + which;
+    }
+    if (bg) {
+      const opt = block.querySelector('.ht-bg-select option:checked');
+      text = 'Background: ' + opt.textContent.replace(/ \(.*\)$/, '') + (text ? ' · ' + text : '');
     }
     out.textContent = text;
   }
@@ -164,11 +190,14 @@
     form.querySelectorAll('.ht-map').forEach(function (block) {
       const all = block.querySelector('.ht-all');
       const list = block.querySelector('.ht-scenarios');
+      const bg = background(block);
       if (all && list) {
         list.classList.toggle('ht-disabled', all.checked);
         list.querySelectorAll('.ht-pick').forEach(function (c) {
           if (all.checked) c.checked = true;
-          c.disabled = all.checked;
+          c.disabled = all.checked || c.value === bg;
+          // The background is never an event.
+          c.closest('.form-check').classList.toggle('ht-is-bg', c.value === bg);
         });
       }
       summarise(block);
@@ -181,9 +210,11 @@
   form.addEventListener('submit', function (e) {
     e.preventDefault();
     const maps = {};
+    const backgrounds = {};
     form.querySelectorAll('.ht-map').forEach(function (block) {
       const all = block.querySelector('.ht-all');
       if (!all) return;
+      if (background(block)) backgrounds[block.dataset.map] = background(block);
       maps[block.dataset.map] = all.checked ? 'all' :
         Array.prototype.filter.call(block.querySelectorAll('.ht-pick'), function (c) { return c.checked; })
           .map(function (c) { return c.value; });
@@ -193,7 +224,8 @@
       minutes: document.getElementById('ht-minutes').value,
       players: document.getElementById('ht-players').value,
       restart: document.getElementById('ht-restart').checked ? 1 : 0,
-      maps: maps
+      maps: maps,
+      backgrounds: backgrounds
     };
     const button = document.getElementById('ht-save');
     button.disabled = true;

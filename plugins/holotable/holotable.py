@@ -31,7 +31,8 @@ def scenarios():
         if isinstance(data, dict):
             found.append({"id": f[:-5], "map": str(data.get("map", "") or ""),
                           "name": str(data.get("name") or f[:-5]),
-                          "description": str(data.get("description", "") or "")})
+                          "description": str(data.get("description", "") or ""),
+                          "regulars": len(data.get("regulars") or []) if isinstance(data.get("regulars"), list) else 0})
     return sorted(found, key=lambda s: (s["map"].lower(), s["name"].lower()))
 
 
@@ -47,6 +48,9 @@ def auto_settings(cfg):
         "restart": 0 if str(cfg.get("auto_restart", 1)).lower() in ("0", "false", "") else 1,
         # map -> "all" (the default: new ones too) or the scenario ids ticked
         "maps": maps,
+        # map -> the scenario whose regulars hang about whenever no other is on
+        "backgrounds": {str(k): str(v) for k, v in (cfg.get("backgrounds") or {}).items() if v}
+                       if isinstance(cfg.get("backgrounds"), dict) else {},
     }
 
 
@@ -57,10 +61,13 @@ def _map_pick(maps, map_name):
     return "all"
 
 
-def allowed_ids(maps, all_scenarios):
-    """The scenario ids auto-play may pick."""
+def allowed_ids(maps, all_scenarios, backgrounds=None):
+    """The scenario ids auto-play may pick (never a map's background)."""
+    skip = set((backgrounds or {}).values())
     out = []
     for s in all_scenarios:
+        if s["id"] in skip:
+            continue
         pick = _map_pick(maps, s["map"])
         if pick == "all" or (isinstance(pick, list) and s["id"] in pick):
             out.append(s["id"])
@@ -87,9 +94,14 @@ def apply(instance_name, cfg, set_cvar=None, pause=True):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     tmp = path + ".tmp"
     with open(tmp, "w", encoding="utf-8") as f:
-        f.write("# Holotable scenarios auto-play can pick (written by mbiiez's Holotable plugin)\n")
-        for sid in allowed_ids(auto["maps"], scenarios()):
+        f.write("# Holotable scenarios auto-play can pick, and each map's background (written by mbiiez's Holotable plugin)\n")
+        found = scenarios()
+        for sid in allowed_ids(auto["maps"], found, auto["backgrounds"]):
             f.write(sid + "\n")
+        known = {s["id"] for s in found}
+        for sid in sorted(set(auto["backgrounds"].values())):
+            if sid in known:
+                f.write("background " + sid + "\n")
     os.replace(tmp, path)
     if set_cvar:
         enabled = 0 if str(cfg.get("enabled", 1)).lower() in ("0", "false", "") else 1
@@ -155,7 +167,9 @@ class plugin:
             return {"map": map_name, "in_rotation": in_rotation,
                     "scenarios": by_map.get(map_name.lower(), []),
                     "all": pick == "all",
-                    "picked": pick if isinstance(pick, list) else []}
+                    "picked": pick if isinstance(pick, list) else [],
+                    "background": _map_pick(auto["backgrounds"], map_name) if any(
+                        k.lower() == map_name.lower() for k in auto["backgrounds"]) else ""}
 
         rotation = [str(m) for m in (instance_config or {}).get("map_rotation_order", []) or [] if m]
         seen = set()
@@ -202,6 +216,11 @@ class plugin:
                 maps[map_name] = "all"
             elif isinstance(pick, list):
                 maps[map_name] = sorted({str(p) for p in pick if str(p) in known})
+        backgrounds = {}
+        for map_name, sid in (data.get("backgrounds") or {}).items():
+            map_name, sid = str(map_name).strip(), str(sid or "").strip()
+            if map_name and sid in known:
+                backgrounds[map_name] = sid
 
         config = _read_config(instance_name)
         if config is None:
@@ -212,6 +231,7 @@ class plugin:
         cfg["auto_players"] = players
         cfg["auto_restart"] = 1 if str(data.get("restart", 1)).lower() not in ("0", "false", "") else 0
         cfg["maps"] = maps
+        cfg["backgrounds"] = backgrounds
         path = _config_path(instance_name)
         tmp = path + ".tmp"
         with open(tmp, "w", encoding="utf-8") as f:

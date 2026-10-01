@@ -8,7 +8,7 @@ class plugin:
     plugin_url = ""
     plugin_uses = ["accounts", "holotable"]
     plugin_engine = "caded"
-    plugin_description = "Social mode: no damage outside duels, spawn any time, emotes and cantina NPCs. Admins (Accounts) record NPC routes. Fights in the cantina are Holotable scenarios - set them on the server's Holotable page."
+    plugin_description = "Social mode: no damage outside duels, spawn any time, emotes and duels. The cantina NPCs (a background) and its fights are Holotable scenarios - set them on the server's Holotable page."
 
     @staticmethod
     def web_hide_default_card():
@@ -34,9 +34,6 @@ class plugin:
                      "help": "Anyone not in the game this long after joining is spawned as !spawn would. Not people who chose to spectate."},
                     {"path": ["admins"], "key": "admins", "type": "text", "default": "",
                      "label": "Admins (economy accounts that can record NPC routes with !wp, space separated)"},
-                    {"path": ["npcs"], "key": "npcs", "type": "text", "default": "",
-                     "label": "NPCs on the Map (type x y z yaw pose; separate several with ;)",
-                     "help": "e.g. bartender 4008 -550 -1769 169 bartend. Pose: sit, idle, bartend, roam, or none. /viewpos on the spot gives x y z (take ~30 off z) and the facing."},
                     {"path": ["cvars", "g_inactivitySpec"], "key": "g_inactivitySpec", "type": "number", "default": 0,
                      "label": "Move Idle Players to Spectator After (seconds, 0 = never)",
                      "help": "MBII's g_inactivitySpec. Social servers usually leave it at 0 so people can sit and chat."},
