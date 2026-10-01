@@ -58,6 +58,9 @@
                 <li>
                     <a href="/bans" class="{% if request.path.startswith('/bans') %}active{% endif %}"><i class="fas fa-ban"></i> Bans</a>
                 </li>
+                <li>
+                    <a href="/guidbans" class="{% if request.path.startswith('/guidbans') %}active{% endif %}"><i class="fas fa-fingerprint"></i> GUID Bans</a>
+                </li>
                 {% endif %}
                 {% if can_admin %}
                 {% for item in global_plugin_menus %}

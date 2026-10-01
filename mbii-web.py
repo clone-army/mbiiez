@@ -10,7 +10,7 @@ from functools import wraps
 from flask import Flask, abort, g, jsonify, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from mbiiez import settings, plugin_loader, bansync
+from mbiiez import settings, plugin_loader, bansync, guidbans
 from mbiiez.db import db
 
 # Web Tools
@@ -294,6 +294,7 @@ def _required_role_for_path(path, method):
         "/mod",
         "/rcon",
         "/bans",
+        "/guidbans",
     ]
 
     if path.startswith("/instance/") and path.endswith("/command"):
@@ -997,6 +998,52 @@ def bans_remove():
 def bans_note():
     data = request.get_json(silent=True) or {}
     success, msg = bansync.set_note(data.get("ip"), data.get("note", ""))
+    return {"success": success, "message": msg, "error": None if success else msg}
+
+
+def _when(ts):
+    return time.strftime("%Y-%m-%d %H:%M", time.localtime(ts)) if ts else ""
+
+
+@app.route("/guidbans", methods=["GET"])
+@require_role("mod")
+def guidbans_page():
+    bans = guidbans.list_bans()
+    for b in bans:
+        b["added_text"] = _when(b["added"])
+        b["last_drop_text"] = _when(b["last_drop"])
+    return render_template("pages/guidbans.html", view_bag={
+        "bans": bans,
+        "total_drops": sum(b["drops"] for b in bans),
+    })
+
+
+@app.route("/guidbans/add", methods=["POST"])
+@require_role("mod")
+def guidbans_add():
+    data = request.get_json(silent=True) or {}
+    note = str(data.get("note", "")).strip() or "by {} (web)".format(_current_user())
+    success, msg = guidbans.add_ban(data.get("guid"), note[:200])
+    if success:
+        _audit("guidban_add", details="{} {}".format(data.get("guid", ""), note)[:200])
+    return {"success": success, "message": msg, "error": None if success else msg}
+
+
+@app.route("/guidbans/remove", methods=["POST"])
+@require_role("mod")
+def guidbans_remove():
+    data = request.get_json(silent=True) or {}
+    success, msg = guidbans.remove_ban(data.get("guid"))
+    if success:
+        _audit("guidban_remove", details=str(data.get("guid", "")))
+    return {"success": success, "message": msg, "error": None if success else msg}
+
+
+@app.route("/guidbans/note", methods=["POST"])
+@require_role("mod")
+def guidbans_note():
+    data = request.get_json(silent=True) or {}
+    success, msg = guidbans.set_note(data.get("guid"), data.get("note", ""))
     return {"success": success, "message": msg, "error": None if success else msg}
 
 

@@ -17,6 +17,9 @@ every instance) and brings every instance into line with it:
 
 The web panel's Bans page edits the master list directly and syncs straight
 away; otherwise sync() runs every minute from mbii-web.
+
+An IP ban also bans every GUID seen on that IP (mbiiez.guidbans), and
+unbanning the IP lifts them again.
 """
 import fcntl
 import json
@@ -127,6 +130,30 @@ class _Locked:
         return False
 
 
+def _follow_guids(ip, banned, log):
+    """Ban (or unban) the GUIDs seen on an IP along with it. Returns them."""
+    from mbiiez import guidbans
+    guids = []
+    try:
+        if banned:
+            guids = guidbans.ban_from_ip(ip)
+            if guids:
+                log.append("{}: GUIDs banned with it: {}".format(ip, ", ".join(guids)))
+        else:
+            guids = guidbans.unban_from_ip(ip)
+            if guids:
+                log.append("{}: GUIDs unbanned with it: {}".format(ip, ", ".join(guids)))
+    except Exception as e:
+        log.append("{}: GUID bans not updated ({})".format(ip, e))
+    return guids
+
+
+def _guid_text(guids, done):
+    if not guids:
+        return ""
+    return " {} GUID{} seen on it {} too.".format(len(guids), "" if len(guids) == 1 else "s", done)
+
+
 def _rcon(name, command):
     from mbiiez.instance import instance as MBInstance
     MBInstance(name).console.rcon(command, True)
@@ -152,10 +179,12 @@ def _sync_locked(data, log):
             if ip not in bans:
                 bans[ip] = {"note": "", "added": int(time.time()), "by": "in game on {}".format(name)}
                 log.append("{} banned on {} - banning everywhere".format(ip, name))
+                _follow_guids(ip, True, log)
         for ip in sorted(removed):
             if ip in bans:
                 del bans[ip]
                 log.append("{} unbanned on {} - unbanning everywhere".format(ip, name))
+                _follow_guids(ip, False, log)
 
     # 2. Every instance brought into line with it.
     wanted = sorted(bans)
@@ -210,13 +239,15 @@ def add_ban(ip, note="", by=""):
     if not valid_ip(ip):
         return False, "Not a valid IPv4 address."
     log = []
+    guids = []
     with _thread_lock, _Locked() as data:
         if ip in data["bans"]:
             data["bans"][ip]["note"] = note or data["bans"][ip].get("note", "")
         else:
             data["bans"][ip] = {"note": note or "", "added": int(time.time()), "by": by or "web panel"}
+            guids = _follow_guids(ip, True, log)
         _sync_locked(data, log)
-    return True, "{} banned on every server.".format(ip)
+    return True, "{} banned on every server.{}".format(ip, _guid_text(guids, "banned"))
 
 
 def remove_ban(ip):
@@ -226,8 +257,9 @@ def remove_ban(ip):
         if ip not in data["bans"]:
             return False, "{} isn't banned.".format(ip)
         del data["bans"][ip]
+        guids = _follow_guids(ip, False, log)
         _sync_locked(data, log)
-    return True, "{} unbanned on every server.".format(ip)
+    return True, "{} unbanned on every server.{}".format(ip, _guid_text(guids, "unbanned"))
 
 
 def set_note(ip, note):
