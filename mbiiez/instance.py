@@ -392,9 +392,16 @@ class instance:
     def mode(self, mode = None):   
 
         if(not mode == None):
-            self.cvar("mbmode", mode)
-            self.console.rcon("mbmode " + mode,True)
-            print("Mode change requested to Mode {}".format(mode))
+            mode = str(mode).strip()
+            if mode not in ("0", "1", "2", "3", "4"):
+                raise Exception("Unknown mode {}".format(mode))
+            # MBII's mbmode needs a map to load in the new mode ("mbmode 2"
+            # alone does nothing): the current one.
+            current = self.map()
+            if not current or current == "Loading":
+                raise Exception("The server isn't on a map yet - try again in a moment.")
+            self.console.rcon("mbmode {} {}".format(mode, current), True)
+            print("Mode change requested to Mode {} on {}".format(mode, current))
             return True
         else:   
             mode = self.cvar("g_authenticity", quiet=True)
