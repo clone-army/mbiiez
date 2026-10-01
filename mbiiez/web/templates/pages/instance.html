@@ -34,10 +34,10 @@
             <span class="badge bg-danger">Stopped</span>
           {% endif %}
         </p>
-        <div class="d-grid gap-2 d-sm-flex" role="group">
-          <button class="btn {% if view_bag.engine_running %}btn-secondary disabled-btn{% else %}btn-success{% endif %}" {% if view_bag.engine_running %}disabled{% endif %} onclick="sendCommand('start')">Start</button>
-          <button class="btn {% if not view_bag.engine_running %}btn-secondary disabled-btn{% else %}btn-warning{% endif %}" {% if not view_bag.engine_running %}disabled{% endif %} onclick="sendCommand('stop')">Stop</button>
-          <button class="btn {% if not view_bag.engine_running %}btn-secondary disabled-btn{% else %}btn-primary{% endif %}" {% if not view_bag.engine_running %}disabled{% endif %} onclick="sendCommand('restart')">Restart</button>
+        <div class="d-grid gap-2 d-sm-flex" role="group" id="server-controls">
+          <button class="btn {% if view_bag.engine_running %}btn-secondary disabled-btn{% else %}btn-success{% endif %}" {% if view_bag.engine_running %}disabled{% endif %} data-cmd="start" onclick="sendCommand('start')">Start</button>
+          <button class="btn {% if not view_bag.engine_running %}btn-secondary disabled-btn{% else %}btn-warning{% endif %}" {% if not view_bag.engine_running %}disabled{% endif %} data-cmd="stop" onclick="sendCommand('stop')">Stop</button>
+          <button class="btn {% if not view_bag.engine_running %}btn-secondary disabled-btn{% else %}btn-primary{% endif %}" {% if not view_bag.engine_running %}disabled{% endif %} data-cmd="restart" onclick="sendCommand('restart')">Restart</button>
         </div>
         <style>
           .disabled-btn, .btn:disabled {
@@ -121,12 +121,10 @@ function setButtonSpinner(btn, spinning) {
 }
 function sendCommand(cmd) {
   var instance = "{{ view_bag.instance }}";
-  var btns = document.querySelectorAll('.btn-group button');
+  // The server's own buttons, by their command (not by position or layout class).
+  var btns = document.querySelectorAll('#server-controls button[data-cmd]');
   btns.forEach(b => b.disabled = true);
-  var btn = null;
-  if (cmd === 'start') btn = btns[0];
-  if (cmd === 'stop') btn = btns[1];
-  if (cmd === 'restart') btn = btns[2];
+  var btn = document.querySelector('#server-controls button[data-cmd="' + cmd + '"]');
   setButtonSpinner(btn, true);
   let reloadTimeout = null;
 
