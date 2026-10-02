@@ -65,21 +65,32 @@ class event_handler:
                 time.sleep(restart_hours * 60 * 60)
                 self.instance.log_handler.log("Attempting scheduled restart")
                 
-                # If Server is not empty when due to restart, then check every 10 minutes
-                while(not self.instance.is_empty()):
-                    self.instance.log_handler.log("Server not empty, restart postponed for 10 minutes...")
+                # Only ever when empty: wait (checking every 10 minutes) until
+                # it is. "mbii restart" re-checks as it stops and refuses
+                # (exit 3) if someone joined in between - then wait again.
+                while True:
+                    while(not self.instance.is_empty()):
+                        self.instance.log_handler.log("Server not empty, restart postponed for 10 minutes...")
+                        time.sleep(600)
+                    result = None
+                    try:
+                        self.instance.log_handler.log("Server is empty, executing restart command")
+                        result = subprocess.run(
+                            ["mbii", "-i", self.instance.name, "restart"],
+                            capture_output=True,
+                            text=True,
+                            timeout=60
+                        )
+                    except subprocess.TimeoutExpired:
+                        pass
+                    if result is None or result.returncode != 3:
+                        break
+                    self.instance.log_handler.log("Someone joined as it was restarting - postponed for 10 minutes...")
                     time.sleep(600)
-                    
-                # Does the restart using subprocess for better control and logging
+
                 try:
-                    self.instance.log_handler.log("Server is empty, executing restart command")
-                    result = subprocess.run(
-                        ["mbii", "-i", self.instance.name, "restart"],
-                        capture_output=True,
-                        text=True,
-                        timeout=60
-                    )
-                    
+                    if result is None:
+                        raise subprocess.TimeoutExpired("mbii restart", 60)
                     if result.returncode == 0:
                         self.instance.log_handler.log("Scheduled restart command executed successfully")
                         if result.stdout:

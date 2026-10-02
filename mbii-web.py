@@ -1,5 +1,7 @@
+import hashlib
 import json
 import os
+import secrets
 import socket
 import subprocess
 import time
@@ -8,7 +10,7 @@ from functools import wraps
 from flask import Flask, abort, g, jsonify, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from mbiiez import settings, plugin_loader
+from mbiiez import settings, plugin_loader, bansync, guidbans
 from mbiiez.db import db
 
 # Web Tools
@@ -52,7 +54,34 @@ app = Flask(
 app.config["TEMPLATES_AUTO_RELOAD"] = True
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
-app.secret_key = os.environ.get("MBIIEZ_WEB_SECRET_KEY", "mbiiez-change-this-secret")
+
+
+def _load_secret_key():
+    """The key that signs login cookies. Anyone who knows it can forge a
+    session, so it must never be a value from the source: use
+    MBIIEZ_WEB_SECRET_KEY if set, else a random key generated once and kept
+    beside the users file (owner-only)."""
+    key = os.environ.get("MBIIEZ_WEB_SECRET_KEY", "").strip()
+    if key:
+        return key
+
+    key_dir = os.path.dirname(settings.web_service.users_file or "") or os.path.dirname(os.path.abspath(__file__))
+    key_file = os.path.join(key_dir, "web_secret.key")
+    try:
+        with open(key_file, "r", encoding="utf-8") as f:
+            key = f.read().strip()
+    except FileNotFoundError:
+        key = ""
+    if len(key) < 32:
+        key = secrets.token_hex(32)
+        os.makedirs(key_dir, exist_ok=True)
+        fd = os.open(key_file, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write(key)
+    return key
+
+
+app.secret_key = _load_secret_key()
 
 
 # Authentication
@@ -191,14 +220,33 @@ def _session_role():
     return _normalize_role(session.get("mbiiez_role", "viewer"))
 
 
+def _password_fingerprint(stored_password):
+    return hashlib.sha256(("mbiiez-session:" + str(stored_password)).encode("utf-8")).hexdigest()[:32]
+
+
 def _set_session_auth(username, role):
     session["mbiiez_user"] = username
     session["mbiiez_role"] = _normalize_role(role)
+    user = _load_users().get(username) or {}
+    session["mbiiez_pw"] = _password_fingerprint(user.get("password", ""))
+
+
+def _validate_session_user():
+    """The logged-in user's current role from the users file, or None if the
+    session is no longer valid (user deleted or password changed), in which
+    case it's cleared. The role stored in the cookie is never trusted."""
+    user = _load_users().get(_session_user())
+    if not user or session.get("mbiiez_pw") != _password_fingerprint(user.get("password", "")):
+        _clear_session_auth()
+        return None
+    session["mbiiez_role"] = user.get("role", "viewer")
+    return user.get("role", "viewer")
 
 
 def _clear_session_auth():
     session.pop("mbiiez_user", None)
     session.pop("mbiiez_role", None)
+    session.pop("mbiiez_pw", None)
 
 
 def _is_logged_in():
@@ -245,6 +293,8 @@ def _required_role_for_path(path, method):
     mod_prefixes = [
         "/mod",
         "/rcon",
+        "/bans",
+        "/guidbans",
     ]
 
     if path.startswith("/instance/") and path.endswith("/command"):
@@ -265,7 +315,7 @@ def _required_role_for_path(path, method):
     if path.startswith("/admin"):
         return "admin"
 
-    if path.startswith("/plugin/"):
+    if path.startswith("/plugin/") or path.startswith("/plugins/") or path.startswith("/instance-plugins"):
         return "admin"
 
     if any(path.startswith(prefix) for prefix in admin_prefixes):
@@ -319,6 +369,25 @@ def _list_instances_cached():
 
 
 _plugin_menu_cache = {"expires": 0.0, "menus": {}}
+
+
+_global_menu_cache = {"expires": 0.0, "menus": []}
+
+
+def _global_menus_cached():
+    """Menu items plugins add outside any instance (web_global_menu), from
+    the plugins on for at least one instance."""
+    now = time.time()
+    if now < _global_menu_cache["expires"]:
+        return _global_menu_cache["menus"]
+    try:
+        from mbiiez.web.controllers.plugin_page import all_instance_configs
+        menus = plugin_loader.global_menus(all_instance_configs())
+    except Exception:
+        menus = []
+    _global_menu_cache["menus"] = menus
+    _global_menu_cache["expires"] = now + INSTANCE_LIST_CACHE_SECONDS
+    return menus
 
 
 def _plugin_menus_cached():
@@ -406,8 +475,10 @@ def enforce_auth_and_role():
         g.current_user = "local"
         g.current_role = "admin"
     elif _is_logged_in():
-        g.current_user = _session_user()
-        g.current_role = _session_role()
+        role = _validate_session_user()
+        if role:
+            g.current_user = _session_user()
+            g.current_role = _normalize_role(role)
 
     required_role = _required_role_for_path(path, request.method)
 
@@ -436,6 +507,7 @@ def include_instances_and_auth():
         setup_required=_setup_required(),
         users_count=len(users),
         plugin_menus=_plugin_menus_cached() if _role_allows(_current_role(), "admin") else {},
+        global_plugin_menus=_global_menus_cached() if _role_allows(_current_role(), "admin") else [],
     )
 
 
@@ -490,6 +562,18 @@ def setup_create():
         return jsonify({"error": str(e)}), 500
 
 
+LOGIN_MAX_FAILURES = 10
+LOGIN_WINDOW_SECONDS = 15 * 60
+_login_failures = {}
+
+
+def _login_blocked(ip):
+    now = time.time()
+    recent = [t for t in _login_failures.get(ip, []) if now - t < LOGIN_WINDOW_SECONDS]
+    _login_failures[ip] = recent
+    return len(recent) >= LOGIN_MAX_FAILURES
+
+
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if not settings.web_service.auth_enabled:
@@ -505,14 +589,22 @@ def login():
     next_path = _safe_next_path(request.args.get("next") or "/dashboard")
 
     if request.method == "POST":
+        ip = request.remote_addr or ""
         username = str(request.form.get("username", "")).strip()
         password = str(request.form.get("password", "")).strip()
 
+        if _login_blocked(ip):
+            error = "Too many failed logins. Try again in 15 minutes."
+            return render_template("pages/login.html", error=error, next_path=next_path), 429
+
         ok, role = _authenticate_credentials(username, password)
         if ok:
+            _login_failures.pop(ip, None)
             _set_session_auth(username, role)
             return redirect(_safe_next_path(request.form.get("next")), code=302)
 
+        _login_failures.setdefault(ip, []).append(time.time())
+        _audit("login_failed", details="user={}".format(username))
         error = "Invalid username or password."
 
     return render_template("pages/login.html", error=error, next_path=next_path)
@@ -846,7 +938,7 @@ def mod_kick():
 @require_role("mod")
 def mod_ban():
     data = request.get_json() or {}
-    success, msg = mod_c.ban_player(data["instance"], data["ip"])
+    success, msg = bansync.add_ban(data.get("ip"), by="{} (web, from {})".format(_current_user(), data.get("instance", "")))
     if success:
         _audit("mod_ban", data.get("instance"), data.get("ip", ""))
     return {"success": success, "error": None if success else msg}
@@ -856,7 +948,7 @@ def mod_ban():
 @require_role("mod")
 def mod_unban():
     data = request.get_json() or {}
-    success, msg = mod_c.unban_ip(data["instance"], data["ip"])
+    success, msg = bansync.remove_ban(data.get("ip"))
     if success:
         _audit("mod_unban", data.get("instance"), data.get("ip", ""))
     return {"success": success, "error": None if success else msg}
@@ -870,6 +962,89 @@ def mod_tell():
     if success:
         _audit("mod_tell", data.get("instance"), f"to={data.get('player_id', '')}")
     return {"success": success, "error": None if success else msg}
+
+
+@app.route("/bans", methods=["GET"])
+@require_role("mod")
+def bans_page():
+    bans = bansync.list_bans()
+    for b in bans:
+        b["added_text"] = time.strftime("%Y-%m-%d %H:%M", time.localtime(b.get("added", 0))) if b.get("added") else ""
+    return render_template("pages/bans.html", view_bag={"bans": bans})
+
+
+@app.route("/bans/add", methods=["POST"])
+@require_role("mod")
+def bans_add():
+    data = request.get_json(silent=True) or {}
+    success, msg = bansync.add_ban(data.get("ip"), str(data.get("note", ""))[:200], by="{} (web)".format(_current_user()))
+    if success:
+        _audit("ban_add", details="{} {}".format(data.get("ip", ""), data.get("note", ""))[:200])
+    return {"success": success, "message": msg, "error": None if success else msg}
+
+
+@app.route("/bans/remove", methods=["POST"])
+@require_role("mod")
+def bans_remove():
+    data = request.get_json(silent=True) or {}
+    success, msg = bansync.remove_ban(data.get("ip"))
+    if success:
+        _audit("ban_remove", details=str(data.get("ip", "")))
+    return {"success": success, "message": msg, "error": None if success else msg}
+
+
+@app.route("/bans/note", methods=["POST"])
+@require_role("mod")
+def bans_note():
+    data = request.get_json(silent=True) or {}
+    success, msg = bansync.set_note(data.get("ip"), data.get("note", ""))
+    return {"success": success, "message": msg, "error": None if success else msg}
+
+
+def _when(ts):
+    return time.strftime("%Y-%m-%d %H:%M", time.localtime(ts)) if ts else ""
+
+
+@app.route("/guidbans", methods=["GET"])
+@require_role("mod")
+def guidbans_page():
+    bans = guidbans.list_bans()
+    for b in bans:
+        b["added_text"] = _when(b["added"])
+        b["last_drop_text"] = _when(b["last_drop"])
+    return render_template("pages/guidbans.html", view_bag={
+        "bans": bans,
+        "total_drops": sum(b["drops"] for b in bans),
+    })
+
+
+@app.route("/guidbans/add", methods=["POST"])
+@require_role("mod")
+def guidbans_add():
+    data = request.get_json(silent=True) or {}
+    note = str(data.get("note", "")).strip() or "by {} (web)".format(_current_user())
+    success, msg = guidbans.add_ban(data.get("guid"), note[:200])
+    if success:
+        _audit("guidban_add", details="{} {}".format(data.get("guid", ""), note)[:200])
+    return {"success": success, "message": msg, "error": None if success else msg}
+
+
+@app.route("/guidbans/remove", methods=["POST"])
+@require_role("mod")
+def guidbans_remove():
+    data = request.get_json(silent=True) or {}
+    success, msg = guidbans.remove_ban(data.get("guid"))
+    if success:
+        _audit("guidban_remove", details=str(data.get("guid", "")))
+    return {"success": success, "message": msg, "error": None if success else msg}
+
+
+@app.route("/guidbans/note", methods=["POST"])
+@require_role("mod")
+def guidbans_note():
+    data = request.get_json(silent=True) or {}
+    success, msg = guidbans.set_note(data.get("guid"), data.get("note", ""))
+    return {"success": success, "message": msg, "error": None if success else msg}
 
 
 @app.route("/rcon", methods=["GET"])
@@ -900,6 +1075,31 @@ def config():
     instance = request.args.get("instance")
     c = config_c(instance)
     return config_v(c).render()
+
+
+@app.route("/instance-plugins", methods=["GET"])
+@require_role("admin")
+def instance_plugins():
+    instance = request.args.get("instance", "")
+    if instance not in _list_instances_cached():
+        abort(404)
+    return render_template("pages/plugins.html", view_bag=config_c.plugins_page(instance))
+
+
+@app.route("/plugins/<plugin_name>/<slug>", methods=["GET"])
+@require_role("admin")
+def global_plugin_page(plugin_name, slug):
+    return render_template("pages/plugin.html", view_bag=plugin_page_c.global_page(plugin_name, slug))
+
+
+@app.route("/plugins/<plugin_name>/<slug>/action/<action_name>", methods=["POST"])
+@require_role("admin")
+def global_plugin_action(plugin_name, slug, action_name):
+    data = request.get_json(silent=True) or {}
+    success, message = plugin_page_c.run_global_action(plugin_name, slug, action_name, data)
+    if success:
+        _audit("plugin_action", None, f"plugin={plugin_name};slug={slug};action={action_name}")
+    return jsonify({"success": success, "message": message})
 
 
 @app.route("/plugin/<instance_name>/<slug>", methods=["GET"])
@@ -1124,4 +1324,5 @@ def web_update():
 
 
 if __name__ == "__main__":
+    bansync.start_background()
     app.run(debug=False, host="0.0.0.0", port=settings.web_service.port, use_reloader=False)

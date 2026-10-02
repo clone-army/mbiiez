@@ -10,8 +10,9 @@ tracked by account, so their stats survive name changes. Everyone else is tracke
 The plugin:
 
 - sets `g_statsEnable` at startup and re-applies it every minute
-- adds a **Stats** page under the instance in the web panel, listing every tracked player and whether they're
-  registered (read from the engine's `player_stats.dat` in the MBII folder)
+- adds a **Player Stats** page to the web panel's main menu (the stats are the same on every server), read from
+  the engine's `player_stats.dat` in the MBII folder: every tracked player with their names in colour, filtered to
+  registered or not, searchable, and sorted by any column
 - adds one line about `!stats` to Auto Messages when enabled
 
 ## Configuration

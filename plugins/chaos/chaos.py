@@ -6,6 +6,8 @@ class plugin:
     plugin_name = "Chaos Mode"
     plugin_author = "Louis Varley"
     plugin_url = ""
+    plugin_engine = "caded"
+    plugin_description = "Chaos Mode: everyone gets a random prize every few seconds."
 
     @staticmethod
     def web_hide_default_card():

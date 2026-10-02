@@ -16,6 +16,7 @@ class plugin:
     plugin_author = "MBIIEZ Development Team"
     plugin_version = "1.0"
     plugin_url = "https://github.com/clone-army/mbiiez"
+    plugin_description = "An in-game chat assistant (!ai) through OpenRouter."
     
     def __init__(self, instance):
         self.instance = instance

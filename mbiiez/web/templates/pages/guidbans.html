@@ -1,0 +1,160 @@
+{% extends 'base.html' %}
+{% block content %}
+<style>
+  .bans-card {
+    border: 0;
+    box-shadow: 0 8px 22px rgba(31, 44, 62, 0.08);
+  }
+  .bans-table td {
+    vertical-align: middle;
+  }
+  .bans-note {
+    min-width: 180px;
+  }
+  .guid {
+    font-size: 0.8rem;
+    word-break: break-all;
+  }
+</style>
+
+<div class="page-header mb-4">
+  <h3 class="page-title mb-1">GUID Bans</h3>
+  <div class="text-muted">A GUID is the ID a player's copy of the game sends when it connects. It stays the same when they change IP or name. A banned GUID is refused on every server, and anyone already playing with it is dropped within a few seconds. Banning an IP on the <a href="/bans">IP Bans</a> page also bans every GUID seen on that IP in the last 30 days, and unbanning the IP lifts them again.</div>
+</div>
+
+<div id="status" class="mb-3"></div>
+
+<div class="row">
+  <div class="col-xl-4 col-lg-5 mb-4">
+    <div class="card bans-card h-100">
+      <div class="card-body">
+        <h5 class="card-title mb-3">Ban a GUID</h5>
+        <form id="add-ban-form" autocomplete="off">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">GUID</label>
+            <input type="text" id="add-guid" class="form-control font-monospace" placeholder="ECAF1B1A1E8833C382BFD6191315E1EB" required>
+          </div>
+          <div class="mb-4">
+            <label class="form-label fw-semibold">Note</label>
+            <input type="text" id="add-note" class="form-control" maxlength="200" placeholder="Who and why (optional)">
+          </div>
+          <button type="submit" class="btn btn-danger w-100">Ban on every server</button>
+        </form>
+        <div class="small text-muted mt-3">In game, rcon <code>banguid &lt;client number&gt; [note]</code> bans whoever is in that slot.</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-xl-8 col-lg-7 mb-4">
+    <div class="card bans-card h-100">
+      <div class="card-body">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+          <h5 class="card-title mb-0">Banned GUIDs <span class="badge bg-secondary">{{ view_bag.bans|length }}</span>
+            <span class="badge bg-danger" title="Times a banned GUID has been refused or dropped">{{ view_bag.total_drops }} drops</span></h5>
+          <input type="search" id="ban-search" class="form-control form-control-sm" style="max-width: 220px;" placeholder="Search">
+        </div>
+        <div class="table-responsive">
+          <table class="table table-hover bans-table mb-0">
+            <thead>
+              <tr><th>GUID / last seen as</th><th>Note</th><th class="text-center" title="Times refused or dropped, at most once a minute">Drops</th><th>Added</th><th></th></tr>
+            </thead>
+            <tbody id="bans-body">
+              {% for ban in view_bag.bans %}
+              <tr data-search="{{ (ban.guid ~ ' ' ~ ban.name ~ ' ' ~ ban.ip ~ ' ' ~ ban.ips|join(' ') ~ ' ' ~ ban.note)|lower }}">
+                <td>
+                  <code class="guid">{{ ban.guid }}</code>
+                  <div class="small text-muted">
+                    {{ ban.name or '-' }}{% if ban.ip %} &middot; {{ ban.ip }}{% endif %}
+                    {% if ban.ips|length > 1 %}<span title="{{ ban.ips|join(', ') }}"> (+{{ ban.ips|length - 1 }} more IP{{ 's' if ban.ips|length > 2 }})</span>{% endif %}
+                  </div>
+                  {% if ban.ban_ip %}<span class="badge bg-info text-dark">from IP ban {{ ban.ban_ip }}</span>{% endif %}
+                </td>
+                <td>
+                  <div class="input-group input-group-sm bans-note">
+                    <input type="text" class="form-control" maxlength="200" value="{{ ban.note }}" data-guid="{{ ban.guid }}">
+                    <button class="btn btn-outline-secondary" type="button" onclick="saveNote(this)">Save</button>
+                  </div>
+                </td>
+                <td class="text-center">
+                  <span class="fw-semibold">{{ ban.drops }}</span>
+                  {% if ban.last_drop_text %}<div class="small text-muted text-nowrap">last {{ ban.last_drop_text }}</div>{% endif %}
+                </td>
+                <td class="small text-muted text-nowrap">{{ ban.added_text }}</td>
+                <td class="text-end"><button class="btn btn-sm btn-success" data-guid="{{ ban.guid }}" onclick="unban(this)">Unban</button></td>
+              </tr>
+              {% else %}
+              <tr><td colspan="5" class="text-muted">No GUIDs are banned.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function setStatus(msg, ok = true) {
+  const el = document.getElementById('status');
+  el.className = 'alert ' + (ok ? 'alert-success' : 'alert-danger');
+  el.textContent = msg;
+}
+
+async function postJson(url, payload) {
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || !data.success) {
+    throw new Error(data.error || 'Request failed.');
+  }
+  return data;
+}
+
+document.getElementById('add-ban-form').addEventListener('submit', async function (e) {
+  e.preventDefault();
+  const guid = document.getElementById('add-guid').value.trim();
+  const note = document.getElementById('add-note').value.trim();
+  try {
+    await postJson('/guidbans/add', { guid: guid, note: note });
+    location.reload();
+  } catch (err) {
+    setStatus(err.message, false);
+  }
+});
+
+async function unban(button) {
+  const guid = button.dataset.guid;
+  if (!confirm('Unban ' + guid + ' on every server?')) return;
+  button.disabled = true;
+  try {
+    await postJson('/guidbans/remove', { guid: guid });
+    location.reload();
+  } catch (err) {
+    button.disabled = false;
+    setStatus(err.message, false);
+  }
+}
+
+async function saveNote(button) {
+  const input = button.parentElement.querySelector('input');
+  button.disabled = true;
+  try {
+    await postJson('/guidbans/note', { guid: input.dataset.guid, note: input.value });
+    setStatus('Note saved for ' + input.dataset.guid + '.');
+  } catch (err) {
+    setStatus(err.message, false);
+  } finally {
+    button.disabled = false;
+  }
+}
+
+document.getElementById('ban-search').addEventListener('input', function () {
+  const q = this.value.trim().toLowerCase();
+  document.querySelectorAll('#bans-body tr[data-search]').forEach(function (row) {
+    row.style.display = (!q || row.dataset.search.includes(q)) ? '' : 'none';
+  });
+});
+</script>
+{% endblock %}

@@ -2,10 +2,14 @@
 {% import 'partials/form-field.html' as formfield %}
 {% block content %}
 <div class="page-header">
-  <h3 class="page-title">{{ view_bag.menu.label if view_bag.menu else 'Plugin' }} - {{ view_bag.instance }}</h3>
+  <h3 class="page-title">{{ view_bag.menu.label if view_bag.menu else 'Plugin' }}{% if not view_bag.global %} - {{ view_bag.instance }}{% endif %}</h3>
   <nav aria-label="breadcrumb">
     <ol class="breadcrumb">
+      {% if view_bag.global %}
+      <li class="breadcrumb-item">Every server</li>
+      {% else %}
       <li class="breadcrumb-item"><a href="/instance?instance={{ view_bag.instance }}">Instance</a></li>
+      {% endif %}
       <li class="breadcrumb-item active" aria-current="page">{{ view_bag.menu.label if view_bag.menu else view_bag.slug }}</li>
     </ol>
   </nav>
@@ -28,6 +32,9 @@
   {% if section.type == 'error' %}
   <div class="alert alert-danger">{{ section.message }}</div>
 
+  {% elif section.type == 'template' %}
+  {{ section.html|safe }}
+
   {% elif section.type == 'table' %}
   <div class="card mb-4">
     <div class="card-body">
@@ -44,7 +51,7 @@
           </thead>
           <tbody>
             {% for row in section.rows %}
-            <tr {% if section.row_action %}class="plugin-clickable-row" style="cursor:pointer;" title="Click to fill the form below"{% endif %}>{% for cell in row %}<td>{{ cell }}</td>{% endfor %}</tr>
+            <tr {% if section.row_action %}class="plugin-clickable-row" style="cursor:pointer;" title="Click to fill the form below"{% endif %}>{% for cell in row %}<td>{% if cell is mapping and cell.toggle %}<input type="checkbox" class="form-check-input plugin-toggle" data-action="{{ cell.toggle.action }}" data-key="{{ cell.toggle.key }}" {% if cell.toggle.checked %}checked{% endif %} title="{{ cell.toggle.title or '' }}">{% else %}{{ cell }}{% endif %}</td>{% endfor %}</tr>
             {% endfor %}
           </tbody>
         </table>
@@ -103,6 +110,9 @@
 (function () {
   const INSTANCE_NAME = {{ view_bag.instance|tojson }};
   const SLUG = {{ view_bag.slug|tojson }};
+  // Where this page's actions go: its instance's plugin, or (a page for
+  // every server) the plugin's own.
+  const ACTION_BASE = {% if view_bag.global %}'/plugins/' + encodeURIComponent({{ view_bag.plugin_name|tojson }}) + '/' + encodeURIComponent(SLUG) + '/action/'{% else %}'/plugin/' + encodeURIComponent(INSTANCE_NAME) + '/' + encodeURIComponent(SLUG) + '/action/'{% endif %};
 
   // Search box above a searchable table: filters rows by substring match
   // across every cell, case-insensitive.
@@ -161,6 +171,31 @@
     });
   });
 
+  // Checkbox cells ({"toggle": {"action", "key", "checked"}} in a table
+  // row): ticking one runs that plugin action with {key, on} straight away,
+  // and puts the box back if it fails. Doesn't count as clicking the row.
+  document.querySelectorAll('input.plugin-toggle').forEach(function (box) {
+    box.addEventListener('click', function (e) { e.stopPropagation(); });
+    box.addEventListener('change', function () {
+      const wanted = box.checked;
+      box.disabled = true;
+      fetch(ACTION_BASE + encodeURIComponent(box.dataset.action), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: box.dataset.key, on: wanted ? '1' : '0' })
+      })
+        .then(function (r) { return r.json(); })
+        .then(function (result) {
+          if (!result.success) {
+            box.checked = !wanted;
+            mbiiToast(result.message || 'Failed.', 'danger');
+          }
+        })
+        .catch(function (err) { box.checked = !wanted; mbiiToast(String(err), 'danger'); })
+        .finally(function () { box.disabled = false; });
+    });
+  });
+
   document.querySelectorAll('.plugin-action-form').forEach(function (form) {
     form.addEventListener('submit', function (e) {
       e.preventDefault();
@@ -169,7 +204,7 @@
       const data = {};
       new FormData(form).forEach(function (value, key) { data[key] = value; });
 
-      fetch('/plugin/' + encodeURIComponent(INSTANCE_NAME) + '/' + encodeURIComponent(SLUG) + '/action/' + encodeURIComponent(action), {
+      fetch(ACTION_BASE + encodeURIComponent(action), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
@@ -198,6 +233,7 @@
     var chipApi = MbiiezConfigForm.initChipWidgets(configFormRoot);
     MbiiezConfigForm.initCompositeFields(configFormRoot);
     MbiiezConfigForm.initRtmModeFields(configFormRoot);
+    MbiiezConfigForm.initChecklistFields(configFormRoot);
     MbiiezConfigForm.initDependsOn(configFormRoot);
 
     var saveBtn = document.getElementById('config-form-save');

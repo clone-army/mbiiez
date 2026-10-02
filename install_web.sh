@@ -18,7 +18,28 @@ IFS=$'\n\t'
 RED='\033[31m'; GREEN='\033[32m'; YELLOW='\033[33m'; BLUE='\033[36m'; NC='\033[0m'
 
 # ─── Single log file ──────────────────────────────────────────────────────
-readonly LOG_FILE="/tmp/install.log"
+# Temp dir: $MBIIEZ_TMP if set, else $TMPDIR, else /tmp - falling back to
+# tmp/ next to this script when none of those can be written to. Exported as
+# TMPDIR so dotnet, wget etc. use it too.
+pick_tmp_dir() {
+  local d probe
+  for d in "${MBIIEZ_TMP:-}" "${TMPDIR:-}" /tmp "$1/tmp"; do
+    [[ -n "$d" ]] || continue
+    mkdir -p "$d" 2>/dev/null || continue
+    probe="$d/.mbiiez_write_test.$$"
+    if { : > "$probe"; } 2>/dev/null; then
+      rm -f "$probe"
+      printf '%s\n' "$d"
+      return 0
+    fi
+  done
+  echo "No writable temp dir (tried \$MBIIEZ_TMP, \$TMPDIR, /tmp, $1/tmp)" >&2
+  return 1
+}
+TMPDIR="$(pick_tmp_dir "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)")" || exit 1
+export TMPDIR
+
+readonly LOG_FILE="${TMPDIR}/install.log"
 : > "$LOG_FILE"    # truncate or create
 
 # ─── Globals for trap ─────────────────────────────────────────────────────
@@ -129,6 +150,24 @@ PY
   return 1
 }
 
+
+# ─── 8) Session secret key ────────────────────────────────────────────────
+# Signs the web UI's login cookies: anyone who knows it can forge a login,
+# so every install gets its own random one. Kept if it already exists, so
+# reinstalling doesn't log everyone out. mbii-web.py reads it from beside
+# the users file (and would generate one itself if this step were skipped).
+KEY_USERS_FILE="$(get_cfg_value web_service users_file web_users.json)"
+[[ "$KEY_USERS_FILE" == /* ]] || KEY_USERS_FILE="${SCRIPT_DIR}/${KEY_USERS_FILE}"
+SECRET_KEY_FILE="$(dirname "$KEY_USERS_FILE")/web_secret.key"
+printf "${BLUE}→ Web UI session key...${NC} "
+if [[ -s "$SECRET_KEY_FILE" ]] && (( $(wc -c < "$SECRET_KEY_FILE") >= 32 )); then
+  printf "${GREEN}✔ (kept existing)${NC}\n"
+else
+  mkdir -p "$(dirname "$SECRET_KEY_FILE")"
+  ( umask 077; od -An -tx1 -N32 /dev/urandom | tr -d ' \n' > "$SECRET_KEY_FILE" )
+  chmod 600 "$SECRET_KEY_FILE"
+  printf "${GREEN}✔ (generated %s)${NC}\n" "$SECRET_KEY_FILE"
+fi
 
 # ─── 9) Write systemd service ─────────────────────────────────────────────
 printf "${BLUE}→ Writing systemd service...${NC} "

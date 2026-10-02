@@ -11,6 +11,7 @@ class plugin:
     plugin_name = "VPN Shield"
     plugin_author = "Louis Varley"
     plugin_url = ""
+    plugin_description = "Warns, then kicks, players connecting through a VPN or proxy."
 
     @staticmethod
     def web_hide_default_card():

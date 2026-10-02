@@ -11,6 +11,7 @@ class plugin:
     plugin_name = "Discord Bot"
     plugin_author = "Your Name"
     plugin_url = ""
+    plugin_description = "Relays in-game chat to a Discord channel (experimental)."
     
     def __init__(self, instance):
         self.instance = instance
@@ -223,8 +224,10 @@ class ServerBot(commands.Cog):
 
                 elif args[1] == "restart":
                     await ctx.send(f"Restarting Instance **{self.instance.name}**...")
-                    self.instance.restart()
-                    await ctx.send(f"Instance **{self.instance.name}** restarted successfully.")
+                    if self.instance.restart() is False:
+                        await ctx.send(f"**{self.instance.name}** has players on - not restarted. Use the web panel to force it.")
+                    else:
+                        await ctx.send(f"Instance **{self.instance.name}** restarted successfully.")
 
                 elif args[1] == "map":
                     await ctx.send(f"Changing map on **{self.instance.name}** to **{args[2]}**. ... Please Wait :clock1:...")

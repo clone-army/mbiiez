@@ -7,7 +7,8 @@ from plugins import *
 import importlib
 import pkgutil
 
-from mbiiez import settings
+from mbiiez import settings, plugin_loader
+from mbiiez.bcolors import bcolors
 
 class plugin_handler:
 
@@ -21,8 +22,15 @@ class plugin_handler:
         if(not self.instance.plugins):
             return
             
-        for plugin in self.instance.plugins.keys():
-            plugins_to_load.append(plugin)
+        # Requirements first; anything whose requirements or engine aren't
+        # here is skipped, with the reason (plugin_loader.resolve_load_order).
+        plugins_to_load, skipped = plugin_loader.resolve_load_order(
+            list(self.instance.plugins.keys()), self.instance.config)
+        for name, reason in skipped.items():
+            message = "Plugin {} not started: {}".format(plugin_loader.get_plugin_meta(name).get("plugin_name", name), reason)
+            print(bcolors.WARNING + "[Skipped] " + bcolors.ENDC + message)
+            if hasattr(self.instance, 'log_handler') and self.instance.log_handler:
+                self.instance.log_handler.log(message)
         
         sys.path.insert(0, settings.locations.plugins_path)
 

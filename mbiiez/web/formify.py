@@ -1,3 +1,4 @@
+import os
 """
 Turns an instance's plain-JSON config into a tree of field descriptors the
 config page can render as a form, without needing a schema. This is a
@@ -111,7 +112,7 @@ def _is_boolean_like(key, value):
 def _bool_as(value):
     """Which JSON shape a 0/1-ish value should round-trip back as on save
     - native True/False, the string "1"/"0" (plenty of plugin cvars, e.g.
-    creditsystem's g_creditSystemEnable, are stored as strings since
+    the credits plugin's cvars, are stored as strings since
     that's how they're written out as real game cvars), or the int 1/0.
     Getting this wrong doesn't break rendering, only silently changes the
     saved file's value type even though nothing about it "changed"."""
@@ -180,6 +181,21 @@ def describe(value, key, ancestor_keys):
     # Remaining case: string (or None, treated as an empty string).
     str_value = "" if value is None else str(value)
 
+    if key == "engine" and ancestor_keys == ["server"]:
+        # Every engine installed ('*ded*.i386' in /usr/bin), and what it is.
+        from mbiiez import plugin_loader
+        engines = plugin_loader.list_engines()
+        if str_value and str_value not in engines:
+            engines.append(str_value)
+        node["kind"] = "choice"
+        node["value"] = str_value
+        node["numeric"] = False
+        node["options"] = [[e, e + (" - " + plugin_loader.engine_description(e) if plugin_loader.engine_description(e) else "")
+                            + ("" if os.path.exists(os.path.join(plugin_loader.ENGINE_DIR, e)) else " (not installed!)")]
+                           for e in engines]
+        node["help"] = "Engines installed in /usr/bin. Plugins that need caded.i386 don't start on the others."
+        return node
+
     if key == "mode" and str_value.lower() in GAME_MODES:
         node["kind"] = "select"
         node["value"] = str_value
@@ -224,8 +240,11 @@ def describe_field_spec(spec, config_dict, plugin_name):
     }
 
     Widget kinds: text, password, textarea, number, percent, bool_select,
-    checkbox, select, choice, composite, rtm_modes, map_list, list. For
-    "choice", "options" is [[value, label], ...]. For "composite", "parts"
+    checkbox, select, choice, composite, rtm_modes, map_list, list,
+    checklist. For "choice" and "checklist", "options" is [[value, label],
+    ...]; a checklist saves the ticked values as one space-separated string,
+    and an option with value "all" stands for every one (the rest greyed out
+    while it's ticked). For "composite", "parts"
     is a list of {"label", "help", "kind": "choice"|"number"|"text",
     "options", "min", "default", "match", "show_when": {"part": i,
     "in": [...]}}. An unrecognised or omitted "type" falls
@@ -322,6 +341,12 @@ def describe_field_spec(spec, config_dict, plugin_name):
             node["mode_names"] = RTM_MODE_NAMES
             node["codes"] = {",".join(str(m) for m in modes): c for c, modes in RTM_MODE_CODES.items()}
 
+        elif field_type == "checklist":
+            node["kind"] = "checklist"
+            node["value"] = "" if value is None else str(value)
+            node["selected"] = node["value"].split()
+            node["options"] = [[str(v), label] for v, label in spec.get("options", [])]
+
         elif field_type == "map_list":
             node["kind"] = "maplist"
             node["value"] = ["" if item is None else str(item) for item in (value or [])]
@@ -334,7 +359,15 @@ def describe_field_spec(spec, config_dict, plugin_name):
 
         elif field_type == "number":
             node["kind"] = "number"
-            node["value"] = value if isinstance(value, (int, float)) else 0
+            # Cvar values are usually stored as strings ("5"); show them as
+            # the number they are rather than 0, which saving would write.
+            if isinstance(value, str):
+                try:
+                    number = float(value)
+                    value = int(number) if number.is_integer() else number
+                except ValueError:
+                    value = 0
+            node["value"] = value if isinstance(value, (int, float)) and not isinstance(value, bool) else 0
 
         elif field_type == "password":
             node["kind"] = "password"
@@ -388,12 +421,17 @@ def describe_plugins(config_dict, all_plugin_names, plugin_meta_by_name):
         options_value = plugins_cfg.get(name, {}) or {}
         options_node = describe(options_value, name, ["plugins"])
         meta = plugin_meta_by_name.get(name, {})
+        label_of = lambda n: plugin_meta_by_name.get(n, {}).get("plugin_name", n)
         cards.append(
             {
                 "name": name,
                 "enabled": enabled,
                 "label": meta.get("plugin_name", name),
                 "author": meta.get("plugin_author", ""),
+                "description": meta.get("description", ""),
+                "requires": [{"name": n, "label": label_of(n)} for n in meta.get("requires", [])],
+                "uses": [{"name": n, "label": label_of(n)} for n in meta.get("uses", [])],
+                "engine": meta.get("engine") or "",
                 "options": options_node,
             }
         )

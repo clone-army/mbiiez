@@ -1,3 +1,4 @@
+from mbiiez import settings
 import os
 import json
 import copy
@@ -102,7 +103,10 @@ class controller:
                     node = formify.describe(value or {}, path[-1], abs_ancestor_keys)
 
                 node['label'] = entry.get('label') or node.get('label') or section_key
-                node['section_hint'] = entry.get('hint')
+                node['section_hint'] = entry.get('hint') or (
+                    plugin_loader.get_plugin_requirements(plugin_name)['description']
+                    if not any(p.get('plugin') == plugin_name for p in plugin_sections) else None)
+                node['plugin'] = plugin_name
                 plugin_sections.append(node)
             promoted_keys_by_plugin[plugin_name] = promoted
 
@@ -117,7 +121,8 @@ class controller:
         promoted_keys_by_plugin.setdefault('rtvrtm', set()).add('holiday_maps')
 
         all_plugin_names = plugin_loader.discover_plugin_names()
-        plugin_meta = {name: plugin_loader.get_plugin_meta(name) for name in all_plugin_names}
+        plugin_meta = {name: dict(plugin_loader.get_plugin_meta(name), **plugin_loader.get_plugin_requirements(name))
+                       for name in all_plugin_names}
 
         config_dict_for_cards = copy.deepcopy(config_dict)
         for plugin_name, promoted in promoted_keys_by_plugin.items():
@@ -146,6 +151,38 @@ class controller:
             self.controller_bag['holidays'] = holiday_maps_node.get('children', [])
 
         self.controller_bag['maps_catalog'] = maps_catalog.get_maps()
+
+    @staticmethod
+    def plugins_page(instance):
+        """The per-instance Plugins page: every plugin on disk, grouped, with
+        whether it's on here and what it needs."""
+        path = os.path.join(settings.locations.config_path, "{}.json".format(instance))
+        with open(path, "r", encoding="utf-8") as f:
+            content = f.read()
+        cfg = json.loads(content)
+        enabled = (cfg.get("plugins") or {}).keys()
+        names = plugin_loader.discover_plugin_names()
+        meta = {}
+        cards = {}
+        for name in names:
+            m = dict(plugin_loader.get_plugin_meta(name), **plugin_loader.get_plugin_requirements(name))
+            meta[name] = {"label": m.get("plugin_name", name), "requires": m["requires"], "engine": m["engine"] or ""}
+            cards[name] = {"name": name, "label": meta[name]["label"], "enabled": name in enabled,
+                           "description": m["description"], "engine": m["engine"] or "",
+                           "requires": [{"name": r, "label": plugin_loader.get_plugin_meta(r).get("plugin_name", r)} for r in m["requires"]],
+                           "uses": [{"name": r, "label": plugin_loader.get_plugin_meta(r).get("plugin_name", r)} for r in m["uses"]]}
+        groups, placed = [], set()
+        for title, members in plugin_loader.PLUGIN_GROUPS:
+            group = [cards[n] for n in members if n in cards]
+            placed.update(c["name"] for c in group)
+            if group:
+                groups.append({"title": title, "cards": group})
+        rest = [cards[n] for n in names if n not in placed]
+        if rest:
+            groups.append({"title": "Other", "cards": rest})
+        engine = (cfg.get("server") or {}).get("engine", "")
+        return {"instance": instance, "groups": groups, "meta": meta, "config_content": content,
+                "engine": engine, "engine_description": plugin_loader.engine_description(engine)}
 
     def _get_config_path(self, instance):
         # Try to find the config file for the instance

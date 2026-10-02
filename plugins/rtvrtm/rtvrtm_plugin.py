@@ -400,7 +400,10 @@ RTM change immediately: {rtm_change_immediately}
         mbiiez.holiday_maps for the actual date-range logic (shared with
         the core map rotation in mbiiez/conf.py, so both agree on the
         same wraparound rules)."""
-        active_maps = mbiiez_holiday_maps.get_active_maps(self.config.get('holiday_maps', {}))
+        missing = []
+        active_maps = mbiiez_holiday_maps.get_active_maps(self.config.get('holiday_maps', {}), missing=missing)
+        if missing:
+            self.log(f"RTVRTM: holiday map(s) not installed, left out: {', '.join(missing)}")
         if active_maps:
             self.log(f"RTVRTM: {len(active_maps)} active holiday map(s): {', '.join(active_maps)}")
         return active_maps

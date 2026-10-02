@@ -34,10 +34,10 @@
             <span class="badge bg-danger">Stopped</span>
           {% endif %}
         </p>
-        <div class="d-grid gap-2 d-sm-flex" role="group">
-          <button class="btn {% if view_bag.engine_running %}btn-secondary disabled-btn{% else %}btn-success{% endif %}" {% if view_bag.engine_running %}disabled{% endif %} onclick="sendCommand('start')">Start</button>
-          <button class="btn {% if not view_bag.engine_running %}btn-secondary disabled-btn{% else %}btn-warning{% endif %}" {% if not view_bag.engine_running %}disabled{% endif %} onclick="sendCommand('stop')">Stop</button>
-          <button class="btn {% if not view_bag.engine_running %}btn-secondary disabled-btn{% else %}btn-primary{% endif %}" {% if not view_bag.engine_running %}disabled{% endif %} onclick="sendCommand('restart')">Restart</button>
+        <div class="d-grid gap-2 d-sm-flex" role="group" id="server-controls">
+          <button class="btn {% if view_bag.engine_running %}btn-secondary disabled-btn{% else %}btn-success{% endif %}" {% if view_bag.engine_running %}disabled{% endif %} data-cmd="start" onclick="sendCommand('start')">Start</button>
+          <button class="btn {% if not view_bag.engine_running %}btn-secondary disabled-btn{% else %}btn-warning{% endif %}" {% if not view_bag.engine_running %}disabled{% endif %} data-cmd="stop" onclick="sendCommand('stop')">Stop</button>
+          <button class="btn {% if not view_bag.engine_running %}btn-secondary disabled-btn{% else %}btn-primary{% endif %}" {% if not view_bag.engine_running %}disabled{% endif %} data-cmd="restart" onclick="sendCommand('restart')">Restart</button>
         </div>
         <style>
           .disabled-btn, .btn:disabled {
@@ -121,12 +121,10 @@ function setButtonSpinner(btn, spinning) {
 }
 function sendCommand(cmd) {
   var instance = "{{ view_bag.instance }}";
-  var btns = document.querySelectorAll('.btn-group button');
+  // The server's own buttons, by their command (not by position or layout class).
+  var btns = document.querySelectorAll('#server-controls button[data-cmd]');
   btns.forEach(b => b.disabled = true);
-  var btn = null;
-  if (cmd === 'start') btn = btns[0];
-  if (cmd === 'stop') btn = btns[1];
-  if (cmd === 'restart') btn = btns[2];
+  var btn = document.querySelector('#server-controls button[data-cmd="' + cmd + '"]');
   setButtonSpinner(btn, true);
   let reloadTimeout = null;
 
@@ -147,14 +145,15 @@ function sendCommand(cmd) {
       if (cmd === 'start' || cmd === 'restart') {
         // For start/restart, show message and start monitoring
         // DON'T remove spinner yet - keep it until server is detected
-        alert(data.output);
+        mbiiToast(data.output, 'info');
         monitorServerStartup(instance, btn, btns);
       } else if (cmd === 'stop') {
         // Stop: Show message and reload after brief delay
         setButtonSpinner(btn, false);
         btns.forEach(b => b.disabled = false);
-        alert(data.output);
+        mbiiToast(data.output, 'success');
         setTimeout(() => {
+          mbiiToastAfterRedirect(data.output, 'success');
           location.reload();
         }, 2000);
       }
@@ -162,14 +161,14 @@ function sendCommand(cmd) {
       setButtonSpinner(btn, false);
       btns.forEach(b => b.disabled = false);
       console.log('Error: ' + data.error);
-      alert('Error: ' + data.error);
+      mbiiToast('Error: ' + data.error, 'danger');
     }
   })
   .catch(e => {
     setButtonSpinner(btn, false);
     btns.forEach(b => b.disabled = false);
     if (reloadTimeout) clearTimeout(reloadTimeout);
-    alert('Error: ' + e);
+    mbiiToast('Error: ' + e, 'danger');
   });
 }
 
@@ -186,6 +185,7 @@ function monitorServerStartup(instance, btn, btns) {
         if (data.running) {
           // Server is running, wait 2 seconds for full initialization, then reload
           setTimeout(() => {
+            mbiiToastAfterRedirect(instance + ' is up.', 'success');
             setButtonSpinner(btn, false);
             btns.forEach(b => b.disabled = false);
             location.reload();
@@ -197,7 +197,7 @@ function monitorServerStartup(instance, btn, btns) {
           // Timeout reached, stop spinner and reload page anyway
           setButtonSpinner(btn, false);
           btns.forEach(b => b.disabled = false);
-          alert('Server startup monitoring timed out. Reloading page...');
+          mbiiToastAfterRedirect("Couldn't see " + instance + ' come up within 90 seconds - check its status.', 'warning');
           location.reload();
         }
       })

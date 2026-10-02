@@ -30,10 +30,15 @@ log() {
 # hiccup never accidentally lets a reboot through.
 player_count() {
 	local instance="$1"
-	mbii -i "$instance" status 2>/dev/null \
-		| sed 's/\x1b\[[0-9;]*m//g' \
-		| grep -oP 'Players:\s*\K[0-9]+(?=/[0-9]+)' \
-		| head -1
+	local status
+	status=$(mbii -i "$instance" status 2>/dev/null | sed 's/\x1b\[[0-9;]*m//g')
+	# A stopped instance has nobody on it (it used to read as "couldn't
+	# determine", which blocked the reboot every day).
+	if grep -q "Server is not running" <<< "$status"; then
+		echo 0
+		return
+	fi
+	grep -oP 'Players:\s*\K[0-9]+(?=/[0-9]+)' <<< "$status" | head -1
 }
 
 # Returns 0 if every configured instance is empty, 1 otherwise (logging why

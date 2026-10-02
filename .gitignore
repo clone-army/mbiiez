@@ -14,6 +14,9 @@ mbiiez.db-wal
 mbiiez.db-shm
 mbiiez.conf
 web_users.json
+web_secret.key
 homepaths/
 nohup.out
 *.bak-*
+.pending_restart/
+tmp/

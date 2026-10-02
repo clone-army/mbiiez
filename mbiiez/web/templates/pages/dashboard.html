@@ -147,12 +147,13 @@ async function issueCommand(instance, cmd) {
 
 	const data = await response.json();
 	if (!response.ok || data.error) {
-		alert(data.error || 'Command failed');
+		mbiiToast(data.error || 'Command failed', 'danger');
 		return;
 	}
 
-	alert(data.output || `${cmd} requested for ${instance}`);
-	setTimeout(() => location.reload(), 1500);
+	const done = data.output || `${cmd} requested for ${instance}`;
+	mbiiToast(done, 'success');
+	setTimeout(() => { mbiiToastAfterRedirect(done, 'success'); location.reload(); }, 1500);
 }
 </script>
 {% endif %}

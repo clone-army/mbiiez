@@ -6,6 +6,8 @@ class plugin:
     plugin_name = "Kill Streaks"
     plugin_author = "Louis Varley"
     plugin_url = ""
+    plugin_engine = "caded"
+    plugin_description = "Server-wide callouts for kill streaks."
 
     @staticmethod
     def web_hide_default_card():
