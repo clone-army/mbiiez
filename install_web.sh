@@ -19,24 +19,35 @@ RED='\033[31m'; GREEN='\033[32m'; YELLOW='\033[33m'; BLUE='\033[36m'; NC='\033[0
 
 # ─── Single log file ──────────────────────────────────────────────────────
 # Temp dir: $MBIIEZ_TMP if set, else $TMPDIR, else /tmp - falling back to
-# tmp/ next to this script when none of those can be written to. Exported as
-# TMPDIR so dotnet, wget etc. use it too.
+# tmp/ next to this script when none of those will do. A dir only counts if
+# every file named after the fallback can be written there: /tmp may be
+# writable while a leftover file in it belongs to another user (which even
+# root can't overwrite with fs.protected_regular). Exported as TMPDIR so
+# dotnet, wget etc. use it too.
 pick_tmp_dir() {
-  local d probe
-  for d in "${MBIIEZ_TMP:-}" "${TMPDIR:-}" /tmp "$1/tmp"; do
+  local fallback="$1" d f ok; shift
+  for d in "${MBIIEZ_TMP:-}" "${TMPDIR:-}" /tmp "$fallback/tmp"; do
     [[ -n "$d" ]] || continue
     mkdir -p "$d" 2>/dev/null || continue
-    probe="$d/.mbiiez_write_test.$$"
-    if { : > "$probe"; } 2>/dev/null; then
-      rm -f "$probe"
+    ok=1
+    for f in ".mbiiez_write_test.$$" "$@"; do
+      if [[ -e "$d/$f" ]]; then
+        { : >> "$d/$f"; } 2>/dev/null || { ok=0; break; }
+      elif { : > "$d/$f"; } 2>/dev/null; then
+        rm -f "$d/$f"
+      else
+        ok=0; break
+      fi
+    done
+    if (( ok )); then
       printf '%s\n' "$d"
       return 0
     fi
   done
-  echo "No writable temp dir (tried \$MBIIEZ_TMP, \$TMPDIR, /tmp, $1/tmp)" >&2
+  echo "No writable temp dir (tried \$MBIIEZ_TMP, \$TMPDIR, /tmp, $fallback/tmp)" >&2
   return 1
 }
-TMPDIR="$(pick_tmp_dir "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)")" || exit 1
+TMPDIR="$(pick_tmp_dir "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)" install.log)" || exit 1
 export TMPDIR
 
 readonly LOG_FILE="${TMPDIR}/install.log"
