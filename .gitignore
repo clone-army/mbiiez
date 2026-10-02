@@ -19,3 +19,4 @@ homepaths/
 nohup.out
 *.bak-*
 .pending_restart/
+tmp/

@@ -15,7 +15,28 @@ IFS=$'\n\t'
 RED='\033[31m'; GREEN='\033[32m'; YELLOW='\033[33m'; BLUE='\033[36m'; NC='\033[0m'
 
 # ─── Single log file ──────────────────────────────────────────────────────
-readonly LOG_FILE="/tmp/install.log"
+# Temp dir: $MBIIEZ_TMP if set, else $TMPDIR, else /tmp - falling back to
+# tmp/ next to this script when none of those can be written to. Exported as
+# TMPDIR so dotnet, wget etc. use it too.
+pick_tmp_dir() {
+  local d probe
+  for d in "${MBIIEZ_TMP:-}" "${TMPDIR:-}" /tmp "$1/tmp"; do
+    [[ -n "$d" ]] || continue
+    mkdir -p "$d" 2>/dev/null || continue
+    probe="$d/.mbiiez_write_test.$$"
+    if { : > "$probe"; } 2>/dev/null; then
+      rm -f "$probe"
+      printf '%s\n' "$d"
+      return 0
+    fi
+  done
+  echo "No writable temp dir (tried \$MBIIEZ_TMP, \$TMPDIR, /tmp, $1/tmp)" >&2
+  return 1
+}
+TMPDIR="$(pick_tmp_dir "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)")" || exit 1
+export TMPDIR
+
+readonly LOG_FILE="${TMPDIR}/install.log"
 : > "$LOG_FILE"    # truncate or create
 
 # ─── Globals for trap ─────────────────────────────────────────────────────
@@ -147,9 +168,9 @@ printf "${GREEN}✔${NC}\n"
 # ─── 5) MBII CLI Updater ───────────────────────────────────────────────────
 mkdir -p "${SCRIPT_DIR}/updater"
 run_step "Downloading MBII CLI updater" \
-  "wget -qO /tmp/MBII_CLI_Updater.zip https://www.moviebattles.org/download/MBII_CLI_Updater.zip && \
-   unzip -o /tmp/MBII_CLI_Updater.zip -d \"${SCRIPT_DIR}/updater\" && \
-   rm /tmp/MBII_CLI_Updater.zip"
+  "wget -qO \"${TMPDIR}/MBII_CLI_Updater.zip\" https://www.moviebattles.org/download/MBII_CLI_Updater.zip && \
+   unzip -o \"${TMPDIR}/MBII_CLI_Updater.zip\" -d \"${SCRIPT_DIR}/updater\" && \
+   rm \"${TMPDIR}/MBII_CLI_Updater.zip\""
 
 # ─── 6) Installing MBII ───────────────────────────────────────────────────
 run_step "Installing MBII" \
@@ -158,9 +179,9 @@ run_step "Installing MBII" \
 
 # ─── 7) RTVRTM resources ───────────────────────────────────────────────────
 run_step "Installing RTVRTM" \
-  "wget -qO /tmp/RTVRTM.zip https://www.moviebattles.org/download/RTVRTM.zip && \
-   unzip -o /tmp/RTVRTM.zip -d \"$MBII_DIR\" && \
-   rm /tmp/RTVRTM.zip"
+  "wget -qO \"${TMPDIR}/RTVRTM.zip\" https://www.moviebattles.org/download/RTVRTM.zip && \
+   unzip -o \"${TMPDIR}/RTVRTM.zip\" -d \"$MBII_DIR\" && \
+   rm \"${TMPDIR}/RTVRTM.zip\""
 
 
 # ─── 8) JK2 assets ────────────────────────────────────────────────────────

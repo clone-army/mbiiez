@@ -18,7 +18,28 @@ IFS=$'\n\t'
 RED='\033[31m'; GREEN='\033[32m'; YELLOW='\033[33m'; BLUE='\033[36m'; NC='\033[0m'
 
 # ─── Single log file ──────────────────────────────────────────────────────
-readonly LOG_FILE="/tmp/install.log"
+# Temp dir: $MBIIEZ_TMP if set, else $TMPDIR, else /tmp - falling back to
+# tmp/ next to this script when none of those can be written to. Exported as
+# TMPDIR so dotnet, wget etc. use it too.
+pick_tmp_dir() {
+  local d probe
+  for d in "${MBIIEZ_TMP:-}" "${TMPDIR:-}" /tmp "$1/tmp"; do
+    [[ -n "$d" ]] || continue
+    mkdir -p "$d" 2>/dev/null || continue
+    probe="$d/.mbiiez_write_test.$$"
+    if { : > "$probe"; } 2>/dev/null; then
+      rm -f "$probe"
+      printf '%s\n' "$d"
+      return 0
+    fi
+  done
+  echo "No writable temp dir (tried \$MBIIEZ_TMP, \$TMPDIR, /tmp, $1/tmp)" >&2
+  return 1
+}
+TMPDIR="$(pick_tmp_dir "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)")" || exit 1
+export TMPDIR
+
+readonly LOG_FILE="${TMPDIR}/install.log"
 : > "$LOG_FILE"    # truncate or create
 
 # ─── Globals for trap ─────────────────────────────────────────────────────

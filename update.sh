@@ -12,8 +12,29 @@ mbii_dir="$gamedir/MBII"
 config_dir="$SCRIPT_DIR/configs"
 MBII_BIN="${MBII_BIN:-mbii}"
 
+# Temp dir: $MBIIEZ_TMP if set, else $TMPDIR, else /tmp - falling back to
+# tmp/ next to this script when none of those can be written to. Exported as
+# TMPDIR so dotnet, wget etc. use it too.
+pick_tmp_dir() {
+    local d probe
+    for d in "${MBIIEZ_TMP:-}" "${TMPDIR:-}" /tmp "$1/tmp"; do
+        [[ -n "$d" ]] || continue
+        mkdir -p "$d" 2>/dev/null || continue
+        probe="$d/.mbiiez_write_test.$$"
+        if { : > "$probe"; } 2>/dev/null; then
+            rm -f "$probe"
+            printf '%s\n' "$d"
+            return 0
+        fi
+    done
+    echo "No writable temp dir (tried \$MBIIEZ_TMP, \$TMPDIR, /tmp, $1/tmp)" >&2
+    return 1
+}
+TMPDIR="$(pick_tmp_dir "$SCRIPT_DIR")"
+export TMPDIR
+
 # Optional log file
-LOG_FILE="/tmp/mbii_update.log"
+LOG_FILE="$TMPDIR/mbii_update.log"
 : > "$LOG_FILE"
 
 # Instances updated while players were on - restarted by a later run, once
