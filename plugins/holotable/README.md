@@ -12,6 +12,7 @@ In game, once logged in (the **Accounts** plugin's `!login` - turned on with it)
 | Command | |
 |---|---|
 | `!ht` | List the scenarios for the map that's on |
+| `!ht page <n>` | The next page of that list (5 a page - the whole list is in your console too) |
 | `!ht <n>` | About scenario *n* |
 | `!ht <n> play` | Run it (admins) |
 | `!ht restart` | Reload the running one from its file and start it over - after saving a change (admins) |
