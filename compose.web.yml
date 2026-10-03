@@ -13,3 +13,8 @@ services:
       - '127.0.0.1:18080:8080'
     volumes:
       - ./web-state:/var/lib/mbiiez
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: '${MBIIEZ_DOCKER_SUBNET:-10.78.0.0/24}'

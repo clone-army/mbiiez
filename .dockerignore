@@ -17,3 +17,5 @@ web_secret.key
 eu-state
 eu-game
 web-state
+
+.env

@@ -28,3 +28,9 @@ web-state/
 web_nodes.json
 api_keys.json
 api_audit.jsonl*
+
+.env
+
+/eu-state
+/eu-game
+/web-state

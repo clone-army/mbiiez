@@ -17,8 +17,8 @@ FROM debian:bookworm-slim AS runtime
 ARG MBIIEZ_REVISION=unknown
 ENV MBIIEZ_REVISION=$MBIIEZ_REVISION
 RUN dpkg --add-architecture i386 && apt-get update && apt-get install -y --no-install-recommends \
-    python3 python3-venv ca-certificates git screen psmisc supervisor tini curl unzip rsync \
-    libc6:i386 libstdc++6:i386 libgcc-s1:i386 zlib1g:i386 libjpeg62-turbo:i386 libpng16-16:i386 \
+    python3 python3-venv ca-certificates git screen psmisc procps supervisor tini curl unzip rsync \
+    libc6:i386 libstdc++6:i386 libgcc-s1:i386 zlib1g:i386 libjpeg62-turbo:i386 libpng16-16:i386 libcurl4:i386 \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY requirements.txt requirements.lock /app/

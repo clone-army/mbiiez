@@ -72,6 +72,8 @@ MBIIEZ_API_BIND=10.25.0.166 docker compose -f compose.eu.yml up -d
 # Register the private URL or TLS proxy URL on the central panel's API Nodes page.
 ```
 
+The compose files use a dedicated configurable subnet (`MBIIEZ_DOCKER_SUBNET`, default `10.78.0.0/24`) to work on hosts whose automatic Docker address pools are full. Change it if that subnet overlaps your network.
+
 Host UDP 29072 maps to the Legends server, while host TCP 18081 maps to its API. By default the API maps to loopback; set `MBIIEZ_API_BIND` to the host LAN IP for an external LAN proxy. Forward **UDP** for the game on your router; HTTP nginx proxying handles the API only. API autostart defaults off for ad hoc containers; the EU compose explicitly enables starting configured instances on container boot. API process restart is independent of that boot action.
 
 Example nginx TLS location (certificate/server_name configuration belongs to your proxy):
