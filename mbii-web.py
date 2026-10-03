@@ -13,6 +13,7 @@ from flask import Flask, abort, g, jsonify, redirect, render_template, request, 
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from mbiiez import settings
+from mbiiez.api import SOFTWARE_VERSION
 from mbiiez.api.client import Client, NodeError, nodes, selected_node, save_node, remove_node
 from mbiiez.web.remote import controller as remote_controller, instance_admin, bansync, guidbans
 from mbiiez.db import db
@@ -493,7 +494,9 @@ def nodes_page():
         try:
             info = Client(identifier).call("GET", "info")
             status = "Online" if info.get("api_version") == 1 else "API version mismatch"
-            version = info.get("version", "")[:12]
+            if info.get("version") != SOFTWARE_VERSION and info.get("api_version") == 1:
+                status = "Online (software version differs)"
+            version = info.get("version", "") + " / " + info.get("revision", "")[:12]
         except NodeError:
             status, version = "Offline", ""
         return {"id": identifier, "name": node["name"], "url": node["url"], "status": status, "version": version}

@@ -163,3 +163,11 @@ def test_legacy_exit_does_not_kill_api_worker(api, monkeypatch):
     monkeypatch.setattr(backend, 'status', legacy)
     assert api.get('/api/v1/instances/legends/status', headers=auth()).status_code == 400
     assert api.get('/api/v1/instances', headers=auth()).status_code == 200
+
+
+def test_info_reports_contract_and_software_version(api):
+    response = api.get('/api/v1/info', headers=auth('viewer'))
+    assert response.status_code == 200
+    assert response.json['api_version'] == 1
+    assert response.json['version'] == '3.0.0'
+    assert 'revision' in response.json

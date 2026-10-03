@@ -33,7 +33,7 @@ All `/api/v1/*` routes require `Authorization: Bearer KEY`. `/health` contains n
 
 | Endpoint | Method | Scope | Response / input |
 |---|---|---|---|
-| `/api/v1/info` | GET | viewer | API major version, git revision, capabilities |
+| `/api/v1/info` | GET | viewer | API major version, software version, git revision, capabilities |
 | `/api/v1/instances` | GET | viewer | Instance names on this node |
 | `/api/v1/instances/{name}/status` | GET | viewer | Structured runtime status |
 | `/api/v1/instances/{name}/players` | GET | viewer | Current players |
@@ -48,7 +48,7 @@ All `/api/v1/*` routes require `Authorization: Bearer KEY`. `/health` contains n
 
 The complete view/action contract and minimum scopes are in `mbiiez/api/backend.py`. These are explicit allowlists, never arbitrary module/method execution. Configs and plugin descriptions stay on the API agent, which renders plugin-specific template sections into its response; WEB renders the common page shell. This lets nodes supply their installed plugins without installing those plugins' runtime dependencies in a separate panel.
 
-WEB uses request-specific node identity (`node` query parameter or `X-MBIIEZ-Node` header). Navigation and fetch calls retain the page's node identity even if another browser tab changes the session's default. Instance names can be the same on different nodes. Offline API errors become HTTP 502 and leave other nodes selectable. The Nodes page checks the API major version and shows online/offline status and revision. API reads have timeouts, and failed authentication attempts are bounded per peer. Mutations are audited without request bodies/credentials; install `deploy/api-logrotate` under `/etc/logrotate.d/` on native agents.
+WEB uses request-specific node identity (`node` query parameter or `X-MBIIEZ-Node` header). Navigation and fetch calls retain the page's node identity even if another browser tab changes the session's default. Instance names can be the same on different nodes. Offline API errors become HTTP 502 and leave other nodes selectable. The Nodes page checks the API major version and shows online/offline status, software version differences and revision. API reads have timeouts, and failed authentication attempts are bounded per peer. Mutations are audited without request bodies/credentials; install `deploy/api-logrotate` under `/etc/logrotate.d/` on native agents.
 
 Raw RCON is admin-only because it can bypass dedicated moderation permissions. Starts/stops run outside the agent's cgroup using a transient systemd service, or outside its worker in a supervised container. Occupied servers need an explicit `force: true`; default requests refuse to interrupt players. The CLI independently rechecks occupancy. Restarting an API worker does not restart a running game. Restarting the whole node container **does** interrupt its engines.
 
@@ -59,7 +59,7 @@ The Dockerfile has separate `node` (CLI + API + built caded engine) and `web` ta
 ```sh
 git clone -b test https://github.com/clone-army/mbiiez
 cd mbiiez
-docker build --target node -t mbiiez-node:latest .
+docker build --build-arg MBIIEZ_REVISION="$(git rev-parse HEAD)" --target node -t mbiiez-node:latest .
 # Or: docker build --target node -t mbiiez-node:latest https://github.com/clone-army/mbiiez.git#test
 ```
 

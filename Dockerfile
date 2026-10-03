@@ -14,6 +14,8 @@ RUN cmake -S /src/OpenJK -B /src/OpenJK/build \
     && cmake --build /src/OpenJK/build -j2
 
 FROM debian:bookworm-slim AS runtime
+ARG MBIIEZ_REVISION=unknown
+ENV MBIIEZ_REVISION=$MBIIEZ_REVISION
 RUN dpkg --add-architecture i386 && apt-get update && apt-get install -y --no-install-recommends \
     python3 python3-venv ca-certificates git screen psmisc supervisor tini curl unzip rsync \
     libc6:i386 libstdc++6:i386 libgcc-s1:i386 zlib1g:i386 libjpeg62-turbo:i386 libpng16-16:i386 \

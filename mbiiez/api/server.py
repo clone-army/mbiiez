@@ -9,7 +9,7 @@ import threading
 import time
 from flask import Flask, g, jsonify, request
 from werkzeug.exceptions import HTTPException
-from . import API_VERSION, keys
+from . import API_VERSION, SOFTWARE_VERSION, keys
 from .storage import state_dir
 
 log = logging.getLogger('mbiiez.api')
@@ -98,7 +98,8 @@ def create_app():
         from mbiiez import settings
         result = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=settings.globals.script_path,
                                 capture_output=True, text=True, timeout=3)
-        return jsonify(api_version=API_VERSION, version=result.stdout.strip() or 'unknown',
+        return jsonify(api_version=API_VERSION, version=SOFTWARE_VERSION,
+                       revision=result.stdout.strip() or os.environ.get("MBIIEZ_REVISION", "unknown"),
                        capabilities=['instances', 'config', 'logs', 'chat', 'plugins', 'moderation'])
 
     @app.get('/api/v1/instances')
