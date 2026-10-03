@@ -480,7 +480,7 @@ def select_api_node():
 def node_error(error):
     if request.method == "GET" and not _is_api_request(request.path) and not request.path.endswith("/data"):
         g.node_metadata = {"instances": [], "plugins": {}, "global": []}
-        return render_template("pages/node-offline.html", error=str(error)), 502
+        return render_template("pages/node-offline.html", error=str(error), view_bag={"instance": None}), 502
     return jsonify(error=str(error)), 502
 
 
@@ -498,7 +498,7 @@ def nodes_page():
         return {"id": identifier, "name": node["name"], "url": node["url"], "status": status, "version": version}
     with ThreadPoolExecutor(max_workers=8) as pool:
         statuses = list(pool.map(check, nodes().items()))
-    return render_template("pages/nodes.html", node_statuses=statuses)
+    return render_template("pages/nodes.html", node_statuses=statuses, view_bag={"instance": None})
 
 
 @app.route("/nodes/save", methods=["POST"])

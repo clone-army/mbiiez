@@ -149,6 +149,7 @@ def test_web_api_adapters_and_csrf(environment, monkeypatch):
     assert response.status_code == 200
     assert b'API Nodes' in response.data
     assert Path(web.app.template_folder).is_absolute()
+    assert client.get('/nodes').status_code == 200
     with client.session_transaction() as sess: token = sess['csrf_token']
     assert client.post('/instance/legends/command', json={'command': 'restart'}).status_code == 403
     headers = {'X-MBIIEZ-CSRF': token, 'X-MBIIEZ-Node': 'na'}
