@@ -40,7 +40,7 @@ The panel manages local and remote MBIIEZ installations through independent API 
 Every instance names the dedicated-server binary it runs with (`"engine"` in its config), looked up in
 `/usr/bin`. Three are supported:
 
-| Engine | Where it comes from | Nodes |
+| Engine | Where it comes from | Notes |
 |---|---|---|
 | **`caded.i386`** | Built from **our OpenJK fork: [github.com/clone-army/OpenJK](https://github.com/clone-army/OpenJK)** | Recommended. Adds the economy (credits, shop, bounties, accounts), Chaos Mode, Gun Game, kill streaks and native `!stats`. |
 | `mbiided.i386` | Bundled in this repo; `install.sh` copies it to `/usr/bin` | Standard MBII dedicated server, none of the extra features. |
