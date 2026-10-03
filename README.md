@@ -14,6 +14,10 @@ the engine, watches its log, restarts it if it crashes, and runs any plugins you
 
 ---
 
+## CLI, API and WEB
+
+The panel manages local and remote MBIIEZ installations through independent API agents. See [API.md](API.md) for service keys, node management, the API contract and Docker deployment.
+
 ## Contents
 
 - [The engine: `caded.i386` and our OpenJK fork](#the-engine-cadedi386-and-our-openjk-fork)

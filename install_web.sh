@@ -180,6 +180,9 @@ else
   printf "${GREEN}✔ (generated %s)${NC}\n" "$SECRET_KEY_FILE"
 fi
 
+# Install the independent local API before switching the panel to its API client.
+"${SCRIPT_DIR}/install_api.sh"
+
 # ─── 9) Write systemd service ─────────────────────────────────────────────
 printf "${BLUE}→ Writing systemd service...${NC} "
 cat >"/etc/systemd/system/${SERVICE_NAME}.service" <<EOF

@@ -1,0 +1,13 @@
+[Unit]
+Description=MBIIEZ API agent
+After=network.target
+
+[Service]
+WorkingDirectory=/root/mbiiez
+ExecStart=/opt/openjk/venv/bin/python3 /root/mbiiez/mbii.py api serve --host 127.0.0.1 --port 8081
+Environment=MBIIEZ_STATE_DIR=/var/lib/mbiiez
+Restart=on-failure
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

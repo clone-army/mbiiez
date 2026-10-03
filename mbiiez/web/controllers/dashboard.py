@@ -9,6 +9,7 @@ class controller:
     controller_bag = {}
 
     def __init__(self):
+        self.controller_bag = {}
         names = tools().list_of_instances()
         bc = bcolors()
         instances = []

@@ -24,7 +24,8 @@ class conf:
     # Fetch Config, add additionals and save as dictionary
     def get_config(self):
 
-        config_file_path = self.config_path + "/" + self.name + ".json"
+        from mbiiez.api.paths import config_path
+        config_file_path = config_path(self.name)
         
         if(not os.path.isfile(config_file_path)):
             return False

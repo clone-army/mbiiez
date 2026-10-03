@@ -5,6 +5,7 @@ class controller:
     controller_bag = {}
 
     def __init__(self, instance = None):
+            self.controller_bag = {}
     
             conn = db().connect()
             cur = conn.cursor()  
@@ -18,6 +19,8 @@ class controller:
                 q = ''' SELECT count(*) as connections, instance, strftime('%d', added) as date FROM connections WHERE type = "CONNECT" and LOWER(instance) = LOWER(?) GROUP BY strftime('%Y %m %d', added) ORDER BY added DESC LIMIT 30; '''
                 cur.execute(q, (instance,))
             
+            if instance is None:
+                cur.execute(q)
             self.controller_bag['connections'] = cur.fetchall()
             
             if(instance == None):
@@ -26,7 +29,10 @@ class controller:
                 q = ''' SELECT count(*) as connections, player as player FROM connections WHERE LOWER(instance) = LOWER(?) AND player <> "Padawan" and player <> "" and added >= date('now','-30 days') GROUP BY player order by connections DESC LIMIT 10; '''
                 cur.execute(q, (instance,))
             
+            if instance is None:
+                cur.execute(q)
             self.controller_bag['players'] = cur.fetchall()
+            conn.close()
                         
             
             if(instance == None):

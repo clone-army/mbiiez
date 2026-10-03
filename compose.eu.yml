@@ -1,0 +1,24 @@
+services:
+  node:
+    build:
+      context: .
+      target: node
+    image: mbiiez-node:latest
+    container_name: mbiiez-eu
+    restart: unless-stopped
+    environment:
+      MBIIEZ_AUTOSTART: '1'
+      MBIIEZ_STATE_DIR: /var/lib/mbiiez
+      MBIIEZ_DATABASE: /var/lib/mbiiez/mbiiez.db
+    ports:
+      - '${MBIIEZ_API_BIND:-127.0.0.1}:18081:8081/tcp'
+      - '29072:29072/udp'
+    volumes:
+      - ./eu-state:/var/lib/mbiiez
+      - ./eu-game/MBII:/opt/openjk/MBII
+      - ./eu-game/base:/opt/openjk/base:ro
+    healthcheck:
+      test: ['CMD', 'curl', '-fsS', 'http://127.0.0.1:8081/health']
+      interval: 30s
+      timeout: 5s
+      retries: 3

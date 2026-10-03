@@ -1,0 +1,7 @@
+{% extends 'base.html' %}
+{% block content %}
+<h3>Node unavailable</h3>
+<p>{{ error }}</p>
+<p>Select another node above or check its connection on the API Nodes page.</p>
+{% if can_admin %}<a href="/nodes" class="btn btn-primary">API Nodes</a>{% endif %}
+{% endblock %}

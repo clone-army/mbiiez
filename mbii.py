@@ -3,6 +3,12 @@ import sys, getopt
 import argparse
 import os
 import time
+# API key management works on a headless install without importing the game runtime.
+if __name__ == "__main__" and len(sys.argv) > 1 and sys.argv[1] == "api":
+    from mbiiez.api.cli import main as api_main
+    api_main(sys.argv[2:])
+    sys.exit(0)
+
 import psutil
 
 from mbiiez.bcolors import bcolors

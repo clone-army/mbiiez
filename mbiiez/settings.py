@@ -26,8 +26,8 @@ class dedicated:
     engine = globals.config.get('dedicated', 'engine')
 
 class database:
-    database = globals.config.get('database', 'database')
-    if not os.path.isabs(database) or not os.path.exists(database):
+    database = os.environ.get('MBIIEZ_DATABASE') or globals.config.get('database', 'database')
+    if not os.path.isabs(database):
         database = os.path.join(globals.script_path, 'mbiiez.db')
 
 class web_service:
@@ -35,7 +35,7 @@ class web_service:
     username = globals.config.get('web_service', 'username', fallback='admin')
     password = globals.config.get('web_service', 'password', fallback='admin')
     auth_enabled = True  # Authentication is always required.
-    users_file = globals.config.get(
+    users_file = os.environ.get('MBIIEZ_WEB_USERS_FILE') or globals.config.get(
         'web_service',
         'users_file',
         fallback=os.path.join(globals.script_path, 'web_users.json')

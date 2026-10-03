@@ -36,7 +36,8 @@ NAME_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,23}$")
 
 
 def _config_path(name):
-    return os.path.join(CONFIG_DIR, name + ".json")
+    from mbiiez.api.paths import config_path
+    return config_path(name, existing=False)
 
 
 def _load(name):

@@ -1,0 +1,8 @@
+/var/lib/mbiiez/api_audit.jsonl {
+    daily
+    rotate 30
+    compress
+    missingok
+    notifempty
+    create 0600 root root
+}

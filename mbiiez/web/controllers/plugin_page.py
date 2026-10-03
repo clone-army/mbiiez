@@ -11,7 +11,8 @@ def load_instance_config(instance_name):
     approach as controllers/config.py - rather than constructing a full
     runtime `instance` object (which sets up process/log handlers meant for
     a running server, not a web request)."""
-    config_path = os.path.join(settings.locations.config_path, f"{instance_name}.json")
+    from mbiiez.api.paths import config_path as checked_path
+    config_path = checked_path(instance_name)
     if not os.path.isfile(config_path):
         return None
     try:
@@ -78,6 +79,7 @@ class controller:
     controller_bag = {}
 
     def __init__(self, instance=None, slug=None):
+        self.controller_bag = {}
         self.controller_bag["instance"] = instance
         self.controller_bag["slug"] = slug
         self.controller_bag["plugin_name"] = None

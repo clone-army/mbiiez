@@ -1,0 +1,15 @@
+services:
+  web:
+    build:
+      context: .
+      target: web
+    image: mbiiez-web:latest
+    restart: unless-stopped
+    environment:
+      MBIIEZ_STATE_DIR: /var/lib/mbiiez
+      MBIIEZ_WEB_USERS_FILE: /var/lib/mbiiez/web_users.json
+      MBIIEZ_DATABASE: /var/lib/mbiiez/web_audit.db
+    ports:
+      - '127.0.0.1:18080:8080'
+    volumes:
+      - ./web-state:/var/lib/mbiiez

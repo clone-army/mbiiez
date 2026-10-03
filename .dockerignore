@@ -1,0 +1,15 @@
+.git
+**/__pycache__
+.pytest_cache
+mbiiez.conf
+*.db*
+configs/*.json
+configs/*.bak*
+homepaths
+pids
+updater
+web_users.json
+web_secret.key
+*.log
+*.out
+*.key

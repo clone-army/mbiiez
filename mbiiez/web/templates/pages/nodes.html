@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+{% block content %}
+<h3>API Nodes</h3>
+<p>Each node runs MBIIEZ CLI and API. Game servers and plugins run on that node; this panel manages them remotely.</p>
+<table class="table"><thead><tr><th>Node</th><th>API URL</th><th>Status</th><th>Version</th><th></th></tr></thead><tbody>
+{% for node in node_statuses %}
+<tr><td><a href="/dashboard?node={{ node.id }}">{{ node.name }} / {{ node.id }}</a></td><td>{{ node.url }}</td><td>{{ node.status }}</td><td>{{ node.version }}</td>
+<td><button class="btn btn-sm btn-primary" onclick="testNode('{{ node.id }}')">Test connection</button>
+<form method="post" action="/nodes/{{ node.id }}/delete" class="d-inline" onsubmit="return confirm('Remove this node from the panel?')"><button class="btn btn-sm btn-danger">Remove</button></form></td></tr>
+{% endfor %}</tbody></table>
+<h4>Add or update a node</h4>
+<form method="post" action="/nodes/save">
+<label class="d-block">Node ID <input class="form-control" name="id" pattern="[a-z0-9][a-z0-9_-]{0,31}" required placeholder="eu"></label>
+<label class="d-block">Name <input class="form-control" name="name" required placeholder="Europe"></label>
+<label class="d-block">API URL <input class="form-control" type="url" name="url" required placeholder="https://mb2-eu-api.lcho.me"></label>
+<label class="d-block">API key <input class="form-control" type="password" name="key" autocomplete="new-password" placeholder="Leave empty to keep an existing key"></label>
+<p>Use HTTPS for public URLs. HTTP is supported on loopback or a trusted private network. Keys stay on the web server and are never displayed.</p>
+<button class="btn btn-primary">Save node</button>
+</form>
+<script>async function testNode(id) { const r = await fetch('/nodes/' + id + '/test', {method:'POST'}); const d = await r.json(); mbiiToast(d.error || 'Connected: API v' + d.api_version + ', ' + d.version.slice(0,12), d.error ? 'danger' : 'success'); }</script>
+{% endblock %}
