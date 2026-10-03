@@ -20,3 +20,11 @@ nohup.out
 *.bak-*
 .pending_restart/
 tmp/
+
+# Docker deployment state and private service credentials
+eu-state/
+eu-game/
+web-state/
+web_nodes.json
+api_keys.json
+api_audit.jsonl*

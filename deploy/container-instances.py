@@ -10,8 +10,8 @@ from mbiiez import settings
 
 if os.environ.get('MBIIEZ_AUTOSTART', '0') == '1':
     for name in names():
-        subprocess.run(['/usr/local/bin/mbii', '-i', name, 'start'],
-                       stdin=subprocess.DEVNULL, check=True)
+        subprocess.Popen(['/usr/local/bin/mbii', '-i', name, 'start'],
+                         stdin=subprocess.DEVNULL, start_new_session=True)
 # Runtime watchdogs belong to MBIIEZ; supervisor only holds the container open.
 while True:
     time.sleep(60)

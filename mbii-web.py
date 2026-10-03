@@ -6,6 +6,7 @@ import secrets
 import socket
 import subprocess
 import time
+import threading
 from functools import wraps
 
 from flask import Flask, abort, g, jsonify, redirect, render_template, request, session, url_for
@@ -1236,6 +1237,9 @@ def web_restart():
     """Restart the mbii-web systemd service."""
     _audit("web_restart", details="requested by {}".format(_current_user()))
     try:
+        if os.environ.get("MBIIEZ_CONTAINER") == "1":
+            threading.Timer(1, lambda: os._exit(0)).start()
+            return jsonify(success=True, message="Web container restart initiated.")
         subprocess.Popen(
             ["systemctl", "restart", "mbii-web"],
             stdout=subprocess.DEVNULL,
@@ -1251,6 +1255,8 @@ def web_restart():
 def web_update():
     """git pull the mbiiez repo; restart the web service only if files changed."""
     _audit("web_update", details="requested by {}".format(_current_user()))
+    if os.environ.get("MBIIEZ_CONTAINER") == "1":
+        return jsonify(success=False, error="Rebuild and redeploy the web image to update this panel."), 409
     repo_dir = os.path.dirname(os.path.abspath(__file__))
     try:
         result = subprocess.run(

@@ -13,3 +13,7 @@ web_secret.key
 *.log
 *.out
 *.key
+
+eu-state
+eu-game
+web-state
