@@ -147,7 +147,7 @@ def test_web_api_adapters_and_csrf(environment, monkeypatch):
     monkeypatch.setattr(Client, 'call', fake)
     response = client.get('/dashboard?node=eu')
     assert response.status_code == 200
-    assert b'Notes' in response.data
+    assert b'Nodes' in response.data
     assert Path(web.app.template_folder).is_absolute()
     node_page = client.get('/nodes')
     assert node_page.status_code == 200

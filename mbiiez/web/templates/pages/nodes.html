@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 {% block content %}
-<h3>Notes</h3>
+<h3>Nodes</h3>
 <p>Each node runs MBIIEZ CLI and API. Game servers and plugins run on that node; this panel manages them remotely.</p>
 <table class="table"><thead><tr><th>Node</th><th>API URL</th><th>Status</th><th>Version</th><th></th></tr></thead><tbody>
 {% for node in node_statuses %}

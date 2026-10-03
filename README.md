@@ -40,7 +40,7 @@ The panel manages local and remote MBIIEZ installations through independent API 
 Every instance names the dedicated-server binary it runs with (`"engine"` in its config), looked up in
 `/usr/bin`. Three are supported:
 
-| Engine | Where it comes from | Notes |
+| Engine | Where it comes from | Nodes |
 |---|---|---|
 | **`caded.i386`** | Built from **our OpenJK fork: [github.com/clone-army/OpenJK](https://github.com/clone-army/OpenJK)** | Recommended. Adds the economy (credits, shop, bounties, accounts), Chaos Mode, Gun Game, kill streaks and native `!stats`. |
 | `mbiided.i386` | Bundled in this repo; `install.sh` copies it to `/usr/bin` | Standard MBII dedicated server, none of the extra features. |
@@ -112,7 +112,7 @@ Then:
 ### Multiple servers in one web interface
 
 1. On the central server, install `sudo ./install.sh --mode web`. The installer registers its
-   local API automatically with the name **Local**. You can rename it with **Edit** on Notes,
+   local API automatically with the name **Local**. You can rename it with **Edit** on Nodes,
    but cannot delete it. A panel with only its local node hides the node selector.
    Existing node registrations and keys survive updates.
 2. On every additional game server, install `sudo ./install.sh --mode api`. It needs CLI and API;
@@ -133,7 +133,7 @@ Then:
    Restart **only** `mbii-api` to apply the bind settings. Point nginx/Caddy at that private address
    and publish an HTTPS name such as `https://mb2-eu-api.example.com`. Public HTTPS port 443 may
    proxy any internal API port. Keep the central native panel's local agent on loopback port 8081.
-4. Log into the central panel as admin, open **Notes**, and add a unique ID (for example `eu`),
+4. Log into the central panel as admin, open **Nodes**, and add a unique ID (for example `eu`),
    display name, API base URL and generated key. Use **Edit** to change an existing node; leave
    the key blank to keep it. Test the connection, then select that node from
    the navigation selector. Its instances appear in the dashboard and server menus; identical
