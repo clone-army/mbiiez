@@ -17,6 +17,7 @@ class controller:
         for name in names:
             host_name = name
             port = ""
+            engine = ""
 
             config_path = os.path.join(settings.locations.config_path, f"{name}.json")
             try:
@@ -24,6 +25,7 @@ class controller:
                     with open(config_path, "r", encoding="utf-8") as config_file:
                         config = json.load(config_file)
                         host_name = str(config.get("server", {}).get("host_name", name)) or name
+                        engine = str(config.get("server", {}).get("engine", ""))
                         port = str(config.get("server", {}).get("port", "") or "")
             except Exception:
                 host_name = name
@@ -34,6 +36,7 @@ class controller:
                     "name": name,
                     "server_name_html": bc.html_color_convert(host_name),
                     "port": port,
+                    "engine": engine,
                 }
             )
 

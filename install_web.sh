@@ -181,7 +181,7 @@ else
 fi
 
 # Install the independent local API before switching the panel to its API client.
-"${SCRIPT_DIR}/install_api.sh"
+bash "${SCRIPT_DIR}/install_api.sh" --with-web
 
 # ─── 9) Write systemd service ─────────────────────────────────────────────
 printf "${BLUE}→ Writing systemd service...${NC} "
@@ -194,6 +194,8 @@ After=network.target
 WorkingDirectory=${SCRIPT_DIR}
 ExecStart=${VENV_DIR}/bin/python3 ${SCRIPT_DIR}/mbii-web.py
 Restart=always
+# Preserve engines started by older panels in this service cgroup.
+KillMode=process
 
 [Install]
 WantedBy=multi-user.target
@@ -234,4 +236,5 @@ if HEALTH_JSON="$(check_web_health "$WEB_PORT")"; then
 else
   printf "  - Health Endpoint: ${YELLOW}not responding yet${NC}\n"
   printf "${YELLOW}Service is running but /health did not respond in time. Check: journalctl -u %s -n 100 --no-pager${NC}\n" "$SERVICE_NAME"
+  exit 1
 fi

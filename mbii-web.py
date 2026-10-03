@@ -14,7 +14,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from mbiiez import settings
 from mbiiez.api import SOFTWARE_VERSION
-from mbiiez.api.client import Client, NodeError, nodes, selected_node, save_node, remove_node
+from mbiiez.api.client import Client, NodeError, nodes, selected_node, save_node, remove_node, is_local_node
 from mbiiez.web.remote import controller as remote_controller, instance_admin, bansync, guidbans
 from mbiiez.db import db
 
@@ -499,7 +499,7 @@ def nodes_page():
             version = info.get("version", "") + " / " + info.get("revision", "")[:12]
         except NodeError:
             status, version = "Offline", ""
-        return {"id": identifier, "name": node["name"], "url": node["url"], "status": status, "version": version}
+        return {"id": identifier, "name": node["name"], "url": node["url"], "status": status, "version": version, "local": is_local_node(node)}
     with ThreadPoolExecutor(max_workers=8) as pool:
         statuses = list(pool.map(check, nodes().items()))
     return render_template("pages/nodes.html", node_statuses=statuses, view_bag={"instance": None})
@@ -528,7 +528,10 @@ def nodes_test(identifier):
 @app.route("/nodes/<identifier>/delete", methods=["POST"])
 @require_role("admin")
 def nodes_delete(identifier):
-    remove_node(identifier)
+    try:
+        remove_node(identifier)
+    except ValueError as exc:
+        return jsonify(error=str(exc)), 400
     _audit("node_delete", details=identifier)
     return redirect("/nodes")
 
@@ -539,7 +542,7 @@ def include_instances_and_auth():
 
     return dict(
         csrf_token=session.get("csrf_token", ""),
-        nodes={identifier: {"name": node["name"]} for identifier, node in nodes().items()},
+        nodes={identifier: {"name": node["name"], "local": is_local_node(node)} for identifier, node in nodes().items()},
         selected_node=getattr(g, "node_id", "na"),
         instances=_list_instances_cached(),
         current_user=_current_user(),
@@ -1256,14 +1259,14 @@ def web_restart():
 @app.route("/api/web/update", methods=["POST"])
 @require_role("admin")
 def web_update():
-    """git pull the mbiiez repo; restart the web service only if files changed."""
+    """Pull source and queue the profile-aware installer outside the web service."""
     _audit("web_update", details="requested by {}".format(_current_user()))
     if os.environ.get("MBIIEZ_CONTAINER") == "1":
         return jsonify(success=False, error="Rebuild and redeploy the web image to update this panel."), 409
     repo_dir = os.path.dirname(os.path.abspath(__file__))
     try:
         result = subprocess.run(
-            ["git", "pull"],
+            ["git", "pull", "--ff-only"],
             cwd=repo_dir,
             capture_output=True,
             text=True,
@@ -1272,16 +1275,19 @@ def web_update():
         output = (result.stdout or "").strip()
         changed = result.returncode == 0 and "Already up to date." not in output
         if changed:
-            subprocess.Popen(
-                ["systemctl", "restart", "mbii-web"],
+            subprocess.run(
+                ["systemd-run", "--unit=mbiiez-application-update", "--collect",
+                 "--working-directory=" + repo_dir, "/bin/bash",
+                 os.path.join(repo_dir, "install.sh"), "--update", "--mode", "web"],
                 stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
+                stderr=subprocess.PIPE, text=True, check=True, timeout=10,
             )
         return jsonify({
             "success": result.returncode == 0,
             "output": output,
             "changed": changed,
-            "restarted": changed,
+            "restarted": False,
+            "update_queued": changed,
             "error": (result.stderr or "").strip() if result.returncode != 0 else None,
         })
     except Exception as e:

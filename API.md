@@ -6,13 +6,21 @@ Each node owns its configs, runtime files, database, plugins, accounts, bans and
 
 ## Native installation
 
-Install MBIIEZ normally. Install/start the API without touching game processes:
+Choose a profile on a fresh host, or update/migrate an existing installation:
 
 ```sh
-sudo ./install_api.sh
+sudo ./install.sh --mode api   # CLI + API
+sudo ./install.sh --mode web   # CLI + API + WEB
+# After git pull --ff-only:
+sudo ./install.sh --update
 ```
 
-This installs a loopback-only `mbii-api` systemd service and registers an NA local node for WEB if none exists. `install_web.sh` now calls this first. A running legacy web service needs a web-only restart after upgrading. Check game processes' cgroups before stopping any legacy service: old installations may have launched games inside its cgroup.
+The installer retains the profile on updates, installs locked dependencies and refreshes API/web
+services without touching game files or game processes. Existing legacy web installations migrate
+to WEB + API. Only WEB setup creates a local panel service key, and existing node registrations
+are preserved. Native API binding defaults to loopback port 8081; override host/port in
+`/etc/default/mbii-api` using `MBIIEZ_API_HOST` and `MBIIEZ_API_PORT`. Keep the central panel's
+local agent on loopback port 8081. See the [README multi-server guide](README.md#multiple-servers-in-one-web-interface).
 
 On an API-only machine, create a key from its CLI:
 

@@ -149,12 +149,28 @@ def test_web_api_adapters_and_csrf(environment, monkeypatch):
     assert response.status_code == 200
     assert b'API Nodes' in response.data
     assert Path(web.app.template_folder).is_absolute()
-    assert client.get('/nodes').status_code == 200
+    node_page = client.get('/nodes')
+    assert node_page.status_code == 200
+    assert b'>Edit</button>' in node_page.data
+    assert b'secret-na' not in node_page.data and b'secret-eu' not in node_page.data
+    assert b'/nodes/na/delete' not in node_page.data
+    assert b'/nodes/eu/delete' in node_page.data
     with client.session_transaction() as sess: token = sess['csrf_token']
     assert client.post('/instance/legends/command', json={'command': 'restart'}).status_code == 403
     headers = {'X-MBIIEZ-CSRF': token, 'X-MBIIEZ-Node': 'na'}
     assert client.post('/instance/legends/command', json={'command': 'restart'}, headers=headers).status_code == 202
     assert calls[-1][0] == 'na' and calls[-1][3]['force'] is False
+    assert client.post('/nodes/na/delete', headers=headers).status_code == 400
+    assert client.post('/nodes/save', headers=headers, data={
+        'id': 'na', 'name': 'Renamed Local', 'url': 'http://127.0.0.1:8081', 'key': ''
+    }).status_code == 302
+    from mbiiez.api.client import nodes
+    assert nodes()['na']['name'] == 'Renamed Local'
+    assert nodes()['na']['key'] == 'secret-na' and nodes()['na']['local'] is True
+    assert client.post('/nodes/eu/delete', headers=headers).status_code == 302
+    assert b'onchange="location.href=' not in client.get('/dashboard?node=na').data
+    assert client.post('/instance/legends/command', json={'command': 'restart', 'force': True}, headers=headers).status_code == 202
+    assert calls[-1][3]['force'] is True
 
 
 def test_legacy_exit_does_not_kill_api_worker(api, monkeypatch):

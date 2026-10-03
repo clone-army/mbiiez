@@ -38,7 +38,14 @@ def validate_url(url):
     raise ValueError('Use HTTPS for public APIs or a private IP over a trusted VPN/LAN')
 
 
-def save_node(identifier, label, url, key):
+def is_local_node(node):
+    if 'local' in node:
+        return bool(node['local'])
+    # Recognize registrations created before local metadata was introduced.
+    return urlsplit(node.get('url', '')).hostname in ('127.0.0.1', '::1', 'localhost')
+
+
+def save_node(identifier, label, url, key, *, local=False):
     if not re.fullmatch(r'[a-z0-9][a-z0-9_-]{0,31}', identifier):
         raise ValueError('Invalid node ID')
     url = validate_url(url)
@@ -48,13 +55,16 @@ def save_node(identifier, label, url, key):
             key = data.get(identifier, {}).get('key', '')
         if not key or '\n' in key or '\r' in key:
             raise ValueError('An API key is required')
-        data[identifier] = {'name': str(label)[:80] or identifier, 'url': url, 'key': key}
+        local = local or is_local_node(data.get(identifier, {})) or is_local_node({'url': url})
+        data[identifier] = {'name': str(label)[:80] or identifier, 'url': url, 'key': key, 'local': local}
         write(nodes_path(), data)
 
 
 def remove_node(identifier):
     with locked(nodes_path()):
         data = nodes()
+        if is_local_node(data.get(identifier, {})):
+            raise ValueError('The local node cannot be deleted')
         data.pop(identifier, None)
         write(nodes_path(), data)
 
@@ -65,7 +75,7 @@ def selected_node():
     else:
         identifier = None
     data = nodes()
-    identifier = identifier or os.environ.get('MBIIEZ_DEFAULT_NODE', 'na')
+    identifier = identifier or os.environ.get('MBIIEZ_DEFAULT_NODE') or next(iter(data), 'local')
     if identifier not in data:
         raise NodeError('Select or configure an API node on the Nodes page')
     return identifier, data[identifier]

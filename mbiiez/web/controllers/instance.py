@@ -28,6 +28,7 @@ class controller:
             }
             version = ''
         bc = bcolors()
+        status.setdefault('engine', inst.config.get('server', {}).get('engine', 'Unknown'))
         self.controller_bag['status'] = status
         self.controller_bag['engine_running'] = status.get('server_running', False)
         self.controller_bag['status_text'] = 'Running' if status.get('server_running', False) else 'Stopped'

@@ -4,6 +4,7 @@ MBIIEZ runs and manages [Movie Battles II](https://www.moviebattles.org/) dedica
 Python wrapper around the game server with three parts:
 
 - **`mbii` CLI** - start/stop/restart instances, send RCON, change maps and modes, check status.
+- **API agent** - authenticated management endpoints on each server; CLI-generated service keys.
 - **Web panel** - a browser UI for everything the CLI does, plus settings editing, logs, chat, moderation,
   user accounts and a new-instance wizard.
 - **Plugin system** - optional features (voting, economy, chaos mode, gun game, auto messages, VPN blocking,
@@ -76,7 +77,7 @@ Debian or Ubuntu (or a derivative), as root.
 ```bash
 git clone https://github.com/clone-army/mbiiez
 cd mbiiez
-sudo ./install.sh
+sudo ./install.sh --mode web   # CLI + API + WEB
 ```
 
 `install.sh`:
@@ -90,7 +91,13 @@ sudo ./install.sh
 - installs **OpenJK** (`openjkded.i386`) and the bundled **`mbiided.i386`** into `/usr/bin`
 - installs the **`mbii`** command into `/usr/local/bin`
 - creates `mbiiez.conf` from `mbiiez.conf.example`
-- offers to install the **web panel** (you can also run `sudo ./install_web.sh` later)
+- installs the selected profile: `--mode cli`, `--mode api` (CLI + API), or `--mode web` (CLI + API + WEB)
+
+On a fresh host, omitting `--mode` prompts in a terminal and defaults to CLI in automation.
+On an existing host, the installer detects the previous profile (including legacy services) and
+updates application dependencies and selected services. It preserves configuration, users, keys
+and databases, and never runs the game updater, replaces engines or restarts game instances.
+Use `--dry-run` to inspect the plan. API-only installs do not create web credentials.
 
 Then:
 
@@ -101,6 +108,41 @@ Then:
    `configs/demo.json.example` to `configs/<name>.json`.
 4. Open the instance's port (UDP) in your firewall.
 5. `mbii -i <name> start`
+
+### Multiple servers in one web interface
+
+1. On the central server, install `sudo ./install.sh --mode web`. The installer registers its
+   local API automatically with the name **Local**. You can rename it with **Edit** on API Nodes,
+   but cannot delete it. A panel with only its local node hides the node selector.
+   Existing node registrations and keys survive updates.
+2. On every additional game server, install `sudo ./install.sh --mode api`. It needs CLI and API;
+   it does not need the web panel. Create a service key there:
+
+   ```bash
+   mbii api keygen --scope admin --label central-web
+   ```
+
+3. Give that API a reachable address through a trusted VPN or HTTPS reverse proxy. Native agents
+   default to `127.0.0.1:8081`. For a proxy on another LAN host, create `/etc/default/mbii-api`:
+
+   ```ini
+   MBIIEZ_API_HOST=10.25.0.166
+   MBIIEZ_API_PORT=18081
+   ```
+
+   Restart **only** `mbii-api` to apply the bind settings. Point nginx/Caddy at that private address
+   and publish an HTTPS name such as `https://mb2-eu-api.example.com`. Public HTTPS port 443 may
+   proxy any internal API port. Keep the central native panel's local agent on loopback port 8081.
+4. Log into the central panel as admin, open **API Nodes**, and add a unique ID (for example `eu`),
+   display name, API base URL and generated key. Use **Edit** to change an existing node; leave
+   the key blank to keep it. Test the connection, then select that node from
+   the navigation selector. Its instances appear in the dashboard and server menus; identical
+   instance names on different nodes are supported. Keys remain on the panel server.
+
+Use `viewer` for read-only keys or `mod` for moderation. To rotate a key, generate a replacement,
+update and test the node in the panel, then run `mbii api revoke KEY_ID` on its agent.
+Each node keeps its own game data, accounts, bans and statistics. Panel login accounts are central.
+For standalone Docker WEB, node images, persistent volumes and nginx examples, see [API.md](API.md).
 
 ### `mbiiez.conf`
 
@@ -406,8 +448,19 @@ keeps servers current automatically.
 
 ### Updating MBIIEZ
 
-`git pull` in this folder, or use **Update** on the web panel's dashboard. Restart instances to pick up
-changes to plugins or the core.
+```bash
+git pull --ff-only
+sudo ./install.sh --update
+```
+
+The saved profile is reused. For a legacy installation, existing API/web services determine the
+profile automatically. To add the API or panel later, use `--mode api` or `--mode web`.
+The installer updates Python dependencies and restarts only API/web services; running games keep
+their current code until you choose to restart them. Pulling source alone does not install new
+dependencies or migrate services. The dashboard **Update** button queues this same installer
+for the panel host; update remote agents separately. Check a queued update with
+`journalctl -u mbiiez-application-update`. Docker installations require rebuilding their images
+and recreating containers during a suitable maintenance window (see [API.md](API.md)).
 
 ### Updating the engine
 

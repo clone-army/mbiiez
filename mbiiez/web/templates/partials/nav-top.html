@@ -3,10 +3,12 @@
                     <i class="fas fa-bars"></i>
                 </button>
                 <div class="collapse navbar-collapse" id="navbarSupportedContent">
+                    {% if nodes|length > 1 or (nodes|length == 1 and not (nodes.values()|first).local) %}
                     <div class="mx-3 text-light">Node
 <select class="form-select form-select-sm d-inline w-auto" onchange="location.href='/dashboard?node='+encodeURIComponent(this.value)">
 {% for id, node in nodes.items() %}<option value="{{ id }}" {% if id == selected_node %}selected{% endif %}>{{ node.name }} / {{ id }}</option>{% endfor %}
 </select></div>
+                    {% endif %}
 <ul class="nav navbar-nav ms-auto">
                         <li class="nav-item">
                             <span class="nav-link text-light">

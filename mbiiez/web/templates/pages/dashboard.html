@@ -52,7 +52,8 @@
 				</div>
 
 				<div class="row small mb-3">
-					<div class="col-6"><strong>Instance:</strong> {{ item.name }}</div>
+					<div class="col-6"><strong>Engine:</strong> <span id="instance-engine-{{ loop.index }}">{{ item.engine or 'Unknown' }}</span></div>
+                    <div class="col-6"><strong>Instance:</strong> {{ item.name }}</div>
 					<div class="col-6"><strong>Port:</strong> <span id="instance-port-{{ loop.index }}">{{ item.port if item.port else '...' }}</span></div>
 					<div class="col-6"><strong>Players:</strong> <span id="instance-players-{{ loop.index }}">...</span></div>
 					<div class="col-6"><strong>Map:</strong> <span class="mb-preserve-space" id="instance-map-{{ loop.index }}">...</span></div>
@@ -120,9 +121,9 @@ async function webUpdate() {
 			return;
 		}
 		if (data.changed) {
-			setUpdateStatus('Update installed — restarting in 8s...', 'text-success');
+			setUpdateStatus('Update queued. API and panel will restart when installation finishes. Refresh this page shortly.', 'text-success');
 			btn.textContent = 'Update';
-			setTimeout(() => location.reload(), 8000);
+
 		} else {
 			setUpdateStatus('No updates found.', 'text-muted', 6000);
 		}
@@ -139,11 +140,8 @@ async function issueCommand(instance, cmd) {
 		? `/instance/${instance}/command_async`
 		: `/instance/${instance}/command`;
 
-	const response = await fetch(endpoint, {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({ command: cmd })
-	});
+	const response = await mbiiInstanceCommand(endpoint, instance, cmd);
+	if (!response) return;
 
 	const data = await response.json();
 	if (!response.ok || data.error) {
@@ -192,6 +190,7 @@ async function hydrateDashboardCard(card, instanceIndex) {
 		titleElement.innerHTML = data.server_name_html || data.server_name || instanceName;
 		statusBadge.className = `badge ${data.running ? 'bg-success' : 'bg-danger'}`;
 		statusBadge.textContent = data.running ? 'Running' : 'Stopped';
+		if (data.engine) setCardValue(instanceIndex, 'engine', data.engine);
 		const currentPort = document.getElementById(`instance-port-${instanceIndex}`)?.textContent || '';
 		const hydratedPort = String(data.port ?? '').trim();
 		setCardValue(instanceIndex, 'port', hydratedPort || currentPort || '...');

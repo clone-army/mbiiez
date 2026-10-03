@@ -30,3 +30,22 @@
     }
   });
 })();
+
+// Only retry a rejected occupied-server command after explicit user confirmation.
+window.mbiiInstanceCommand = async (endpoint, instance, command) => {
+  const send = force => fetch(endpoint, {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({command, force})
+  });
+  const response = await send(false);
+  if (!response.ok && (command === 'restart' || command === 'stop')) {
+    const data = await response.clone().json();
+    if (String(data.error || '').includes('Players are online; explicit force is required')) {
+      if (!window.confirm(`People are playing on ${instance}. ${command === 'restart' ? 'Restart' : 'Stop'} this server anyway? Players will be disconnected.`)) {
+        return null;
+      }
+      return send(true);
+    }
+  }
+  return response;
+};
