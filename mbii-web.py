@@ -46,8 +46,8 @@ from mbiiez.web.views.plugin_page import view as plugin_page_v
 app = Flask(
     __name__,
     static_url_path="/assets",
-    static_folder="mbiiez/web/static",
-    template_folder="mbiiez/web/templates",
+    static_folder=os.path.join(os.path.dirname(os.path.abspath(__file__)), "mbiiez/web/static"),
+    template_folder=os.path.join(os.path.dirname(os.path.abspath(__file__)), "mbiiez/web/templates"),
 )
 app.config["TEMPLATES_AUTO_RELOAD"] = True
 app.config["SESSION_COOKIE_HTTPONLY"] = True
