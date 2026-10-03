@@ -31,7 +31,7 @@ mbii api revoke KEY_ID
 mbii api serve --host 127.0.0.1 --port 8081
 ```
 
-The new key is printed once. Copy it into WEB's **API Nodes** page. Use `viewer`, `mod` or `admin` scopes. Generate a replacement, update the panel, test it, then revoke the old ID. The agent stores only digests. The panel must store the usable service credential in its owner-only `web_nodes.json`; it is never returned to the browser. `MBIIEZ_STATE_DIR` defaults to `/var/lib/mbiiez`.
+The new key is printed once. Copy it into WEB's **Notes** page. Use `viewer`, `mod` or `admin` scopes. Generate a replacement, update the panel, test it, then revoke the old ID. The agent stores only digests. The panel must store the usable service credential in its owner-only `web_nodes.json`; it is never returned to the browser. `MBIIEZ_STATE_DIR` defaults to `/var/lib/mbiiez`.
 
 Use a private VPN/LAN endpoint or a TLS reverse proxy. Public HTTP endpoints are rejected by the node registry. Certificate verification is always enabled and redirects are refused. Bind API to loopback behind a local proxy, or a private interface when the proxy is on another host. Do not forward its raw port from the internet.
 
@@ -77,7 +77,7 @@ docker build --build-arg MBIIEZ_REVISION="$(git rev-parse HEAD)" --target node -
 # Generate a service key before starting the node; stores its digest in the state volume.
 docker compose -f compose.eu.yml run --rm node mbii api keygen --scope admin --label na-web
 MBIIEZ_API_BIND=10.25.0.166 docker compose -f compose.eu.yml up -d
-# Register the private URL or TLS proxy URL on the central panel's API Nodes page.
+# Register the private URL or TLS proxy URL on the central panel's Notes page.
 ```
 
 The compose files use a dedicated configurable subnet (`MBIIEZ_DOCKER_SUBNET`, default `10.78.0.0/24`) to work on hosts whose automatic Docker address pools are full. Change it if that subnet overlaps your network.

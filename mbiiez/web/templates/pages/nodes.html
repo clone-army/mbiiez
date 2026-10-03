@@ -1,13 +1,13 @@
 {% extends 'base.html' %}
 {% block content %}
-<h3>API Nodes</h3>
+<h3>Notes</h3>
 <p>Each node runs MBIIEZ CLI and API. Game servers and plugins run on that node; this panel manages them remotely.</p>
 <table class="table"><thead><tr><th>Node</th><th>API URL</th><th>Status</th><th>Version</th><th></th></tr></thead><tbody>
 {% for node in node_statuses %}
 <tr><td><a href="/dashboard?node={{ node.id }}">{{ node.name }} / {{ node.id }}</a></td><td>{{ node.url }}</td><td>{{ node.status }}</td><td>{{ node.version }}</td>
 <td><button type="button" class="btn btn-sm btn-outline-primary" onclick='editNode({{ {"id": node.id, "name": node.name, "url": node.url}|tojson }})'>Edit</button>
 <button class="btn btn-sm btn-primary" onclick="testNode('{{ node.id }}')">Test connection</button>
-{% if not node.local %}<form method="post" action="/nodes/{{ node.id }}/delete" class="d-inline" onsubmit="return confirm('Remove this node from the panel?')"><button class="btn btn-sm btn-danger">Remove</button></form>{% else %}<span class="text-muted small">Local node</span>{% endif %}</td></tr>
+{% if not node.local %}<form method="post" action="/nodes/{{ node.id }}/delete" class="d-inline" onsubmit="return confirm('Remove this node from the panel?')"><button class="btn btn-sm btn-danger">Delete</button></form>{% else %}<button type="button" class="btn btn-sm btn-secondary" disabled>Delete</button>{% endif %}</td></tr>
 {% endfor %}</tbody></table>
 <h4 id="node-form-title">Add a node</h4>
 <form id="node-form" method="post" action="/nodes/save">
