@@ -155,3 +155,11 @@ def test_web_api_adapters_and_csrf(environment, monkeypatch):
     headers = {'X-MBIIEZ-CSRF': token, 'X-MBIIEZ-Node': 'na'}
     assert client.post('/instance/legends/command', json={'command': 'restart'}, headers=headers).status_code == 202
     assert calls[-1][0] == 'na' and calls[-1][3]['force'] is False
+
+
+def test_legacy_exit_does_not_kill_api_worker(api, monkeypatch):
+    def legacy(*args):
+        raise SystemExit(1)
+    monkeypatch.setattr(backend, 'status', legacy)
+    assert api.get('/api/v1/instances/legends/status', headers=auth()).status_code == 400
+    assert api.get('/api/v1/instances', headers=auth()).status_code == 200

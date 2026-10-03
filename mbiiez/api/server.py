@@ -49,7 +49,11 @@ def create_app():
                     return jsonify(error='Insufficient actor role'), 403
                 g.api_key = record
                 g.actor = request.headers.get('X-MBIIEZ-Actor', record['label'])[:100]
-                return func(*args, **kwargs)
+                try:
+                    return func(*args, **kwargs)
+                except SystemExit as exc:
+                    # Legacy CLI-oriented helpers must not terminate an API worker.
+                    raise ValueError('Unable to load this instance; check its configuration') from exc
             return wrapper
         return decorator
 
