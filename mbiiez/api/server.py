@@ -100,7 +100,26 @@ def create_app():
                                 capture_output=True, text=True, timeout=3)
         return jsonify(api_version=API_VERSION, version=SOFTWARE_VERSION,
                        revision=result.stdout.strip() or os.environ.get("MBIIEZ_REVISION", "unknown"),
-                       capabilities=['instances', 'config', 'logs', 'chat', 'plugins', 'moderation'])
+                       capabilities=['instances', 'config', 'logs', 'chat', 'plugins', 'moderation', 'data_sync'])
+
+    @app.get('/api/v1/sync/info')
+    @protected('admin')
+    def sync_info():
+        from .sync import capabilities
+        return jsonify(capabilities())
+
+    @app.post('/api/v1/sync/export')
+    @protected('admin')
+    def sync_export():
+        from .sync import export
+        return jsonify(export(body().get('datasets')))
+
+    @app.post('/api/v1/sync/import')
+    @protected('admin')
+    def sync_import():
+        from .sync import import_snapshot
+        data = body()
+        return jsonify(import_snapshot(data.get('snapshot'), data.get('preview', True)))
 
     @app.get('/api/v1/instances')
     @protected('viewer')

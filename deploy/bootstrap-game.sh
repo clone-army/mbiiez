@@ -212,34 +212,7 @@ done
 
 
 
-# ─── 7) OpenJK ─────────────────────────────────────────────────────────────
-run_step "Installing OpenJK" \
-  "wget -qO- https://builds.openjk.org/openjk-2018-02-26-e3f22070-linux.tar.gz \
-     | tar xz -C $BASE && \
-   cp -a $BASE/install/JediAcademy/. $BASE/ && \
-   rm -rf $BASE/install"
-
-# ─── Install openjkded CLI command ────────────────────────────────────────
-run_step "Installing openjkded command" \
-  "ln -sf \"${BASE}/openjkded.i386\" /usr/bin/openjkded.i386 && \
-   chmod +x /usr/bin/openjkded.i386"
-
-
-# ─── Symlink OpenJK into current user's local share ───────────────────────
-run_step "Symlinking /opt/openjk to \$HOME/.local/share/openjk" \
-  "mkdir -p \"$HOME/.local/share\" && \
-   ln -sfn \"${BASE}\" \"$HOME/.local/share/openjk\""
-
-# ─── Install bundled MBII dedicated engine ────────────────────────────────
-# Instance configs name their engine ("engine": "mbiided.i386") and it's run
-# straight off PATH, so the copy shipped in this repo has to be in /usr/bin.
-# An existing one is left alone - it may be a newer build.
-run_step "Installing mbiided.i386 engine" \
-  "if [ ! -e /usr/bin/mbiided.i386 ]; then \
-     install -m 755 \"${SCRIPT_DIR}/mbiided.i386\" /usr/bin/mbiided.i386; \
-   else \
-     echo '/usr/bin/mbiided.i386 already exists, leaving it'; \
-   fi"
+# Engines are selected and installed by install.sh after application dependencies.
 
 # ─── Install mbii CLI command ─────────────────────────────────────────────
 run_step "Installing mbii CLI command" \
@@ -272,8 +245,6 @@ printf "\n${GREEN}✅ Installation complete!${NC}\n"
 printf " • Engines in %s:\n     - MBII installed via updater DLL into %s\n     - OpenJK under %s\n" \
   "$BASE" "$MBII_DIR" "$BASE"
 printf " • Web UI installer: %s\n" "$WEB_INSTALL_SCRIPT"
-printf " • Engines on PATH: openjkded.i386, mbiided.i386. The feature build (caded.i386 -\n"
-printf "   economy, chaos, gun game) comes from the clone-army/OpenJK repo: run its build.sh --install\n"
 
 if (( ${#missing_assets[@]} > 0 )); then
   printf "\n${RED}✗ These game asset files failed to download: %s${NC}\n" "${missing_assets[*]}"

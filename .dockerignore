@@ -19,3 +19,6 @@ eu-game
 web-state
 
 .env
+
+.install-profile
+.install-engines

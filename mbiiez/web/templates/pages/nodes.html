@@ -6,6 +6,7 @@
 {% for node in node_statuses %}
 <tr><td><a href="/dashboard?node={{ node.id }}">{{ node.name }} / {{ node.id }}</a></td><td>{{ node.url }}</td><td>{{ node.status }}</td><td>{{ node.version }}</td>
 <td><button type="button" class="btn btn-sm btn-outline-primary" onclick='editNode({{ {"id": node.id, "name": node.name, "url": node.url}|tojson }})'>Edit</button>
+<button type="button" class="btn btn-sm btn-outline-secondary" onclick="selectSyncTarget('{{ node.id }}')" {% if not node.sync or node_statuses|length < 2 %}disabled{% endif %}>Sync data</button>
 <button class="btn btn-sm btn-primary" onclick="testNode('{{ node.id }}')">Test connection</button>
 {% if not node.local %}<form method="post" action="/nodes/{{ node.id }}/delete" class="d-inline" onsubmit="return confirm('Remove this node from the panel?')"><button class="btn btn-sm btn-danger">Delete</button></form>{% else %}<button type="button" class="btn btn-sm btn-secondary" disabled>Delete</button>{% endif %}</td></tr>
 {% endfor %}</tbody></table>
@@ -19,7 +20,94 @@
 <button class="btn btn-primary">Save node</button>
 <button type="button" class="btn btn-secondary" onclick="resetNodeForm()">Cancel / Add new</button>
 </form>
+<hr>
+<section id="sync-section">
+<h4>Sync CADED data</h4>
+<p>Copy from one node into another. Existing accounts keep their PIN and balance; conflicting identities are skipped.
+Stats keep the highest counter values, rather than adding duplicate snapshots. Ban sync adds bans and keeps local notes; removals and admin privileges stay local.</p>
+<p>Imported bans can disconnect banned players immediately. Live stats imports require the new CADED transaction build.
+Sync does not restart game servers. Backups are kept on the destination node.</p>
+<div class="row">
+<label class="col-md-6">Source <select class="form-select" id="sync-source">
+{% for node in node_statuses %}<option value="{{ node.id }}">{{ node.name }}</option>{% endfor %}
+</select></label>
+<label class="col-md-6">Destination <select class="form-select" id="sync-target">
+{% for node in node_statuses %}<option value="{{ node.id }}">{{ node.name }}</option>{% endfor %}
+</select></label>
+</div>
+<div class="my-3">
+<label class="me-3"><input type="checkbox" name="sync-dataset" value="accounts" checked> Accounts</label>
+<label class="me-3"><input type="checkbox" name="sync-dataset" value="stats"> Stats (highest counters)</label>
+<label class="me-3"><input type="checkbox" name="sync-dataset" value="guid_bans" checked> GUID bans</label>
+<label><input type="checkbox" name="sync-dataset" value="ip_bans" checked> IP bans</label>
+</div>
+<button type="button" class="btn btn-outline-primary" id="sync-preview" onclick="previewSync()">Preview sync</button>
+<button type="button" class="btn btn-primary" id="sync-apply" onclick="applySync()" disabled>Apply reviewed sync</button>
+<p id="sync-compatibility" class="text-muted mt-2"></p>
+<pre class="mt-3" id="sync-report" aria-live="polite"></pre>
+</section>
 <script>
+const syncCapabilities = {{ sync_capabilities|tojson }};
+let syncJob = null;
+function invalidateSync() {
+  syncJob = null;
+  document.getElementById('sync-apply').disabled = true;
+}
+for (const element of document.querySelectorAll('#sync-section select, #sync-section input')) {
+  element.addEventListener('change', () => { invalidateSync(); updateSyncCompatibility(); });
+}
+function updateSyncCompatibility() {
+  const source = syncCapabilities[document.getElementById('sync-source').value] || {};
+  const target = syncCapabilities[document.getElementById('sync-target').value] || {};
+  for (const input of document.querySelectorAll('[name="sync-dataset"]')) {
+    input.disabled = !(source.datasets || []).includes(input.value) || !(target.datasets || []).includes(input.value) || (input.value === 'stats' && !target.live_stats_safe);
+    if (input.disabled) input.checked = false;
+  }
+  document.getElementById('sync-compatibility').textContent = !source.datasets || !target.datasets
+    ? 'Both agents must support data sync and use an admin service key.' : (target.stats_note || '');
+}
+updateSyncCompatibility();
+function selectSyncTarget(id) {
+  invalidateSync();
+  document.getElementById('sync-target').value = id;
+  const source = document.getElementById('sync-source');
+  source.value = Array.from(source.options).find(option => option.value !== id)?.value || id;
+  updateSyncCompatibility();
+  document.getElementById('sync-section').scrollIntoView({behavior:'smooth'});
+}
+function displaySyncReport(report) {
+  const lines = Object.entries(report.datasets || {}).map(([name, info]) => info.blocked
+    ? name + ': skipped — ' + info.reason
+    : `${name}: ${info.added} added, ${info.updated} updated, ${info.unchanged} unchanged, ${info.conflicts} conflicts skipped${info.links_updated ? ", " + info.links_updated + " GUID/IP links updated" : ""}`);
+  if (report.backup_id) lines.push('Destination backup: ' + report.backup_id);
+  document.getElementById('sync-report').textContent = lines.join('\n');
+}
+async function previewSync() {
+  invalidateSync();
+  const button = document.getElementById('sync-preview'); button.disabled = true;
+  try {
+    const response = await fetch('/nodes/sync/preview', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({
+      source:document.getElementById('sync-source').value,
+      target:document.getElementById('sync-target').value,
+      datasets:Array.from(document.querySelectorAll('[name="sync-dataset"]:checked')).map(input => input.value)
+    })});
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Preview failed');
+    displaySyncReport(data.report); syncJob = data.job;
+    document.getElementById('sync-apply').disabled = false;
+  } catch (error) { document.getElementById('sync-report').textContent = error.message; }
+  finally { button.disabled = false; }
+}
+async function applySync() {
+  if (!syncJob || !confirm('Apply the reviewed sync? Existing accounts are preserved. Imported bans may disconnect banned players.')) return;
+  const job = syncJob; invalidateSync();
+  try {
+    const response = await fetch('/nodes/sync/apply', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({job})});
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Sync failed; preview again before retrying');
+    displaySyncReport(data.report);
+  } catch (error) { document.getElementById('sync-report').textContent = error.message; }
+}
 function editNode(node) {
   const form = document.getElementById('node-form');
   form.elements.id.value = node.id;

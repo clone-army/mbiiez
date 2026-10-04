@@ -43,8 +43,8 @@ Every instance names the dedicated-server binary it runs with (`"engine"` in its
 | Engine | Where it comes from | Notes |
 |---|---|---|
 | **`caded.i386`** | Built from **our OpenJK fork: [github.com/clone-army/OpenJK](https://github.com/clone-army/OpenJK)** | Recommended. Adds the economy (credits, shop, bounties, accounts), Chaos Mode, Gun Game, kill streaks and native `!stats`. |
-| `mbiided.i386` | Bundled in this repo; `install.sh` copies it to `/usr/bin` | Standard MBII dedicated server, none of the extra features. |
-| `openjkded.i386` | Stock 2018 OpenJK build downloaded by `install.sh` | Plain OpenJK. |
+| `mbiided.i386` | Bundled in this repo; selected by default in `install.sh` | Standard MBII dedicated server, none of the extra features. |
+| `openjkded.i386` | Stock 2018 OpenJK build, selectable in `install.sh` | Plain OpenJK. |
 
 > **Several plugins only work with `caded.i386`.** Accounts, Credits (and the Shop, Bounties, Cantina Bar, Jukebox and Casino built on it), Social Mode, Holotable, Chaos Mode, Gun Game, Kill Streaks and Stats
 > don't add features themselves: they switch features on and off in our engine with cvars
@@ -72,7 +72,7 @@ and cvars for every feature are documented in the [OpenJK fork's README](https:/
 
 ## Installing
 
-Debian or Ubuntu (or a derivative), as root.
+Debian or Ubuntu (or a derivative), as root. Prebuilt CADED releases require glibc 2.35 or newer (Ubuntu 22.04+, Debian 12+).
 
 ```bash
 git clone https://github.com/clone-army/mbiiez
@@ -88,7 +88,10 @@ sudo ./install.sh --mode web   # CLI + API + WEB
 - downloads and installs **MBII** into `/opt/openjk/MBII` using the official MBII command-line updater
 - downloads the **Jedi Academy base assets** into `/opt/openjk/base` (if any fail, it lists them at the end:
   re-run the script or copy them in yourself)
-- installs **OpenJK** (`openjkded.i386`) and the bundled **`mbiided.i386`** into `/usr/bin`
+- offers an engine checklist: **OpenJK** (`openjkded.i386`) and **`mbiided.i386`** start checked,
+  **`caded.i386`** is optional; at least one engine must be selected
+- downloads CADED from the OpenJK fork's [latest GitHub release](https://github.com/clone-army/OpenJK/releases/latest),
+  verifies its checksum and installs the selected engines into `/usr/bin`
 - installs the **`mbii`** command into `/usr/local/bin`
 - creates `mbiiez.conf` from `mbiiez.conf.example`
 - installs the selected profile: `--mode cli`, `--mode api` (CLI + API), or `--mode web` (CLI + API + WEB)
@@ -99,13 +102,30 @@ updates application dependencies and selected services. It preserves configurati
 and databases, and never runs the game updater, replaces engines or restarts game instances.
 Use `--dry-run` to inspect the plan. API-only installs do not create web credentials.
 
+For an unattended install, choose engines explicitly:
+
+```bash
+sudo ./install.sh --mode api --engines caded
+sudo ./install.sh --mode cli --engines openjkded,mbiided
+```
+
+Use `--choose-engines` to open the checklist later. Deselection never uninstalls an engine.
+Normal updates preserve existing engine binaries. To explicitly stage a new CADED release:
+
+```bash
+sudo ./install.sh --update --engines caded --refresh-engines
+```
+
+This replaces the selected binary atomically; running games retain their current binary and
+pick up the new one at their next planned restart. The installer never restarts games.
+
 Then:
 
-1. Build **`caded.i386`** from [clone-army/OpenJK](https://github.com/clone-army/OpenJK) if you want the
+1. Select **`caded.i386`** during installation, or build it from [clone-army/OpenJK](https://github.com/clone-army/OpenJK) if you want the
    extra features (see above).
 2. Check the paths in **`mbiiez.conf`** (the defaults match what `install.sh` sets up).
 3. Create your first instance, either with the web panel's **New instance** wizard or by copying
-   `configs/demo.json.example` to `configs/<name>.json`.
+   `configs/demo.json.example` to `configs/<name>.json`. Set `server.engine` to an installed engine.
 4. Open the instance's port (UDP) in your firewall.
 5. `mbii -i <name> start`
 
@@ -143,6 +163,35 @@ Use `viewer` for read-only keys or `mod` for moderation. To rotate a key, genera
 update and test the node in the panel, then run `mbii api revoke KEY_ID` on its agent.
 Each node keeps its own game data, accounts, bans and statistics. Panel login accounts are central.
 For standalone Docker WEB, node images, persistent volumes and nginx examples, see [API.md](API.md).
+
+### Sync CADED data between nodes
+
+On **Nodes**, click **Sync data**, choose source and destination, select the datasets, and click
+**Preview sync**. Review the counts and skipped conflicts, then **Apply reviewed sync**. Both
+agents must run the updated API. Accounts, stats and GUID bans require a configured CADED
+instance; IP bans can also sync on nodes using other engines. This is a manual transfer;
+it does not automatically link independent economies or propagate deletions.
+
+| Dataset | Merge behavior |
+|---|---|
+| Accounts | Copies missing handles with their hashed PIN and initial balance. Existing PINs, balances and lockouts stay local; conflicting credentials are skipped. Admin privileges and daily rewards stay local. |
+| CADED stats | Keeps the highest value of each kills/deaths/suicides/playtime counter per identity. Repeat syncs do not add duplicate counts. This is not a sum of independent node totals. |
+| GUID bans | Adds missing bans and their recent IP/GUID associations so CADED can link address-salted GUIDs across servers. Existing notes and drop histories stay local. |
+| IP bans | Adds missing master-list bans, then applies the existing per-instance ban propagation. Existing notes stay local. |
+
+GUID links follow CADED's existing seven-day IP association rule. Shared IP addresses can link
+multiple players, just as they do in CADED's local GUID banning. Imported bans may disconnect
+banned players immediately; no game server restart is required.
+
+Stats import is blocked while any local CADED process runs an older binary without the new
+transaction lock. Stage the new release and let instances take it at their next planned restart.
+Accounts and bans can be merged while existing games run. The preview reports blocked datasets.
+Backups are written on the destination under `/var/lib/mbiiez/sync_backups/<backup-id>/`, with
+owner-only permissions. Account hashes travel only between WEB and authenticated API agents;
+the browser receives counts, never credentials. A preview expires after ten minutes.
+
+MBIIEZ's SQLite connection/chat history is separate from CADED stats and is not copied.
+See [API.md](API.md) for the sync endpoints and deployment details.
 
 ### `mbiiez.conf`
 

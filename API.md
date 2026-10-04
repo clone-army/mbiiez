@@ -60,6 +60,36 @@ WEB uses request-specific node identity (`node` query parameter or `X-MBIIEZ-Nod
 
 Raw RCON is admin-only because it can bypass dedicated moderation permissions. Starts/stops run outside the agent's cgroup using a transient systemd service, or outside its worker in a supervised container. Occupied servers need an explicit `force: true`; default requests refuse to interrupt players. The CLI independently rechecks occupancy. Restarting an API worker does not restart a running game. Restarting the whole node container **does** interrupt its engines.
 
+## CADED data sync
+
+WEB relays a versioned snapshot from the chosen source agent to the destination. Both keys and
+acting roles must be `admin`. The source hashes/records never reach browser JavaScript.
+Use **Nodes → Sync data → Preview sync → Apply reviewed sync**. Previews are private, bounded,
+expire after ten minutes and are bound to the acting admin and destination URL.
+Both agents need this API version with `data_sync` capability. A configured CADED instance is
+required for accounts, stats and GUID bans; IP bans also work with the other engines.
+
+| Endpoint | Method | Purpose |
+|---|---|---|
+| `/api/v1/sync/info` | GET | Available datasets, CADED instances and live stats compatibility |
+| `/api/v1/sync/export` | POST | `{ "datasets": ["accounts", "guid_bans", "ip_bans", "stats"] }`; returns a private protocol-1 snapshot |
+| `/api/v1/sync/import` | POST | `{ "snapshot": {...}, "preview": true }`; preview is the default; `false` performs the merge |
+
+Accounts copy missing identities only; existing credentials and balances are never overwritten.
+Stats merge each counter by maximum, not sum, making repeated transfers idempotent.
+GUID/IP bans merge by union, keeping destination metadata. Ban removal, admin grants, daily
+rewards, account deletion, SQLite logs and continuous shared currency are outside this operation.
+Recent associations for banned GUIDs accompany GUID bans, under CADED's shared GUID lock.
+This supports CADED's seven-day IP linking despite address-salted GUIDs.
+
+Imports use the engine's same-inode account/stats locks and GUID/IP lock files. Each changed file
+has an owner-only backup in `sync_backups`. Multi-file imports are not one transaction: after
+a filesystem/network failure, preview again before retrying; merge operations are idempotent.
+IP propagation may disconnect banned players, but never restarts engines.
+Live stats imports inspect `/proc/<pid>/exe`, so replacing the on-disk binary does not pretend
+already-running old engines support transaction locking. Install the new release atomically
+with `./install.sh --update --engines caded --refresh-engines` and wait for planned restarts.
+
 ## Docker
 
 The Dockerfile has separate `node` (CLI + API + built caded engine) and `web` targets. Its engine stage clones the OpenJK fork at `OPENJK_REF` and builds without running `build.sh` or restarting any production server. No credentials or runtime configs enter the image. Build from a checkout, or directly from git:

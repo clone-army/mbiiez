@@ -143,6 +143,8 @@ def test_web_api_adapters_and_csrf(environment, monkeypatch):
         if path == 'menus': return {'instances': ['legends'], 'plugins': {}, 'global': []}
         if path == 'instances/legends/status': return {'server_running': True, 'players_count': 2}
         if path == 'views/dashboard': return {'instances': [], 'summary': {'total': 0}}
+        if path == 'sync/export': return {'protocol': 1, 'datasets': {'accounts': [['Seed', 'a'*32, 'b'*32, 50, 0, 0]]}}
+        if path == 'sync/import': return {'preview': data['preview'], 'datasets': {'accounts': {'added': 1, 'updated': 0, 'unchanged': 0, 'conflicts': 0}}}
         return {'async': True}
     monkeypatch.setattr(Client, 'call', fake)
     response = client.get('/dashboard?node=eu')
@@ -167,6 +169,21 @@ def test_web_api_adapters_and_csrf(environment, monkeypatch):
     from mbiiez.api.client import nodes
     assert nodes()['na']['name'] == 'Renamed Local'
     assert nodes()['na']['key'] == 'secret-na' and nodes()['na']['local'] is True
+    preview = client.post('/nodes/sync/preview', headers=headers, json={'source': 'na', 'target': 'eu', 'datasets':['accounts']})
+    assert preview.status_code == 200
+    assert b'a' * 32 not in preview.data and b'b' * 32 not in preview.data
+    job = preview.json['job']
+    job_path = environment / 'state' / 'sync_jobs' / (job + '.json')
+    assert job_path.stat().st_mode & 0o777 == 0o600
+    assert json.loads(job_path.read_text())['snapshot']['datasets']['accounts'][0][1] == 'a'*32
+    save_node('eu', 'Changed', 'http://10.25.0.166:8083', '')
+    assert client.post('/nodes/sync/apply', headers=headers, json={'job':job}).status_code == 400
+    save_node('eu', 'EU', 'http://10.25.0.166:8082', '')
+    applied = client.post('/nodes/sync/apply', headers=headers, json={'job':job})
+    assert applied.status_code == 200 and applied.json['report']['preview'] is False
+    assert not job_path.exists()
+    assert client.post('/nodes/sync/apply', headers=headers, json={'job':job}).status_code == 400
+    assert client.post('/nodes/sync/preview', headers=headers, json={'source':'na','target':'na','datasets':['accounts']}).status_code == 400
     assert client.post('/nodes/eu/delete', headers=headers).status_code == 302
     assert b'onchange="location.href=' not in client.get('/dashboard?node=na').data
     assert client.post('/instance/legends/command', json={'command': 'restart', 'force': True}, headers=headers).status_code == 202

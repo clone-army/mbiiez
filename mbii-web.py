@@ -13,6 +13,7 @@ from flask import Flask, abort, g, jsonify, redirect, render_template, request, 
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from mbiiez import settings
+from mbiiez.api.storage import state_dir, locked, read as read_state, write as write_state
 from mbiiez.api import SOFTWARE_VERSION
 from mbiiez.api.client import Client, NodeError, nodes, selected_node, save_node, remove_node, is_local_node
 from mbiiez.web.remote import controller as remote_controller, instance_admin, bansync, guidbans
@@ -491,18 +492,24 @@ def node_error(error):
 def nodes_page():
     def check(item):
         identifier, node = item
+        sync_capabilities = {}
         try:
             info = Client(identifier).call("GET", "info")
             status = "Online" if info.get("api_version") == 1 else "API version mismatch"
             if info.get("version") != SOFTWARE_VERSION and info.get("api_version") == 1:
                 status = "Online (software version differs)"
             version = info.get("version", "") + " / " + info.get("revision", "")[:12]
+            if "data_sync" in info.get("capabilities", []):
+                try:
+                    sync_capabilities = Client(identifier).call("GET", "sync/info")
+                except NodeError:
+                    pass
         except NodeError:
             status, version = "Offline", ""
-        return {"id": identifier, "name": node["name"], "url": node["url"], "status": status, "version": version, "local": is_local_node(node)}
+        return {"id": identifier, "name": node["name"], "url": node["url"], "status": status, "version": version, "local": is_local_node(node), "sync": sync_capabilities}
     with ThreadPoolExecutor(max_workers=8) as pool:
         statuses = list(pool.map(check, nodes().items()))
-    return render_template("pages/nodes.html", node_statuses=statuses, view_bag={"instance": None})
+    return render_template("pages/nodes.html", node_statuses=statuses, sync_capabilities={node["id"]: node["sync"] for node in statuses}, view_bag={"instance": None})
 
 
 @app.route("/nodes/save", methods=["POST"])
@@ -515,6 +522,56 @@ def nodes_save():
         return jsonify(error=str(exc)), 400
     _audit("node_save", details=data.get("id", ""))
     return redirect("/nodes")
+
+
+@app.route("/nodes/sync/preview", methods=["POST"])
+@require_role("admin")
+def nodes_sync_preview():
+    data = request.get_json() or {}
+    source, target = data.get("source"), data.get("target")
+    configured = nodes()
+    if source not in configured or target not in configured or source == target:
+        return jsonify(error="Choose two different configured nodes"), 400
+    datasets = data.get("datasets")
+    if not isinstance(datasets, list) or not datasets or any(name not in ("accounts", "stats", "guid_bans", "ip_bans") for name in datasets):
+        return jsonify(error="Select supported datasets"), 400
+    snapshot = Client(source).call("POST", "sync/export", {"datasets": datasets})
+    report = Client(target).call("POST", "sync/import", {"snapshot": snapshot, "preview": True})
+    directory = state_dir() / "sync_jobs"
+    directory.mkdir(parents=True, exist_ok=True, mode=0o700)
+    # Discard expired credential snapshots; bound retained previews.
+    files = sorted(directory.glob("*.json"), key=lambda path: path.stat().st_mtime)
+    for index, path in enumerate(files):
+        if time.time() - path.stat().st_mtime > 600 or index < len(files) - 19:
+            path.unlink(missing_ok=True)
+    identifier = secrets.token_hex(16)
+    write_state(directory / (identifier + ".json"), {
+        "owner": _current_user(), "expires": time.time() + 600,
+        "source": source, "target": target, "target_url": configured[target]["url"],
+        "snapshot": snapshot,
+    })
+    _audit("node_sync_preview", details=source + " -> " + target)
+    return jsonify(job=identifier, report=report)
+
+
+@app.route("/nodes/sync/apply", methods=["POST"])
+@require_role("admin")
+def nodes_sync_apply():
+    identifier = (request.get_json() or {}).get("job", "")
+    if not isinstance(identifier, str) or len(identifier) != 32 or any(c not in "0123456789abcdef" for c in identifier):
+        return jsonify(error="Invalid sync preview"), 400
+    path = state_dir() / "sync_jobs" / (identifier + ".json")
+    with locked(path):
+        job = read_state(path, {})
+        if job.get("owner") != _current_user() or job.get("expires", 0) < time.time():
+            return jsonify(error="Sync preview expired; preview again"), 400
+        target = job["target"]
+        if nodes().get(target, {}).get("url") != job["target_url"]:
+            return jsonify(error="Target changed; preview again"), 400
+        report = Client(target).call("POST", "sync/import", {"snapshot": job["snapshot"], "preview": False})
+        path.unlink()
+    _audit("node_sync_apply", details=job["source"] + " -> " + target)
+    return jsonify(report=report)
 
 
 @app.route("/nodes/<identifier>/test", methods=["POST"])
