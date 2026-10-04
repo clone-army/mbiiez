@@ -82,6 +82,10 @@ rewards, account deletion, SQLite logs and continuous shared currency are outsid
 Recent associations for banned GUIDs accompany GUID bans, under CADED's shared GUID lock.
 This supports CADED's seven-day IP linking despite address-salted GUIDs.
 
+Native engine text files use byte-preserving Latin-1 strings inside JSON snapshots;
+this preserves names containing invalid UTF-8. IP-ban JSON remains UTF-8. Backups include
+the encoding needed to reconstruct the original bytes.
+
 Imports use the engine's same-inode account/stats locks and GUID/IP lock files. Each changed file
 has an owner-only backup in `sync_backups`. Multi-file imports are not one transaction: after
 a filesystem/network failure, preview again before retrying; merge operations are idempotent.

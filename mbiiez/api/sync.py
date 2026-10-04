@@ -73,8 +73,8 @@ def number(value):
     return value
 
 
-def text(value, limit):
-    if not isinstance(value, str) or len(value.encode('utf-8')) > limit or any(ord(c) < 32 for c in value):
+def text(value, limit, native=False):
+    if not isinstance(value, str) or len(value.encode('latin-1' if native else 'utf-8')) > limit or any(ord(c) < 32 for c in value):
         raise ValueError('Invalid sync text field')
     return value
 
@@ -103,7 +103,7 @@ def validate(name, records):
                     raise ValueError('Invalid account credential encoding')
                 item[3:] = [number(v) for v in item[3:]]
             elif name == 'stats':
-                text(item[0], 39)
+                text(item[0], 39, native=True)
                 if not item[0] or '|' in item[0]:
                     raise ValueError('Invalid stats key')
                 item[1:] = [number(v) for v in item[1:]]
@@ -113,8 +113,8 @@ def validate(name, records):
                     raise ValueError('Invalid GUID ban')
                 item[0] = item[0].upper()
                 for index in [1, 2, 5]: item[index] = number(item[index])
-                for index, limit in [(3, 63), (4, 47), (6, 47), (7, 200)]: text(item[index], limit)
-            key = item[0].lower()
+                for index, limit in [(3, 63), (4, 47), (6, 47), (7, 200)]: text(item[index], limit, native=True)
+            key = item[0].translate(str.maketrans('ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'))
         if key in normalized:
             raise ValueError('Duplicate identity in sync dataset')
         normalized[key] = item
@@ -135,7 +135,8 @@ def engine_file(name, writable=False):
     except FileNotFoundError:
         yield None, '', path
         return
-    with os.fdopen(fd, 'r+' if writable or separate_lock else 'r', encoding='utf-8') as locked:
+    encoding = 'utf-8' if name == 'ip_bans' else 'latin-1'
+    with os.fdopen(fd, 'r+' if writable or separate_lock else 'r', encoding=encoding) as locked:
         # Bound contention: a sync request must not stall game threads indefinitely.
         deadline = time.monotonic() + 2
         while True:
@@ -148,13 +149,13 @@ def engine_file(name, writable=False):
                 time.sleep(.01)
         if separate_lock:
             try:
-                with open(path, encoding='utf-8') as data:
+                with open(path, encoding=encoding) as data:
                     content = data.read(MAX_BYTES + 1)
             except FileNotFoundError:
                 content = ''
         else:
             content = locked.read(MAX_BYTES + 1)
-        if len(content.encode('utf-8')) > MAX_BYTES:
+        if len(content.encode(encoding)) > MAX_BYTES:
             raise ValueError('Sync file exceeds size limit')
         yield locked, content, path
 
@@ -190,7 +191,7 @@ def guid_links(content, allowed=None, days=30):
         if not valid_guid(row[1]):
             raise ValueError('Invalid linked GUID')
         row[1] = row[1].upper()
-        row[2] = number(row[2]); text(row[3], 63)
+        row[2] = number(row[2]); text(row[3], 63, native=True)
         if row[2] > time.time() + 300:
             raise ValueError('GUID link timestamp is in the future')
         if allowed is not None and row[1].lower() not in allowed:
@@ -208,8 +209,9 @@ def seen_text():
     if path.is_symlink():
         raise ValueError('GUID link file cannot be a symlink')
     try:
-        content = path.read_text(encoding='utf-8')
-        if len(content.encode()) > MAX_BYTES:
+        with path.open(encoding='latin-1') as stream:
+            content = stream.read(MAX_BYTES + 1)
+        if len(content.encode('latin-1')) > MAX_BYTES:
             raise ValueError('GUID link file exceeds size limit')
         return content
     except FileNotFoundError:
@@ -270,7 +272,7 @@ def import_snapshot(snapshot, preview=True):
     for row in links:
         if not isinstance(row, list) or len(row) != 4:
             raise ValueError('Invalid GUID link snapshot')
-        text(row[0], 47); text(row[1], 63); number(row[2]); text(row[3], 63)
+        text(row[0], 47); text(row[1], 63); number(row[2]); text(row[3], 63, native=True)
     incoming_links = guid_links(''.join('\t'.join(str(v) for v in row) + '\n' for row in links), incoming.get('guid_bans', {}), days=7)
     result = {'preview': preview, 'datasets': {}, 'backup_id': None}
     backup_id = uuid.uuid4().hex
@@ -295,11 +297,11 @@ def import_snapshot(snapshot, preview=True):
                     raise ValueError('Merged GUID links exceed engine limit')
                 summary['links_updated'] = link_changes
                 if not preview and link_changes:
-                    write(state_dir() / 'sync_backups' / backup_id / 'guidseen.txt.json', {'content': existing_seen})
+                    write(state_dir() / 'sync_backups' / backup_id / 'guidseen.txt.json', {'content': existing_seen, 'encoding': 'latin-1'})
                     path_seen = Path(settings.locations.mbii_path) / 'guidseen.txt'
                     fd, temporary = tempfile.mkstemp(dir=path_seen.parent)
                     try:
-                        with os.fdopen(fd, 'w', encoding='utf-8') as stream:
+                        with os.fdopen(fd, 'w', encoding='latin-1') as stream:
                             stream.write(''.join('\t'.join(str(v) for v in row) + '\n' for row in merged_links.values()))
                             stream.flush(); os.fsync(stream.fileno())
                         os.replace(temporary, path_seen)
@@ -309,12 +311,13 @@ def import_snapshot(snapshot, preview=True):
             if preview or not (summary['added'] or summary['updated']):
                 continue
             # Private pre-change backup, before in-place writes matching the engine's inode lock.
-            write(state_dir() / 'sync_backups' / backup_id / (FORMATS[name][0] + '.json'), {'content': content})
+            write(state_dir() / 'sync_backups' / backup_id / (FORMATS[name][0] + '.json'), {'content': content, 'encoding': 'utf-8' if name == 'ip_bans' else 'latin-1'})
             encoded = encode(name, merged, document)
-            if len(encoded.encode()) > MAX_BYTES:
+            encoding = 'utf-8' if name == 'ip_bans' else 'latin-1'
+            if len(encoded.encode(encoding)) > MAX_BYTES:
                 raise ValueError('Merged sync file too large')
             if name in ('guid_bans', 'ip_bans'):
-                with open(path, 'w', encoding='utf-8') as stream:
+                with open(path, 'w', encoding=encoding) as stream:
                     os.chmod(path, 0o600)
                     stream.write(encoded); stream.flush(); os.fsync(stream.fileno())
             else:

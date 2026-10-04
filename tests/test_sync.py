@@ -133,3 +133,17 @@ def test_sync_authentication_and_caded_capability(game):
     config = Path(settings.locations.config_path) / 'legends.json'
     config.write_text(json.dumps({'server':{'engine':'mbiided.i386'}}))
     assert client.post('/api/v1/sync/export', json={'datasets':['accounts']}, headers=headers).status_code == 400
+
+
+def test_native_name_bytes_survive_snapshot_and_merge(game):
+    raw = b'n:Name\xb1|10|2|0|60\n'
+    file = game / 'player_stats.dat'; file.write_bytes(raw)
+    exported = sync.export(['stats'])
+    assert exported['datasets']['stats'][0][0].encode('latin-1') == b'n:Name\xb1'
+    file.write_bytes(b'')
+    sync.import_snapshot(exported, preview=False)
+    assert file.read_bytes() == raw
+    native_name = b'Player\xb1'.decode('latin-1')
+    incoming = snapshot(guid_bans=[['A'*32, 0, 0, native_name, '1.2.3.4', 1, '', '']])
+    sync.import_snapshot(incoming, preview=False)
+    assert b'Player\xb1' in (game / 'guidbans.txt').read_bytes()
