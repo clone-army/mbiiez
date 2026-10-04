@@ -166,11 +166,18 @@ For standalone Docker WEB, node images, persistent volumes and nginx examples, s
 
 ### Sync CADED data between nodes
 
-On **Nodes**, click **Sync data**, choose source and destination, select the datasets, and click
-**Preview sync**. Review the counts and skipped conflicts, then **Apply reviewed sync**. Both
-agents must run the updated API. Accounts, stats and GUID bans require a configured CADED
-instance; IP bans can also sync on nodes using other engines. This is a manual transfer;
-it does not automatically link independent economies or propagate deletions.
+On **Nodes**, enable **Sync CADED data** for each node you want to join the shared group.
+The local node participates by default; nothing transfers until a second node is enabled.
+One elected WEB worker automatically collects and merges the enabled nodes every minute,
+with bounded parallel requests. Offline nodes are retried and do not block healthy peers.
+The checkbox and last successful sync are shown beside each node. Both agents need the
+updated API and a configured CADED instance. Changing a node API URL pauses its enrollment;
+disable and re-enable sync to approve the new destination.
+
+**Advanced: manual data transfer** remains available for a reviewed one-time copy. Choose
+source and destination, select datasets, then **Preview sync** and **Apply reviewed sync**.
+IP bans can be transferred manually to nodes using other engines. Shared accounts retain
+independent balances and existing PINs; this is not a distributed credit wallet.
 
 | Dataset | Merge behavior |
 |---|---|
@@ -185,13 +192,46 @@ banned players immediately; no game server restart is required.
 
 Stats import is blocked while any local CADED process runs an older binary without the new
 transaction lock. Stage the new release and let instances take it at their next planned restart.
-Accounts and bans can be merged while existing games run. The preview reports blocked datasets.
+Accounts and bans can be merged while existing games run. Automatic sync skips incompatible
+stats and shows the reason beside the node; the manual preview reports blocked datasets.
+Ban removals stay local. Automatic sync remembers observed bans so an unchanged peer does
+not immediately resurrect a local unban. A newer, explicitly added ban can be shared again.
 Backups are written on the destination under `/var/lib/mbiiez/sync_backups/<backup-id>/`, with
 owner-only permissions. Account hashes travel only between WEB and authenticated API agents;
 the browser receives counts, never credentials. A preview expires after ten minutes.
+Automatic backups retain the newest 100 groups for up to seven days; manual backups are kept.
+The scheduler runs in WEB, so leave that service running for automatic sync. API-only nodes
+do not need a web interface or their own scheduler.
 
 MBIIEZ's SQLite connection/chat history is separate from CADED stats and is not copied.
 See [API.md](API.md) for the sync endpoints and deployment details.
+
+### Public community dashboard
+
+Open **`/public`** (for example `https://mb2.example.com/public`) without signing in.
+Anonymous visits to `/` also open the public dashboard; signed-in users keep the operations
+homepage. **Public stats** in the admin navigation links to the same page.
+
+The dashboard includes searchable, sortable player leaderboards for kills, deaths, K/D and
+playtime; featured players; public live server cards with engine and map; casino results,
+credits wagered/won, win rates, net-credit rankings, game breakdowns, 30-day activity and
+recent settlements. Choose a node by name to see its data. Each page shows a single node,
+so synced CADED counters are never summed across regions.
+
+WEB fetches an authenticated, read-only summary from `/api/v1/public/stats` and refreshes
+once a minute. Visitors never receive API keys, PIN hashes, IP addresses, bans, RCON
+credentials, private chat or account balances. Password-protected instances are omitted
+from live cards. Set `server.public_stats` to `false` in an instance JSON config to hide
+its live card even if it has no password. CADED counters are shared at node level and
+cannot be separated by instance; account and nickname identities remain separate.
+
+Gameplay comes from `player_stats.dat`; settled casino outcomes come from
+`game_results.log`. Missing data is shown as an empty state. Results are per-player
+settlements, so a two-player game may produce two results. Win rate counts wins and losses
+only; refunds, pushes and prize-wheel awards are excluded. Credits are game currency.
+Large casino logs use the newest 50,000 complete records within 16 MiB, explicitly labeled
+as a recorded window. Casino rankings are capped at 1,000 players. No external analytics,
+CDN scripts or browser account login is needed. API-only nodes keep authentication enabled.
 
 ### `mbiiez.conf`
 

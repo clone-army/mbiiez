@@ -12,9 +12,10 @@ import re
 import time
 import uuid
 import psutil
+import shutil
 from mbiiez import settings
 from .paths import config_path
-from .storage import state_dir, write
+from .storage import state_dir, write, read, locked
 
 FORMATS = {
     'accounts': ('economy_accounts.dat', ' ', 1024),
@@ -49,7 +50,7 @@ def capabilities():
             continue
         except (PermissionError, psutil.AccessDenied):
             safe_stats = False
-    return {'protocol': 1, 'caded_instances': caded, 'datasets': list(FORMATS) if caded else ['ip_bans'],
+    return {'protocol': 1, 'automatic_sync': True, 'caded_instances': caded, 'datasets': list(FORMATS) if caded else ['ip_bans'],
             'live_stats_safe': safe_stats,
             'stats_note': '' if safe_stats else 'Live stats import requires the new CADED transaction build at the next planned game restart.'}
 
@@ -255,7 +256,25 @@ def merge(name, local, incoming):
     return merged, summary
 
 
-def import_snapshot(snapshot, preview=True):
+def prune_automatic_backups():
+    root = state_dir() / 'sync_backups'
+    markers = sorted(root.glob('*/automatic.json'), key=lambda file: file.stat().st_mtime, reverse=True)
+    for index, marker in enumerate(markers):
+        if (index >= 100 or time.time() - marker.stat().st_mtime > 7 * 86400) and not marker.parent.is_symlink():
+            shutil.rmtree(marker.parent)
+
+
+def import_snapshot(snapshot, preview=True, automatic=False):
+    if not isinstance(automatic, bool):
+        raise ValueError('automatic must be a boolean')
+    if automatic:
+        # Serialize the per-agent ban history with the engine merge, across API workers.
+        with locked(state_dir() / 'automatic_ban_history.json'):
+            return _import_snapshot(snapshot, preview, automatic=True)
+    return _import_snapshot(snapshot, preview)
+
+
+def _import_snapshot(snapshot, preview=True, automatic=False):
     if not isinstance(preview, bool) or not isinstance(snapshot, dict) or snapshot.get('protocol') != 1:
         raise ValueError('Invalid sync protocol')
     datasets = snapshot.get('datasets')
@@ -276,13 +295,28 @@ def import_snapshot(snapshot, preview=True):
     incoming_links = guid_links(''.join('\t'.join(str(v) for v in row) + '\n' for row in links), incoming.get('guid_bans', {}), days=7)
     result = {'preview': preview, 'datasets': {}, 'backup_id': None}
     backup_id = uuid.uuid4().hex
+    history_path = state_dir() / 'automatic_ban_history.json'
+    history = read(history_path, {}) if automatic else {}
     for name, records in incoming.items():
         if name == 'stats' and not capabilities()['live_stats_safe']:
             result['datasets'][name] = {'blocked': True, 'reason': capabilities()['stats_note']}
             continue
         with engine_file(name, writable=not preview) as (handle, content, path):
             local, document = decode(name, content)
-            merged, summary = merge(name, local, records)
+            effective = records
+            if automatic and name in ('guid_bans', 'ip_bans'):
+                seen = history.setdefault(name, {})
+                added = lambda row: row[5] if name == 'guid_bans' else row['added']
+                # A missing previously observed ban is a local unban. Do not resurrect it
+                # from an unchanged peer snapshot; a genuinely newer re-ban can be shared.
+                effective = {key: row for key, row in records.items()
+                             if key in local or key not in seen or added(row) > seen[key]}
+                for source in (records, local):
+                    for key, row in source.items():
+                        seen[key] = max(seen.get(key, 0), added(row))
+                if len(seen) > 65536:
+                    raise ValueError('Automatic ban history limit reached')
+            merged, summary = merge(name, local, effective)
             result['datasets'][name] = summary
             merged_links = None
             if name == 'guid_bans':
@@ -325,6 +359,11 @@ def import_snapshot(snapshot, preview=True):
                 handle.seek(0); handle.write(encoded); handle.truncate()
                 handle.flush(); os.fsync(handle.fileno())
             result['backup_id'] = backup_id
+    if automatic and not preview:
+        write(history_path, history)
+        if result['backup_id']:
+            write(state_dir() / 'sync_backups' / backup_id / 'automatic.json', {'created': time.time()})
+            prune_automatic_backups()
     if not preview and result['datasets'].get('ip_bans', {}).get('added'):
         from mbiiez import bansync
         bansync.sync()  # Existing RCON propagation; never a game restart.

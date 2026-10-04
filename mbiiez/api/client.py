@@ -82,7 +82,8 @@ def selected_node():
 
 
 class Client:
-    def __init__(self, node=None):
+    def __init__(self, node=None, actor=None):
+        self.actor = actor
         if node:
             self.identifier, self.node = node, nodes()[node]
         else:
@@ -90,6 +91,7 @@ class Client:
 
     def call(self, method, path, data=None, params=None):
         headers = {'Authorization': 'Bearer ' + self.node['key']}
+        if self.actor: headers['X-MBIIEZ-Actor'] = self.actor
         if has_request_context():
             headers['X-MBIIEZ-Actor'] = getattr(g, 'current_user', '') or 'web'
             headers['X-MBIIEZ-Role'] = getattr(g, 'current_role', 'viewer')

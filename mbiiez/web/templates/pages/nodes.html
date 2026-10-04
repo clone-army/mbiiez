@@ -2,14 +2,21 @@
 {% block content %}
 <h3>Nodes</h3>
 <p>Each node runs MBIIEZ CLI and API. Game servers and plugins run on that node; this panel manages them remotely.</p>
-<table class="table"><thead><tr><th>Node</th><th>API URL</th><th>Status</th><th>Version</th><th></th></tr></thead><tbody>
+<table class="table"><thead><tr><th>Node</th><th>API URL</th><th>Status</th><th>Version</th><th>Sync CADED data</th><th></th></tr></thead><tbody>
 {% for node in node_statuses %}
 <tr><td><a href="/dashboard?node={{ node.id }}">{{ node.name }} / {{ node.id }}</a></td><td>{{ node.url }}</td><td>{{ node.status }}</td><td>{{ node.version }}</td>
+<td><input type="checkbox" aria-label="Sync CADED data for {{ node.name }}" onchange="toggleAutomaticSync(this, '{{ node.id }}')" {% if node.automatic_sync %}checked{% endif %} {% if not node.automatic_sync and (not node.sync.automatic_sync or not node.sync.caded_instances) %}disabled{% endif %}>
+<div class="small text-muted">{{ node.sync_result.error or node.sync_result.waiting or node.last_sync }}</div>
+{% if node.sync_result.datasets and node.sync_result.datasets.stats and node.sync_result.datasets.stats.blocked %}<div class="small text-warning">{{ node.sync_result.datasets.stats.reason }}</div>{% endif %}
+</td>
 <td><button type="button" class="btn btn-sm btn-outline-primary" onclick='editNode({{ {"id": node.id, "name": node.name, "url": node.url}|tojson }})'>Edit</button>
-<button type="button" class="btn btn-sm btn-outline-secondary" onclick="selectSyncTarget('{{ node.id }}')" {% if not node.sync or node_statuses|length < 2 %}disabled{% endif %}>Sync data</button>
 <button class="btn btn-sm btn-primary" onclick="testNode('{{ node.id }}')">Test connection</button>
 {% if not node.local %}<form method="post" action="/nodes/{{ node.id }}/delete" class="d-inline" onsubmit="return confirm('Remove this node from the panel?')"><button class="btn btn-sm btn-danger">Delete</button></form>{% else %}<button type="button" class="btn btn-sm btn-secondary" disabled>Delete</button>{% endif %}</td></tr>
 {% endfor %}</tbody></table>
+<p>Enable <strong>Sync CADED data</strong> to share data automatically every minute with the other enabled nodes.
+Local participates by default; nothing is transferred until a second node is enabled. Existing account PINs and balances stay local.
+Stats keep the highest counters; bans are merged and ban removals are not shared. Imported bans may disconnect banned players.</p>
+{% if sync_error %}<p class="text-danger">{{ sync_error }}</p>{% endif %}
 <h4 id="node-form-title">Add a node</h4>
 <form id="node-form" method="post" action="/nodes/save">
 <label class="d-block">Node ID <input class="form-control" name="id" pattern="[a-z0-9][a-z0-9_-]{0,31}" required placeholder="eu"></label>
@@ -21,6 +28,7 @@
 <button type="button" class="btn btn-secondary" onclick="resetNodeForm()">Cancel / Add new</button>
 </form>
 <hr>
+<details><summary>Advanced: manual data transfer</summary>
 <section id="sync-section">
 <h4>Sync CADED data</h4>
 <p>Copy from one node into another. Existing accounts keep their PIN and balance; conflicting identities are skipped.
@@ -46,6 +54,7 @@ Sync does not restart game servers. Backups are kept on the destination node.</p
 <p id="sync-compatibility" class="text-muted mt-2"></p>
 <pre class="mt-3" id="sync-report" aria-live="polite"></pre>
 </section>
+</details>
 <script>
 const syncCapabilities = {{ sync_capabilities|tojson }};
 let syncJob = null;
@@ -107,6 +116,17 @@ async function applySync() {
     if (!response.ok) throw new Error(data.error || 'Sync failed; preview again before retrying');
     displaySyncReport(data.report);
   } catch (error) { document.getElementById('sync-report').textContent = error.message; }
+}
+async function toggleAutomaticSync(checkbox, id) {
+  const enabled = checkbox.checked;
+  checkbox.disabled = true;
+  try {
+    const response = await fetch('/nodes/' + id + '/automatic-sync', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({enabled})});
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Could not save sync setting');
+    mbiiToast(enabled ? 'Automatic CADED sync enabled.' : 'Automatic CADED sync disabled.', 'success');
+  } catch (error) { checkbox.checked = !enabled; mbiiToast(error.message, 'danger'); }
+  finally { checkbox.disabled = false; }
 }
 function editNode(node) {
   const form = document.getElementById('node-form');

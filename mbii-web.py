@@ -16,6 +16,7 @@ from mbiiez import settings
 from mbiiez.api.storage import state_dir, locked, read as read_state, write as write_state
 from mbiiez.api import SOFTWARE_VERSION
 from mbiiez.api.client import Client, NodeError, nodes, selected_node, save_node, remove_node, is_local_node
+from mbiiez.web import auto_sync, public_dashboard
 from mbiiez.web.remote import controller as remote_controller, instance_admin, bansync, guidbans
 from mbiiez.db import db
 
@@ -274,6 +275,8 @@ def _role_allows(current_role, required_role):
 
 
 def _required_role_for_path(path, method):
+    if method == 'GET' and path in ('/', '/public', '/public/data'):
+        return None
     if path.startswith("/assets/"):
         return None
 
@@ -431,6 +434,7 @@ def enforce_auth_and_role():
             or path.startswith("/setup")
             or path.startswith("/login")
             or path.startswith("/logout")
+            or path in ("/public", "/public/data")
         )
         if not setup_allowed:
             return redirect("/setup", code=302)
@@ -464,6 +468,9 @@ def enforce_auth_and_role():
 
 @app.before_request
 def select_api_node():
+    if request.path in ('/public', '/public/data'):
+        # Public browsing does not change the administrator's selected node or session.
+        return None
     data = nodes()
     chosen = request.headers.get("X-MBIIEZ-Node") or request.args.get("node") or request.form.get("node") or session.get("mbiiez_node") or next(iter(data), "na")
     if chosen not in data and data:
@@ -507,9 +514,16 @@ def nodes_page():
         except NodeError:
             status, version = "Offline", ""
         return {"id": identifier, "name": node["name"], "url": node["url"], "status": status, "version": version, "local": is_local_node(node), "sync": sync_capabilities}
+    policy = auto_sync.settings()["nodes"]
+    sync_status = auto_sync.status()
     with ThreadPoolExecutor(max_workers=8) as pool:
         statuses = list(pool.map(check, nodes().items()))
-    return render_template("pages/nodes.html", node_statuses=statuses, sync_capabilities={node["id"]: node["sync"] for node in statuses}, view_bag={"instance": None})
+    for node in statuses:
+        node["automatic_sync"] = policy.get(node["id"], {}).get("enabled", False)
+        node["sync_result"] = sync_status.get("nodes", {}).get(node["id"], {})
+        last = node["sync_result"].get("last_success")
+        node["last_sync"] = time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime(last)) if last else ""
+    return render_template("pages/nodes.html", sync_error=sync_status.get("error", ""), node_statuses=statuses, sync_capabilities={node["id"]: node["sync"] for node in statuses}, view_bag={"instance": None})
 
 
 @app.route("/nodes/save", methods=["POST"])
@@ -522,6 +536,18 @@ def nodes_save():
         return jsonify(error=str(exc)), 400
     _audit("node_save", details=data.get("id", ""))
     return redirect("/nodes")
+
+
+@app.route("/nodes/<identifier>/automatic-sync", methods=["POST"])
+@require_role("admin")
+def nodes_automatic_sync(identifier):
+    try:
+        enabled = (request.get_json() or {}).get("enabled")
+        setting = auto_sync.configure(identifier, enabled)
+    except ValueError as error:
+        return jsonify(error=str(error)), 400
+    _audit("node_automatic_sync", details=identifier + (" enabled" if enabled else " disabled"))
+    return jsonify(success=True, enabled=setting["enabled"])
 
 
 @app.route("/nodes/sync/preview", methods=["POST"])
@@ -595,6 +621,8 @@ def nodes_delete(identifier):
 
 @app.context_processor
 def include_instances_and_auth():
+    if request.path in ('/public', '/public/data'):
+        return {}
     users = _load_users() if settings.web_service.auth_enabled else {}
 
     return dict(
@@ -872,7 +900,29 @@ def admin_users_delete():
 
 @app.route("/", methods=["GET", "POST"])
 def home():
-    return redirect("/dashboard", code=302)
+    return redirect("/dashboard" if _is_logged_in() or not settings.web_service.auth_enabled else "/public", code=302)
+
+
+@app.get("/public")
+def public_page():
+    configured = nodes()
+    identifier = request.args.get("node") or next(iter(configured), "")
+    if identifier and identifier not in configured:
+        abort(404)
+    return render_template("pages/public.html", public_nodes={key: {"name": node["name"]} for key, node in configured.items()}, public_node=identifier)
+
+
+@app.get("/public/data")
+def public_data():
+    configured = nodes()
+    identifier = request.args.get("node") or next(iter(configured), "")
+    if identifier not in configured:
+        return jsonify(online=False, error="No public node is available yet."), 503
+    result = public_dashboard.data(identifier)
+    response = jsonify(result)
+    response.headers["Cache-Control"] = "public, max-age=15"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    return response, 200 if result["online"] else 503
 
 
 @app.route("/dashboard", methods=["GET", "POST"])
@@ -1352,4 +1402,5 @@ def web_update():
 
 
 if __name__ == "__main__":
+    auto_sync.start()
     app.run(debug=False, host="0.0.0.0", port=settings.web_service.port, use_reloader=False)

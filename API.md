@@ -64,7 +64,9 @@ Raw RCON is admin-only because it can bypass dedicated moderation permissions. S
 
 WEB relays a versioned snapshot from the chosen source agent to the destination. Both keys and
 acting roles must be `admin`. The source hashes/records never reach browser JavaScript.
-Use **Nodes → Sync data → Preview sync → Apply reviewed sync**. Previews are private, bounded,
+Use **Nodes → Sync CADED data** to opt nodes into automatic one-minute merging. The WEB
+service elects a single scheduler across workers. For a one-time reviewed transfer, open
+**Advanced: manual data transfer → Preview sync → Apply reviewed sync**. Previews are private, bounded,
 expire after ten minutes and are bound to the acting admin and destination URL.
 Both agents need this API version with `data_sync` capability. A configured CADED instance is
 required for accounts, stats and GUID bans; IP bans also work with the other engines.
@@ -73,7 +75,7 @@ required for accounts, stats and GUID bans; IP bans also work with the other eng
 |---|---|---|
 | `/api/v1/sync/info` | GET | Available datasets, CADED instances and live stats compatibility |
 | `/api/v1/sync/export` | POST | `{ "datasets": ["accounts", "guid_bans", "ip_bans", "stats"] }`; returns a private protocol-1 snapshot |
-| `/api/v1/sync/import` | POST | `{ "snapshot": {...}, "preview": true }`; preview is the default; `false` performs the merge |
+| `/api/v1/sync/import` | POST | `{ "snapshot": {...}, "preview": true, "automatic": false }`; preview is the default; `false` performs the merge; automatic imports retain local unban history |
 
 Accounts copy missing identities only; existing credentials and balances are never overwritten.
 Stats merge each counter by maximum, not sum, making repeated transfers idempotent.
@@ -136,3 +138,15 @@ For Nginx Proxy Manager: domain `mb2-eu-api.lcho.me`, HTTP upstream `10.25.0.166
 ## Validation and rollout
 
 `python -m pytest` tests keys, scopes, actor restrictions, path/symlink traversal, safe dispatch, config saves without restarts, occupied-server rejection, auth throttling, auditing, node routing and CSRF. Live rollout should first test read-only status/config/plugin endpoints on NA, then enable the local agent and switch only the web service. Preserve existing game PIDs/start times and verify them afterwards. Keep a previous git revision for rollback; rollback WEB code and restart WEB only, leaving game engines untouched.
+
+## Public statistics
+
+`GET /api/v1/public/stats` requires a viewer-or-higher API key. It returns a sanitized
+projection of gameplay counters, a bounded casino results window and public game-query
+status, cached for 60 seconds. It never reads accounts or moderation data.
+
+The WEB routes `GET /public` and `GET /public/data?node=<id>` allow anonymous access.
+WEB keeps node credentials server-side, caches summaries per node and hides raw upstream
+errors. Public node selection does not change an administrator's active node or session.
+Private live server cards are excluded through `security.server_password` or
+`server.public_stats: false`. Per-node shared counters are shown without cross-node sums.

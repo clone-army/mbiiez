@@ -145,6 +145,7 @@ def test_web_api_adapters_and_csrf(environment, monkeypatch):
         if path == 'views/dashboard': return {'instances': [], 'summary': {'total': 0}}
         if path == 'sync/export': return {'protocol': 1, 'datasets': {'accounts': [['Seed', 'a'*32, 'b'*32, 50, 0, 0]]}}
         if path == 'sync/import': return {'preview': data['preview'], 'datasets': {'accounts': {'added': 1, 'updated': 0, 'unchanged': 0, 'conflicts': 0}}}
+        if path == 'sync/info': return {'automatic_sync': True, 'caded_instances': ['legends']}
         return {'async': True}
     monkeypatch.setattr(Client, 'call', fake)
     response = client.get('/dashboard?node=eu')
@@ -160,6 +161,10 @@ def test_web_api_adapters_and_csrf(environment, monkeypatch):
     with client.session_transaction() as sess: token = sess['csrf_token']
     assert client.post('/instance/legends/command', json={'command': 'restart'}).status_code == 403
     headers = {'X-MBIIEZ-CSRF': token, 'X-MBIIEZ-Node': 'na'}
+    assert client.post('/nodes/eu/automatic-sync', json={'enabled': True}).status_code == 403
+    assert client.post('/nodes/eu/automatic-sync', headers=headers, json={'enabled': True}).json['enabled'] is True
+    assert client.post('/nodes/eu/automatic-sync', headers=headers, json={'enabled': 'yes'}).status_code == 400
+    assert client.post('/nodes/eu/automatic-sync', headers=headers, json={'enabled': False}).json['enabled'] is False
     assert client.post('/instance/legends/command', json={'command': 'restart'}, headers=headers).status_code == 202
     assert calls[-1][0] == 'na' and calls[-1][3]['force'] is False
     assert client.post('/nodes/na/delete', headers=headers).status_code == 400

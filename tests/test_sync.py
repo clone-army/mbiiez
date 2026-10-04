@@ -147,3 +147,31 @@ def test_native_name_bytes_survive_snapshot_and_merge(game):
     incoming = snapshot(guid_bans=[['A'*32, 0, 0, native_name, '1.2.3.4', 1, '', '']])
     sync.import_snapshot(incoming, preview=False)
     assert b'Player\xb1' in (game / 'guidbans.txt').read_bytes()
+
+
+def test_automatic_unban_not_resurrected_but_new_reban_allowed(game):
+    guid = 'A' * 32
+    incoming = snapshot(guid_bans=[[guid,0,0,'Player','1.2.3.4',100,'','note']])
+    sync.import_snapshot(incoming, preview=False, automatic=True)
+    (game / 'guidbans.txt').write_text('')
+    repeat = sync.import_snapshot(incoming, preview=False, automatic=True)
+    assert repeat['datasets']['guid_bans']['added'] == 0
+    assert not (game / 'guidbans.txt').read_text()
+    newer = snapshot(guid_bans=[[guid,0,0,'Player','1.2.3.4',200,'','new note']])
+    assert sync.import_snapshot(newer, preview=False, automatic=True)['datasets']['guid_bans']['added'] == 1
+    # A newer peer ban observed while the old local row remains is also remembered.
+    newest = snapshot(guid_bans=[[guid,0,0,'Player','1.2.3.4',300,'','newer note']])
+    sync.import_snapshot(newest, preview=False, automatic=True)
+    (game / 'guidbans.txt').write_text('')
+    assert sync.import_snapshot(newest, preview=False, automatic=True)['datasets']['guid_bans']['added'] == 0
+    assert sync.import_snapshot(incoming, preview=False)['datasets']['guid_bans']['added'] == 1
+
+
+def test_automatic_backup_retention_keeps_manual_backups(game):
+    from mbiiez.api.storage import write, state_dir
+    root = state_dir() / 'sync_backups'
+    manual = root / 'manual' / 'accounts.json'; write(manual, {'content':'private'})
+    for index in range(101): write(root / str(index) / 'automatic.json', {'created':time.time()})
+    sync.prune_automatic_backups()
+    assert manual.exists()
+    assert len(list(root.glob('*/automatic.json'))) == 100

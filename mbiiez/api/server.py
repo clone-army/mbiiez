@@ -100,7 +100,13 @@ def create_app():
                                 capture_output=True, text=True, timeout=3)
         return jsonify(api_version=API_VERSION, version=SOFTWARE_VERSION,
                        revision=result.stdout.strip() or os.environ.get("MBIIEZ_REVISION", "unknown"),
-                       capabilities=['instances', 'config', 'logs', 'chat', 'plugins', 'moderation', 'data_sync'])
+                       capabilities=['instances', 'config', 'logs', 'chat', 'plugins', 'moderation', 'data_sync', 'public_stats'])
+
+    @app.get('/api/v1/public/stats')
+    @protected('viewer')
+    def public_stats():
+        from .public_stats import snapshot
+        return jsonify(snapshot())
 
     @app.get('/api/v1/sync/info')
     @protected('admin')
@@ -119,7 +125,7 @@ def create_app():
     def sync_import():
         from .sync import import_snapshot
         data = body()
-        return jsonify(import_snapshot(data.get('snapshot'), data.get('preview', True)))
+        return jsonify(import_snapshot(data.get('snapshot'), data.get('preview', True), data.get('automatic', False)))
 
     @app.get('/api/v1/instances')
     @protected('viewer')

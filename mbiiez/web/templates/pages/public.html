@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="Movie Battles II community statistics: player rankings, playtime, live servers and casino results.">
+<title>Community stats · MBIIEZ</title>
+<link rel="icon" href="/assets/img/bootstraper-logo.png">
+<link rel="stylesheet" href="/assets/css/public-dashboard.css">
+<script src="/assets/js/public-dashboard.js" defer></script>
+</head>
+<body data-node="{{ public_node }}">
+<header class="topbar"><a class="brand" href="/public"><span class="brand-mark" aria-hidden="true">M<span>II</span></span><span>MBIIEZ<small>COMMUNITY STATS</small></span></a>
+<nav aria-label="Main navigation"><a href="#players">Players</a><a href="#casino">Casino</a><a href="#servers">Servers</a><a class="admin-link" href="/login">Admin login <span aria-hidden="true">↗</span></a></nav></header>
+<main>
+<section class="hero"><div><p class="eyebrow"><span class="live-dot"></span> MOVIE BATTLES II / COMMUNITY</p><h1>The community,<br><span>in numbers.</span></h1><p class="hero-copy">The players putting in the hours. The kills that count.<br>And the stories behind every credit.</p></div>
+<div class="hero-aside"><label for="node-picker">SERVER REGION</label><select id="node-picker" {% if public_nodes|length < 2 %}hidden{% endif %}>{% for key, node in public_nodes.items() %}<option value="{{ key }}" {% if key == public_node %}selected{% endif %}>{{ node.name }}</option>{% endfor %}</select>{% if public_nodes|length == 1 %}<strong>{{ public_nodes[public_node].name }}</strong>{% endif %}<p id="updated">Loading recorded statistics…</p><button id="refresh" class="subtle-button" type="button">↻ Refresh</button><small>Counters belong to the selected node.<br>Updates every minute.</small></div></section>
+<div id="notice" class="notice" role="status" hidden></div>
+<div id="loading" class="loading" role="status">Gathering the latest community stats…</div>
+<div id="content" hidden>
+<section class="metrics" aria-label="Gameplay totals">
+<article class="metric"><span class="metric-label">RECORDED PLAYERS</span><strong id="total-players">—</strong><small>Accounts and guest nicknames</small></article>
+<article class="metric"><span class="metric-label">HOURS PLAYED</span><strong id="total-hours">—</strong><small>Combined recorded playtime</small></article>
+<article class="metric"><span class="metric-label">TOTAL KILLS</span><strong id="total-kills">—</strong><small>Recorded by the CADED engine</small></article>
+<article class="metric"><span class="metric-label">COMMUNITY K/D</span><strong id="total-kd">—</strong><small>Recorded kills ÷ deaths</small></article>
+</section>
+<section id="players" class="section"><div class="section-heading"><div><p class="eyebrow">THE FRONTLINE</p><h2>Player leaderboard</h2></div><span class="tag">RECORDED TOTALS</span></div>
+<div id="highlights" class="highlights"></div>
+<div class="panel"><div class="table-toolbar"><label class="search"><span aria-hidden="true">⌕</span><input id="player-search" type="search" placeholder="Find a player…" aria-label="Search player leaderboard"></label><label class="sort-label">Rank by <select id="player-sort"><option value="kills">Kills</option><option value="playtime_seconds">Playtime</option><option value="kd">K/D · 10+ deaths</option><option value="deaths">Deaths</option></select></label></div>
+<div class="table-scroll"><table><thead><tr><th scope="col">Rank</th><th scope="col">Player</th><th scope="col">Kills</th><th scope="col">Deaths</th><th scope="col">K/D</th><th scope="col">Playtime</th></tr></thead><tbody id="player-rows"></tbody></table></div>
+<div class="table-footer"><span id="player-count"></span><div><button id="player-prev" type="button" aria-label="Previous player page">←</button><button id="player-next" type="button" aria-label="Next player page">→</button></div></div></div>
+<p class="footnote">Account and nickname records are separate identities. Synced counters keep the highest values, rather than adding node totals. K/D is undefined when no deaths are recorded.</p></section>
+<section id="casino" class="section"><div class="section-heading"><div><p class="eyebrow">BEYOND THE BATTLE</p><h2>The casino ledger</h2></div><span id="casino-coverage" class="tag">RECORDED RESULTS</span></div>
+<p id="casino-empty" class="empty-state" hidden>No casino results have been recorded on this node yet. Results will appear as supported games are settled.</p>
+<div id="casino-content">
+<div class="metrics casino-metrics"><article class="metric"><span class="metric-label">PLAYER RESULTS</span><strong id="casino-results">—</strong><small>One record per player settlement</small></article><article class="metric"><span class="metric-label">CREDITS WAGERED</span><strong id="casino-wagered">—</strong><small>Refunded stakes excluded</small></article><article class="metric"><span class="metric-label">CREDITS WON</span><strong id="casino-won">—</strong><small>Sum of positive credit results</small></article><article class="metric"><span class="metric-label">WIN RATE</span><strong id="casino-rate">—</strong><small>Wins ÷ wins and losses</small></article></div>
+<div class="casino-grid"><article class="panel chart-panel"><div class="panel-heading"><h3>Activity over 30 days</h3><small>Player results / UTC</small></div><div id="activity-chart" class="activity-chart" role="img"></div><div class="chart-dates"><span id="chart-start"></span><span>Today</span></div></article><article class="panel"><div class="panel-heading"><h3>Games played</h3><small>Results / wins / prizes</small></div><div id="game-breakdown" class="game-breakdown"></div></article></div>
+<div class="panel"><div class="table-toolbar"><div><h3>Casino leaderboard</h3><small>Ranked by net credits earned</small></div><label class="search"><span aria-hidden="true">⌕</span><input id="casino-search" type="search" placeholder="Find a player…" aria-label="Search casino leaderboard"></label></div><div class="table-scroll"><table><thead><tr><th scope="col">Rank</th><th scope="col">Player</th><th scope="col">Results</th><th scope="col">Wins</th><th scope="col">Win rate</th><th scope="col">Net credits</th></tr></thead><tbody id="casino-rows"></tbody></table></div><div class="table-footer"><span id="casino-count"></span><div><button id="casino-prev" type="button" aria-label="Previous casino page">←</button><button id="casino-next" type="button" aria-label="Next casino page">→</button></div></div></div>
+<article class="panel recent-panel"><div class="panel-heading"><h3>Latest results</h3><small>Last 20 recorded settlements</small></div><div id="recent-results" class="recent-results"></div></article>
+</div><p id="casino-note" class="footnote">Credits are in-game currency. This page shows settled results, not account balances. Pushes, refunds and prize-wheel awards are excluded from win rate.</p></section>
+<section id="servers" class="section"><div class="section-heading"><div><p class="eyebrow">JOIN THE ACTION</p><h2>Live servers</h2></div><span id="server-count" class="tag">—</span></div><div id="server-cards" class="server-cards"></div><p class="footnote">Live status comes from a public game query. Private instances remain hidden. Player statistics are shared across CADED instances on this node.</p></section>
+</div>
+<noscript><p class="notice">Enable JavaScript to load the leaderboards and live server statistics.</p></noscript>
+<footer><span>MBIIEZ <span class="footer-divider">/</span> MOVIE BATTLES II</span><span>Community statistics. No login needed.</span></footer>
+</main></body></html>
