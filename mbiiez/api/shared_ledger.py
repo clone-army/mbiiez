@@ -132,6 +132,10 @@ def snapshot(db):
     version = db.execute("SELECT value FROM metadata WHERE key='revision'").fetchone()
     result = {
         "protocol": 2,
+        "daily_claims": [
+            list(row)
+            for row in db.execute("SELECT handle,claimed FROM daily ORDER BY handle")
+        ],
         "admin_handles": [
             row[0] for row in db.execute("SELECT handle FROM admins ORDER BY handle")
         ],

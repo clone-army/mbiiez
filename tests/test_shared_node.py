@@ -246,3 +246,20 @@ def test_crash_refund_waits_for_commit_beyond_bounded_batch(group):
     node.exchange()
     assert current_balance() == 70
     assert not read(home / "shared_view.json", {})["intents"]
+
+
+def test_unlink_preserves_wallet_and_daily_claim_cache(group):
+    home, hub, data, post = group
+    node.activate("eu", "https://panel.example.com", "t" * 40)
+    node.engine_operation(event("register", handle="Fresh", pin="1234", bonus=50))
+    node.exchange()
+    before = (data / "economy_accounts.dat").read_bytes()
+    daily = (data / "economy_daily.dat").read_text()
+    assert "fresh " in daily
+    assert node.deactivate() == {"enabled": False}
+    assert not node.enabled()
+    assert (data / "economy_accounts.dat").read_bytes() == before
+    assert (data / "economy_daily.dat").read_text() == daily
+    assert accounts_store.add_credits("Fresh", 5)[0]
+    with ledger.transaction() as db:
+        assert ledger.get(db, "accounts", "fresh")[3] == 50

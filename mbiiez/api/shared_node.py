@@ -91,12 +91,17 @@ def safety():
                     unsafe.append(proc.pid)
             except (OSError, psutil.Error):
                 unsafe.append(proc.pid)
+    installed_ready = "installed engine" not in unsafe
     return {
         "shared_protocol": 2,
         "ready": not unsafe,
         "upgrade_required": bool(unsafe),
         "note": (
-            "Stage the shared-ledger CADED build and use a planned game restart before enabling shared data."
+            (
+                "The new CADED engine is installed. All running CADED instances need their next planned restart before shared data can be enabled."
+                if installed_ready
+                else "Install the shared-ledger CADED build and use planned game restarts before enabling shared data."
+            )
             if unsafe
             else ""
         ),
@@ -446,16 +451,27 @@ def project(snapshot):
                 stream.flush()
                 os.fsync(stream.fileno())
     # Engine admin privileges are part of the same shared account group.
-    path_admins = Path(settings.locations.mbii_path) / "economy_admins.dat"
-    fd = os.open(path_admins, os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o600)
-    with os.fdopen(fd, "r+") as stream:
-        fcntl.flock(stream.fileno(), fcntl.LOCK_EX)
+    with auxiliary_file("economy_admins.dat") as stream:
         handles = [
             shared_ledger.account_key(value)
             for value in snapshot.get("admin_handles", [])
         ]
         stream.seek(0)
         stream.write("".join(handle + "\n" for handle in handles))
+        stream.truncate()
+        stream.flush()
+        os.fsync(stream.fileno())
+    with auxiliary_file("economy_daily.dat") as stream:
+        from .sync import number
+
+        claims = [
+            (shared_ledger.account_key(handle), number(claimed))
+            for handle, claimed in snapshot.get("daily_claims", [])
+        ]
+        stream.seek(0)
+        stream.write(
+            "".join(handle + " " + str(claimed) + "\n" for handle, claimed in claims)
+        )
         stream.truncate()
         stream.flush()
         os.fsync(stream.fileno())
