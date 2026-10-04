@@ -14,8 +14,6 @@ RUN cmake -S /src/OpenJK -B /src/OpenJK/build \
     && cmake --build /src/OpenJK/build -j2
 
 FROM debian:bookworm-slim AS runtime
-ARG MBIIEZ_REVISION=unknown
-ENV MBIIEZ_REVISION=$MBIIEZ_REVISION
 RUN dpkg --add-architecture i386 && apt-get update && apt-get install -y --no-install-recommends \
     python3 python3-venv ca-certificates git screen psmisc procps supervisor tini curl unzip rsync \
     libc6:i386 libstdc++6:i386 libgcc-s1:i386 zlib1g:i386 libjpeg62-turbo:i386 libpng16-16:i386 libcurl4:i386 \
@@ -28,6 +26,8 @@ RUN cp mbiiez.conf.example mbiiez.conf && mkdir -p /var/lib/mbiiez /opt/openjk/b
     && printf '#!/bin/sh\nexec /opt/openjk/venv/bin/python3 /app/mbii.py "$@"\n' > /usr/local/bin/mbii \
     && chmod +x /usr/local/bin/mbii /app/deploy/container-entrypoint.sh \
     && install -m755 /app/mbiided.i386 /usr/bin/mbiided.i386
+ARG MBIIEZ_REVISION=unknown
+ENV MBIIEZ_REVISION=$MBIIEZ_REVISION
 ENV MBIIEZ_STATE_DIR=/var/lib/mbiiez MBIIEZ_CONTAINER=1 PYTHONUNBUFFERED=1
 ENTRYPOINT ["/usr/bin/tini", "--", "/app/deploy/container-entrypoint.sh"]
 
