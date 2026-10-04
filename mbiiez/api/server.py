@@ -148,8 +148,9 @@ def create_app():
         from .shared_ledger import enroll, disable
         data=body()
         if not isinstance(data.get('enabled'),bool):raise ValueError('enabled must be a boolean')
-        from .shared_node import configuration
-        if not configuration().get('authority'):raise ValueError('Only Local authority can enroll peers')
+        from .shared_node import configuration, enabled
+        config=configuration()
+        if not enabled() or not config.get('authority') or config.get('seed'):raise ValueError('Local authority must finish initialization before enrolling peers')
         if data['enabled'] is False:
             disable(data['peer']);return jsonify(enabled=False)
         return jsonify(token=enroll(data['peer']))
@@ -162,6 +163,10 @@ def create_app():
         peer=request.headers.get('X-MBIIEZ-Peer','')
         if not auth.startswith('Bearer ') or len(auth)>512 or not verify(peer,auth[7:]):
             return jsonify(error='Invalid shared peer credential'),401
+        from .shared_node import configuration, enabled
+        config=configuration()
+        if not enabled() or not config.get('authority') or config.get('seed'):
+            return jsonify(error='Local authority is not ready'),503
         return jsonify(apply(peer,body().get('events',[])))
 
     @app.post('/api/v1/sync/export')
