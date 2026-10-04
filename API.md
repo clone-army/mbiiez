@@ -2,7 +2,7 @@
 
 MBIIEZ runs as three components. **CLI** manages the local engines and plugins. **API** exposes that node's operations with service keys. **WEB** authenticates people and calls API agents, including the local agent. EU needs CLI and API only. There is no second implementation for remote instances.
 
-Each node owns its configs, runtime files, database, plugins, accounts, bans and game assets. Accounts and bans are shared across instances on a node, not automatically across different nodes. The web panel's users, signing secret and node credentials belong to WEB.
+Each node owns its configs, runtime files, database, plugins and game assets. CADED accounts, wallets, statistics and moderation can join Local's shared authority through the Nodes checkbox. The web panel's users, signing secret and node credentials belong to WEB.
 
 ## Native installation
 
@@ -60,41 +60,71 @@ WEB uses request-specific node identity (`node` query parameter or `X-MBIIEZ-Nod
 
 Raw RCON is admin-only because it can bypass dedicated moderation permissions. Starts/stops run outside the agent's cgroup using a transient systemd service, or outside its worker in a supervised container. Occupied servers need an explicit `force: true`; default requests refuse to interrupt players. The CLI independently rechecks occupancy. Restarting an API worker does not restart a running game. Restarting the whole node container **does** interrupt its engines.
 
-## CADED data sync
+## CADED shared data
 
-WEB relays a versioned snapshot from the chosen source agent to the destination. Both keys and
-acting roles must be `admin`. The source hashes/records never reach browser JavaScript.
-Use **Nodes → Sync CADED data** to opt nodes into automatic one-minute merging. The WEB
-service elects a single scheduler across workers. For a one-time reviewed transfer, open
-**Advanced: manual data transfer → Preview sync → Apply reviewed sync**. Previews are private, bounded,
-expire after ten minutes and are bound to the acting admin and destination URL.
-Both agents need this API version with `data_sync` capability. A configured CADED instance is
-required for accounts, stats and GUID bans; IP bans also work with the other engines.
+Enable the remote node's **Sync CADED data** checkbox to attach it to Local. Do not tick
+Local: it is the authority. Require the installed and every running CADED binary to contain
+`MBIIEZ_SHARED_LEDGER_V2`. Old engines cannot share a wallet safely; stage the new binary
+and wait for planned game restarts. Agents check `/proc/<pid>/exe`, not just the disk path.
 
-| Endpoint | Method | Purpose |
+Initial snapshots are backed up privately. Local wins matching identities; remote-only
+records are retained. Existing matching counters/balances are ambiguous and are not summed.
+Every later earning, debit, stats delta and moderation change has a unique durable operation
+ID. Local applies each exactly once in a SQLite transaction, then agents project its state
+into CADED's legacy files under the same native locks. Local's daily claim history and engine
+admin flags are included. PIN hashes and usable peer credentials never reach browsers.
+
+Debits reserve centrally before game effects. A durable commit makes a purchase final;
+cancellations refund uncommitted reservations once, including lost-response requests.
+Recovery checks process identity and drains its journal before refunding a crashed game's
+uncommitted purchase. Ban tombstones protect removals against stale peers. Positive credits
+and gameplay deltas queue locally during outages. Login, registration and spending require
+Local to be reachable. This deliberately prevents two regions spending the same stale funds.
+
+API agents run the exchange worker (about one second), independent of WEB's status monitor.
+Private outboxes compact only when fully acknowledged and without pending reservations;
+compaction retains the inode and has durable crash recovery. Preserve the state volume.
+The authoritative database is `shared-ledger.sqlite` in `MBIIEZ_STATE_DIR`; take a consistent
+SQLite backup, including its WAL state, rather than copying an active database file alone.
+
+| Endpoint | Method | Scope / purpose |
 |---|---|---|
-| `/api/v1/sync/info` | GET | Available datasets, CADED instances and live stats compatibility |
-| `/api/v1/sync/export` | POST | `{ "datasets": ["accounts", "guid_bans", "ip_bans", "stats"] }`; returns a private protocol-1 snapshot |
-| `/api/v1/sync/import` | POST | `{ "snapshot": {...}, "preview": true, "automatic": false }`; preview is the default; `false` performs the merge; automatic imports retain local unban history |
+| `/api/v1/shared/status` | GET | admin; enrollment, engine readiness and last exchange status |
+| `/api/v1/shared/configure` | POST | admin; `{ "enabled": true, "authority": true, "peer": "local" }` on Local, or `{ "enabled": true, "peer": "eu", "hub": "https://panel.example.com", "token": "PEER_TOKEN" }` on EU |
+| `/api/v1/shared/peer` | POST | admin on Local; `{ "peer": "eu", "enabled": true }` prints a new peer credential once; `false` revokes it |
+| `/api/v1/shared/engine` | POST | engine/admin service key; native login, registration, balance and wallet reservation |
+| `/api/v1/shared/exchange` | POST | dedicated peer credential; `{ "events": [...] }`, requires `X-MBIIEZ-Peer` and Bearer peer token |
+| `/shared/v1/exchange` | POST | same peer-authenticated exchange on API, or authenticated WEB relay to Local API |
 
-Accounts copy missing identities only; existing credentials and balances are never overwritten.
-Stats merge each counter by maximum, not sum, making repeated transfers idempotent.
-GUID/IP bans merge by union, keeping destination metadata. Ban removal, admin grants, daily
-rewards, account deletion, SQLite logs and continuous shared currency are outside this operation.
-Recent associations for banned GUIDs accompany GUID bans, under CADED's shared GUID lock.
-This supports CADED's seven-day IP linking despite address-salted GUIDs.
+The panel configures these automatically. API-only groups can configure Local, enroll a peer,
+then configure the remote using the authority's public HTTPS **API** URL as `hub`. WEB is not
+required in that deployment. CLI-generated admin keys authenticate the configuration calls;
+the engine key is generated automatically and restricted to engine operations. Never supply
+an admin key as the peer token. Peer keys are separately hashed at Local and can be rotated.
 
-Native engine text files use byte-preserving Latin-1 strings inside JSON snapshots;
-this preserves names containing invalid UTF-8. IP-ban JSON remains UTF-8. Backups include
-the encoding needed to reconstruct the original bytes.
+With WEB's relay, set `MBIIEZ_PUBLIC_WEB_URL` to its public HTTPS origin if proxy headers do
+not supply it. Proxy `/shared/v1/exchange`, preserve Authorization and `X-MBIIEZ-Peer`,
+allow 2 MB requests and disable caching. The API-only direct alias uses the same route.
+Do not expose raw HTTP over the internet.
 
-Imports use the engine's same-inode account/stats locks and GUID/IP lock files. Each changed file
-has an owner-only backup in `sync_backups`. Multi-file imports are not one transaction: after
-a filesystem/network failure, preview again before retrying; merge operations are idempotent.
-IP propagation may disconnect banned players, but never restarts engines.
-Live stats imports inspect `/proc/<pid>/exe`, so replacing the on-disk binary does not pretend
-already-running old engines support transaction locking. Install the new release atomically
-with `./install.sh --update --engines caded --refresh-engines` and wait for planned restarts.
+Unlinking requires the remote node's CADED processes to be stopped during a planned window
+and the outbox to be settled. MBIIEZ never stops them automatically. Cached account data
+remains as a standalone copy. Local remains the authority. Drain/unlink before deleting a
+node. URL changes revoke the old peer credential and require reapproval.
+
+### Advanced snapshot transfer
+
+`POST /api/v1/sync/export` (admin) takes `{ "datasets": ["accounts", "guid_bans", "ip_bans", "stats"] }`.
+`POST /api/v1/sync/import` (admin) takes `{ "snapshot": {...}, "preview": true }`; preview is
+the default, `false` applies. `GET /api/v1/sync/info` reports native/shared compatibility.
+Imports are blocked on shared nodes. For unlinked nodes these are reviewed, one-time merges:
+existing accounts/PINs/balances win, stats use highest counters, bans union with local notes.
+This operation is distinct from a shared wallet. Owner-only backups use `sync_backups/`;
+private WEB previews expire after ten minutes and are bound to admin and destination URL.
+Native text uses byte-preserving Latin-1 inside JSON; IP JSON uses UTF-8.
+
+Connection/chat history and historical casino settlement logs remain per node. Gambling
+wallet changes are shared; the public dashboard does not add repeated global gameplay totals.
 
 ## Docker
 

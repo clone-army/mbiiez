@@ -6,6 +6,7 @@ import secrets
 import socket
 import subprocess
 import time
+import requests
 import threading
 from functools import wraps
 
@@ -54,6 +55,7 @@ app = Flask(
     template_folder=os.path.join(os.path.dirname(os.path.abspath(__file__)), "mbiiez/web/templates"),
 )
 app.config["TEMPLATES_AUTO_RELOAD"] = True
+app.config["MAX_CONTENT_LENGTH"] = 2 * 1024 * 1024
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 
@@ -275,6 +277,8 @@ def _role_allows(current_role, required_role):
 
 
 def _required_role_for_path(path, method):
+    if method == 'POST' and path == '/shared/v1/exchange':
+        return None
     if method == 'GET' and path in ('/', '/public', '/public/data'):
         return None
     if path.startswith("/assets/"):
@@ -468,7 +472,7 @@ def enforce_auth_and_role():
 
 @app.before_request
 def select_api_node():
-    if request.path in ('/public', '/public/data'):
+    if request.path in ('/public', '/public/data', '/shared/v1/exchange'):
         # Public browsing does not change the administrator's selected node or session.
         return None
     data = nodes()
@@ -543,7 +547,11 @@ def nodes_save():
 def nodes_automatic_sync(identifier):
     try:
         enabled = (request.get_json() or {}).get("enabled")
-        setting = auto_sync.configure(identifier, enabled)
+        public_url=os.environ.get("MBIIEZ_PUBLIC_WEB_URL")
+        if not public_url:
+            proto=request.headers.get("X-Forwarded-Proto",request.scheme).split(",")[0].strip()
+            public_url=proto+"://"+request.host
+        setting = auto_sync.configure(identifier, enabled, hub=public_url)
     except ValueError as error:
         return jsonify(error=str(error)), 400
     _audit("node_automatic_sync", details=identifier + (" enabled" if enabled else " disabled"))
@@ -612,6 +620,8 @@ def nodes_test(identifier):
 @require_role("admin")
 def nodes_delete(identifier):
     try:
+        if auto_sync.settings()['nodes'].get(identifier,{}).get('enabled') and identifier!=auto_sync.local_node():
+            raise ValueError('Unlink shared data before deleting this node')
         remove_node(identifier)
     except ValueError as exc:
         return jsonify(error=str(exc)), 400
@@ -621,7 +631,7 @@ def nodes_delete(identifier):
 
 @app.context_processor
 def include_instances_and_auth():
-    if request.path in ('/public', '/public/data'):
+    if request.path in ('/public', '/public/data', '/shared/v1/exchange'):
         return {}
     users = _load_users() if settings.web_service.auth_enabled else {}
 
@@ -901,6 +911,21 @@ def admin_users_delete():
 @app.route("/", methods=["GET", "POST"])
 def home():
     return redirect("/dashboard" if _is_logged_in() or not settings.web_service.auth_enabled else "/public", code=302)
+
+
+@app.post("/shared/v1/exchange")
+def shared_exchange_proxy():
+    local=auto_sync.local_node()
+    if not local:return jsonify(error="Shared authority not configured"),503
+    auth=request.headers.get("Authorization","");peer=request.headers.get("X-MBIIEZ-Peer","")
+    if not auth.startswith("Bearer ") or len(auth)>512 or len(peer)>32:
+        return jsonify(error="A shared peer credential is required"),401
+    try:
+        upstream=requests.post(nodes()[local]["url"]+"/api/v1/shared/exchange",
+            headers={"Authorization":auth,"X-MBIIEZ-Peer":peer},json=request.get_json(),timeout=(2,8),allow_redirects=False)
+        response=jsonify(upstream.json());response.headers["Cache-Control"]="no-store"
+        return response,upstream.status_code
+    except (requests.RequestException,ValueError):return jsonify(error="Shared authority temporarily unavailable"),503
 
 
 @app.get("/public")

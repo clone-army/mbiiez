@@ -18,7 +18,7 @@ def game(tmp_path, monkeypatch):
     data = tmp_path / 'MBII'; data.mkdir()
     monkeypatch.setattr(settings.locations, 'config_path', str(configs))
     monkeypatch.setattr(settings.locations, 'mbii_path', str(data))
-    monkeypatch.setattr(sync.psutil, 'process_iter', lambda fields: [])
+    monkeypatch.setattr(sync.psutil, 'process_iter', lambda fields, **kwargs: [])
     return data
 
 

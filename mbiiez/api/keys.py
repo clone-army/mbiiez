@@ -5,7 +5,7 @@ import secrets
 import time
 from .storage import state_dir, locked, read, write
 
-ROLES = {'viewer': 10, 'mod': 20, 'admin': 30}
+ROLES = {'engine': 0, 'viewer': 10, 'mod': 20, 'admin': 30}
 
 
 def path():

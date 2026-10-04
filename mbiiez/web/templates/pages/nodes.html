@@ -5,7 +5,10 @@
 <table class="table"><thead><tr><th>Node</th><th>API URL</th><th>Status</th><th>Version</th><th>Sync CADED data</th><th></th></tr></thead><tbody>
 {% for node in node_statuses %}
 <tr><td><a href="/dashboard?node={{ node.id }}">{{ node.name }} / {{ node.id }}</a></td><td>{{ node.url }}</td><td>{{ node.status }}</td><td>{{ node.version }}</td>
-<td><input type="checkbox" aria-label="Sync CADED data for {{ node.name }}" onchange="toggleAutomaticSync(this, '{{ node.id }}')" {% if node.automatic_sync %}checked{% endif %} {% if not node.automatic_sync and (not node.sync.automatic_sync or not node.sync.caded_instances) %}disabled{% endif %}>
+<td>{% if node.local %}<span class="badge bg-secondary">Local source of truth</span>{% else %}
+<input type="checkbox" aria-label="Sync CADED data for {{ node.name }}" onchange="toggleAutomaticSync(this,'{{ node.id }}')" {% if node.automatic_sync %}checked{% endif %} {% if not node.automatic_sync and (node.sync.shared_protocol != 2 or not node.sync.ready) %}disabled{% endif %}>
+{% endif %}
+{% if node.sync.note %}<div class="small text-warning">{{ node.sync.note }}</div>{% endif %}
 <div class="small text-muted">{{ node.sync_result.error or node.sync_result.waiting or node.last_sync }}</div>
 {% if node.sync_result.datasets and node.sync_result.datasets.stats and node.sync_result.datasets.stats.blocked %}<div class="small text-warning">{{ node.sync_result.datasets.stats.reason }}</div>{% endif %}
 </td>
@@ -13,9 +16,12 @@
 <button class="btn btn-sm btn-primary" onclick="testNode('{{ node.id }}')">Test connection</button>
 {% if not node.local %}<form method="post" action="/nodes/{{ node.id }}/delete" class="d-inline" onsubmit="return confirm('Remove this node from the panel?')"><button class="btn btn-sm btn-danger">Delete</button></form>{% else %}<button type="button" class="btn btn-sm btn-secondary" disabled>Delete</button>{% endif %}</td></tr>
 {% endfor %}</tbody></table>
-<p>Enable <strong>Sync CADED data</strong> to share data automatically every minute with the other enabled nodes.
-Local participates by default; nothing is transferred until a second node is enabled. Existing account PINs and balances stay local.
-Stats keep the highest counters; bans are merged and ban removals are not shared. Imported bans may disconnect banned players.</p>
+<p>Enable <strong>Sync CADED data</strong> on a remote node to link it to Local in both directions.
+Accounts, PIN changes, credit earnings and spending, bans and unbans, kills and playtime are shared.
+Local supplies the initial values for matching identities; remote-only records are preserved and backed up.
+New transactions and stats events are counted once. If the authority cannot be reached, spending pauses and earnings/stats remain queued.
+Imported bans may disconnect banned players. No game restart is performed by this checkbox.
+Unlinking requires a planned stop of the remote node's CADED instances so pending purchases can settle safely.</p>
 {% if sync_error %}<p class="text-danger">{{ sync_error }}</p>{% endif %}
 <h4 id="node-form-title">Add a node</h4>
 <form id="node-form" method="post" action="/nodes/save">
@@ -31,7 +37,7 @@ Stats keep the highest counters; bans are merged and ban removals are not shared
 <details><summary>Advanced: manual data transfer</summary>
 <section id="sync-section">
 <h4>Sync CADED data</h4>
-<p>Copy from one node into another. Existing accounts keep their PIN and balance; conflicting identities are skipped.
+<p>For unlinked nodes only. Imports are blocked while shared data is enabled. Copy from one node into another. Existing accounts keep their PIN and balance; conflicting identities are skipped.
 Stats keep the highest counter values, rather than adding duplicate snapshots. Ban sync adds bans and keeps local notes; removals and admin privileges stay local.</p>
 <p>Imported bans can disconnect banned players immediately. Live stats imports require the new CADED transaction build.
 Sync does not restart game servers. Backups are kept on the destination node.</p>

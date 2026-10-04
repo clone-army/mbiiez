@@ -18,6 +18,7 @@ the engine does the same for any GUID that turns up on a banned one's IP.
 An IP ban (mbiiez.bansync) bans every GUID seen on that IP, with "from ip
 ban" set to it, and unbanning the IP lifts those again.
 """
+import copy
 import fcntl
 import os
 import re
@@ -52,10 +53,13 @@ class _Locked:
         fcntl.flock(self.fd, fcntl.LOCK_EX)
         self.bans = []
         self.changed = False
+        self.revision = 0
         try:
             with open(_path(BAN_FILE), "r", encoding="utf-8", errors="replace") as f:
                 for line in f:
                     line = line.rstrip("\r\n")
+                    if line.startswith("# MBIIEZ_SHARED_REVISION="):
+                        self.revision=int(line.split("=",1)[1])
                     if not line or line.startswith("#"):
                         continue
                     parts = line.split("\t", len(FIELDS) - 1)
@@ -72,6 +76,7 @@ class _Locked:
                     self.bans.append(ban)
         except FileNotFoundError:
             pass
+        self.before=copy.deepcopy(self.bans)
         return self
 
     def find(self, guid):
@@ -84,6 +89,13 @@ class _Locked:
     def __exit__(self, exc_type, exc, tb):
         try:
             if exc_type is None and self.changed:
+                from mbiiez.api import shared_node
+                if shared_node.enabled():
+                    before={row['guid'].lower():row for row in self.before};after={row['guid'].lower():row for row in self.bans}
+                    for key in before.keys()-after.keys():shared_node.append(dict(kind='ban_delete',dataset='guid_bans',key=key,base_revision=self.revision))
+                    for key,row in after.items():
+                        if before.get(key)!=row:shared_node.append(dict(kind='ban_update' if key in before else 'ban_set',dataset='guid_bans',row=[row[name] for name in FIELDS],base_revision=self.revision))
+                    return False
                 # Written in place, as the engine does: its lock is on the
                 # .lock file, so this never races it.
                 with open(_path(BAN_FILE), "w", encoding="utf-8") as f:

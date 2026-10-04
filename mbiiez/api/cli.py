@@ -1,5 +1,6 @@
 import argparse
 import json
+import os
 from . import keys
 
 
@@ -26,5 +27,8 @@ def main(argv):
     else:
         from waitress import serve
         from .server import create_app
+        from .shared_node import start
+        os.environ['MBIIEZ_API_PORT']=str(args.port)
+        start()
         serve(create_app(), host=args.host, port=args.port, threads=8,
               max_request_body_size=2 * 1024 * 1024)

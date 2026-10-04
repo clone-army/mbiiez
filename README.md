@@ -161,50 +161,68 @@ Then:
 
 Use `viewer` for read-only keys or `mod` for moderation. To rotate a key, generate a replacement,
 update and test the node in the panel, then run `mbii api revoke KEY_ID` on its agent.
-Each node keeps its own game data, accounts, bans and statistics. Panel login accounts are central.
+Each node keeps its own game data. CADED accounts, balances, bans and statistics can be linked to Local through **Sync CADED data**. Panel login accounts are central.
 For standalone Docker WEB, node images, persistent volumes and nginx examples, see [API.md](API.md).
 
 ### Sync CADED data between nodes
 
-On **Nodes**, enable **Sync CADED data** for each node you want to join the shared group.
-The local node participates by default; nothing transfers until a second node is enabled.
-One elected WEB worker automatically collects and merges the enabled nodes every minute,
-with bounded parallel requests. Offline nodes are retried and do not block healthy peers.
-The checkbox and last successful sync are shown beside each node. Both agents need the
-updated API and a configured CADED instance. Changing a node API URL pauses its enrollment;
-disable and re-enable sync to approve the new destination.
+**Local is the authority.** In **Nodes**, tick **Sync CADED data** on a remote node to
+link it to Local. Local has no checkbox; you only tick EU (or another remote node).
+The agents exchange changes automatically, about once a second, in both directions.
+You do not install WEB on remote machines.
 
-**Advanced: manual data transfer** remains available for a reviewed one-time copy. Choose
-source and destination, select datasets, then **Preview sync** and **Apply reviewed sync**.
-IP bans can be transferred manually to nodes using other engines. Shared accounts retain
-independent balances and existing PINs; this is not a distributed credit wallet.
+Before enabling, install the shared-ledger CADED release on both machines and let **all**
+CADEd instances use it at their next planned restart. The checkbox checks the binary
+actually running, as well as the installed engine. Updating API or WEB never restarts
+games. Legacy CADED cannot safely share a live wallet, so it cannot join this group.
 
-| Dataset | Merge behavior |
+At first enrollment, both nodes save private migration backups. Local's existing PINs,
+balances, stats and moderation records win for matching identities. Remote-only accounts,
+stats and bans are retained. Existing matching totals are not added: they might already
+be copies. From that point, unique recorded changes can safely be combined exactly once.
+For example, a balance of **100**, earnings of **20** on NA and spending of **30** on EU
+leaves **90** on both; three kills on NA and two on EU add five to the common total.
+
+| Data | Shared behavior |
 |---|---|
-| Accounts | Copies missing handles with their hashed PIN and initial balance. Existing PINs, balances and lockouts stay local; conflicting credentials are skipped. Admin privileges and daily rewards stay local. |
-| CADED stats | Keeps the highest value of each kills/deaths/suicides/playtime counter per identity. Repeat syncs do not add duplicate counts. This is not a sum of independent node totals. |
-| GUID bans | Adds missing bans and their recent IP/GUID associations so CADED can link address-salted GUIDs across servers. Existing notes and drop histories stay local. |
-| IP bans | Adds missing master-list bans, then applies the existing per-instance ban propagation. Existing notes stay local. |
+| Accounts | Same registration, PIN, failed attempts, lockout, PIN reset, deletion and engine admin privileges across the group. WEB login accounts remain central and separate. |
+| Credits | Earnings, gambling payouts, purchases, gifts and admin adjustments affect one wallet. Local reserves purchases atomically before game effects, preventing simultaneous overspending. |
+| Daily rewards | One daily claim per account across the group, including Local's existing claim history. |
+| Gameplay | New kills, deaths, suicides and playtime add to a common total; retries never add them twice. Account and nickname identities remain separate. |
+| Moderation | GUID/IP bans, notes and unbans flow both ways. Tombstones prevent stale peers from restoring removed bans; recent GUID/IP associations preserve CADED's existing IP linking. |
 
-GUID links follow CADED's existing seven-day IP association rule. Shared IP addresses can link
-multiple players, just as they do in CADED's local GUID banning. Imported bans may disconnect
-banned players immediately; no game server restart is required.
+Bans may disconnect banned players. Shared IP addresses can link multiple GUIDs, just as
+in CADED's existing local rules. Ban propagation does not restart engines.
 
-Stats import is blocked while any local CADED process runs an older binary without the new
-transaction lock. Stage the new release and let instances take it at their next planned restart.
-Accounts and bans can be merged while existing games run. Automatic sync skips incompatible
-stats and shows the reason beside the node; the manual preview reports blocked datasets.
-Ban removals stay local. Automatic sync remembers observed bans so an unchanged peer does
-not immediately resurrect a local unban. A newer, explicitly added ban can be shared again.
-Backups are written on the destination under `/var/lib/mbiiez/sync_backups/<backup-id>/`, with
-owner-only permissions. Account hashes travel only between WEB and authenticated API agents;
-the browser receives counts, never credentials. A preview expires after ten minutes.
-Automatic backups retain the newest 100 groups for up to seven days; manual backups are kept.
-The scheduler runs in WEB, so leave that service running for automatic sync. API-only nodes
-do not need a web interface or their own scheduler.
+Local's ledger uses SQLite transactions with durable receipts; agents retain durable
+outboxes and recover interrupted purchases. While Local is unreachable, **spending,
+registration and login pause**; existing games keep running, and earned credits/stats
+queue for reconnection. No node can spend a stale independent copy of the wallet.
+Cached counters can lag briefly. Keep `/var/lib/mbiiez` and game data on persistent volumes.
+Back up Local's complete state directory, including the SQLite database, using a consistent
+SQLite backup or stopping API only; copying its live database file alone is insufficient.
 
-MBIIEZ's SQLite connection/chat history is separate from CADED stats and is not copied.
-See [API.md](API.md) for the sync endpoints and deployment details.
+The agents synchronize independently of WEB. By default they use the authenticated
+`/shared/v1/exchange` relay on the panel's HTTPS hostname, so that relay must remain
+reachable. Set `MBIIEZ_PUBLIC_WEB_URL=https://your-panel.example.com` if proxy headers do
+not expose the correct public address. Nginx must forward this path, Authorization and
+`X-MBIIEZ-Peer` with a 2 MB request limit. API-only deployments can use the authority's
+HTTPS API URL directly instead of the panel relay; see [API.md](API.md).
+
+Unlink a remote node during a **planned stop of its CADED instances**. MBIIEZ refuses to
+stop games for you or abandon an offline outbox. After successful unlinking, its cached
+accounts, balances and totals remain as an independent local copy. Local remains the
+authority. Drain and unlink a node before replacing or removing it. Editing its API URL
+revokes its old enrollment; re-enable sync to approve the destination.
+
+**Advanced: manual data transfer** remains a separate reviewed snapshot merge for nodes
+that are not linked. It copies missing accounts/bans and uses highest counters, retaining
+existing destination balances. It does not create a shared wallet, and imports are blocked
+on linked nodes. Initial shared enrollment backups are owner-only under
+`/var/lib/mbiiez/shared_initial_backups/`; manual backups use `sync_backups/`.
+Connection/chat history and historical casino result logs stay on their originating node.
+Gambling credits still use the shared wallet. Public pages never sum repeated common totals
+from different nodes.
 
 ### Public community dashboard
 

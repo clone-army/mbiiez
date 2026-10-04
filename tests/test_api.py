@@ -120,6 +120,7 @@ def test_urls_and_explicit_nodes(environment):
 
 
 def test_web_api_adapters_and_csrf(environment, monkeypatch):
+    monkeypatch.setenv('MBIIEZ_PUBLIC_WEB_URL','https://panel.example.com')
     monkeypatch.setattr(settings.web_service, 'users_file', str(environment / 'users.json'))
     monkeypatch.setattr(settings.database, 'database', str(environment / 'web.db'))
     from werkzeug.security import generate_password_hash
@@ -145,7 +146,8 @@ def test_web_api_adapters_and_csrf(environment, monkeypatch):
         if path == 'views/dashboard': return {'instances': [], 'summary': {'total': 0}}
         if path == 'sync/export': return {'protocol': 1, 'datasets': {'accounts': [['Seed', 'a'*32, 'b'*32, 50, 0, 0]]}}
         if path == 'sync/import': return {'preview': data['preview'], 'datasets': {'accounts': {'added': 1, 'updated': 0, 'unchanged': 0, 'conflicts': 0}}}
-        if path == 'sync/info': return {'automatic_sync': True, 'caded_instances': ['legends']}
+        if path == 'sync/info': return {'shared_protocol':2,'ready':True,'caded_instances':['legends']}
+        if path == 'shared/peer':return {'token':'peer-key'}
         return {'async': True}
     monkeypatch.setattr(Client, 'call', fake)
     response = client.get('/dashboard?node=eu')

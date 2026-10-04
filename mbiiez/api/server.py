@@ -41,10 +41,14 @@ def create_app():
                         while len(failures) > 4096:
                             failures.popitem(last=False)
                     return jsonify(error='Invalid API key'), 401
+                if scope == 'engine' and record['scope'] not in ('engine', 'admin'):
+                    return jsonify(error='An engine service key is required'), 403
                 if keys.ROLES.get(record['scope'], 0) < keys.ROLES[scope]:
                     return jsonify(error='Insufficient key scope'), 403
                 # A trusted service may assert a lower acting role, never a higher one.
                 actor_role = request.headers.get('X-MBIIEZ-Role', record['scope'])
+                if scope == 'engine' and actor_role not in ('engine','admin'):
+                    return jsonify(error='An engine or admin actor is required'),403
                 if keys.ROLES.get(actor_role, 0) < keys.ROLES[scope]:
                     return jsonify(error='Insufficient actor role'), 403
                 g.api_key = record
@@ -60,7 +64,7 @@ def create_app():
     @app.after_request
     def audit(response):
         response.headers['Cache-Control'] = 'no-store'
-        if hasattr(g, 'api_key') and request.method != 'GET' and not request.path.startswith('/api/v1/views/'):
+        if hasattr(g, 'api_key') and request.method != 'GET' and not request.path.startswith('/api/v1/views/') and not (request.path=='/api/v1/shared/engine' and (request.get_json(silent=True) or {}).get('kind')=='balance'):
             # Record operations, never bodies, RCON contents, credentials or config secrets.
             entry = {'time': time.time(), 'key_id': g.api_key['id'], 'actor': g.actor,
                      'peer': request.remote_addr, 'method': request.method,
@@ -100,7 +104,7 @@ def create_app():
                                 capture_output=True, text=True, timeout=3)
         return jsonify(api_version=API_VERSION, version=SOFTWARE_VERSION,
                        revision=result.stdout.strip() or os.environ.get("MBIIEZ_REVISION", "unknown"),
-                       capabilities=['instances', 'config', 'logs', 'chat', 'plugins', 'moderation', 'data_sync', 'public_stats'])
+                       capabilities=['instances', 'config', 'logs', 'chat', 'plugins', 'moderation', 'data_sync', 'shared_ledger_v2', 'public_stats'])
 
     @app.get('/api/v1/public/stats')
     @protected('viewer')
@@ -112,7 +116,53 @@ def create_app():
     @protected('admin')
     def sync_info():
         from .sync import capabilities
-        return jsonify(capabilities())
+        from .shared_node import safety
+        return jsonify(dict(capabilities(), **safety()))
+
+    @app.post('/api/v1/shared/engine')
+    @protected('engine')
+    def shared_engine():
+        from .shared_node import engine_operation
+        return jsonify(engine_operation(body()))
+
+    @app.get('/api/v1/shared/status')
+    @protected('admin')
+    def shared_status():
+        from .shared_node import configuration, safety
+        from .storage import read
+        return jsonify(enabled=configuration().get('enabled', False), **safety(),
+                       status=read(state_dir() / 'shared_status.json', {}))
+
+    @app.post('/api/v1/shared/configure')
+    @protected('admin')
+    def shared_configure():
+        from .shared_node import activate, deactivate
+        data=body()
+        if not isinstance(data.get('enabled'), bool):raise ValueError('enabled must be a boolean')
+        return jsonify(activate(data['peer'], data.get('hub',''), data.get('token',''), data.get('authority',False))
+                       if data['enabled'] else deactivate())
+
+    @app.post('/api/v1/shared/peer')
+    @protected('admin')
+    def shared_peer():
+        from .shared_ledger import enroll, disable
+        data=body()
+        if not isinstance(data.get('enabled'),bool):raise ValueError('enabled must be a boolean')
+        from .shared_node import configuration
+        if not configuration().get('authority'):raise ValueError('Only Local authority can enroll peers')
+        if data['enabled'] is False:
+            disable(data['peer']);return jsonify(enabled=False)
+        return jsonify(token=enroll(data['peer']))
+
+    @app.post('/shared/v1/exchange')
+    @app.post('/api/v1/shared/exchange')
+    def shared_exchange():
+        from .shared_ledger import verify, apply
+        auth=request.headers.get('Authorization','')
+        peer=request.headers.get('X-MBIIEZ-Peer','')
+        if not auth.startswith('Bearer ') or len(auth)>512 or not verify(peer,auth[7:]):
+            return jsonify(error='Invalid shared peer credential'),401
+        return jsonify(apply(peer,body().get('events',[])))
 
     @app.post('/api/v1/sync/export')
     @protected('admin')
@@ -124,6 +174,8 @@ def create_app():
     @protected('admin')
     def sync_import():
         from .sync import import_snapshot
+        from .shared_node import enabled
+        if enabled():raise ValueError('Manual snapshot imports are disabled while this node uses shared data')
         data = body()
         return jsonify(import_snapshot(data.get('snapshot'), data.get('preview', True), data.get('automatic', False)))
 

@@ -28,6 +28,12 @@ MARKER = b'MBIIEZ_STATS_TRANSACTION_V1'
 
 
 @functools.lru_cache(maxsize=256)
+def engine_shared_marker(pid, created):
+    with open(f'/proc/{pid}/exe', 'rb') as stream:
+        return b'MBIIEZ_SHARED_LEDGER_V2' in stream.read(32 * 1024 * 1024)
+
+
+@functools.lru_cache(maxsize=256)
 def engine_stats_marker(pid, created):
     with open(f'/proc/{pid}/exe', 'rb') as stream:
         return MARKER in stream.read(32 * 1024 * 1024)
