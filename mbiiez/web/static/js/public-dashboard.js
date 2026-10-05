@@ -111,9 +111,9 @@
   function renderServers(servers) {
     const target = $('server-cards'); target.replaceChildren();
     $('server-count').textContent = `${servers.filter(row => row.online).length} ONLINE / ${servers.length} PUBLIC`;
-    for (const server of servers) {
+    for (const server of servers.slice().sort((a, b) => Number(b.online) - Number(a.online) || b.players - a.players || a.title.localeCompare(b.title))) {
       const card = element('article', null, 'server-card'), top = element('div', null, 'server-top'), detail = element('div', null, 'server-detail');
-      top.append(element('span', server.online ? 'Online' : 'Not responding', `server-status${server.online ? '' : ' offline'}`), element('span', server.engine, 'engine-tag'));
+      top.append(element('span', server.online ? 'Online' : 'Not responding', `server-status${server.online ? '' : ' offline'}`), element('span', ({'caded.i386':'CADEd','openjkded.i386':'OpenJK','OpenJKDed':'OpenJK','mbiided.i386':'MBII'})[server.engine] || server.engine, 'engine-tag'));
       detail.append(element('span', server.map || 'Map unavailable'), element('strong', server.online ? `${server.players} / ${server.max_players || '—'} players` : '—'));
       const occupancy = element('div', null, 'occupancy'), fill = element('span');
       fill.style.width = `${server.max_players ? Math.min(100, 100 * server.players / server.max_players) : 0}%`; occupancy.append(fill);
