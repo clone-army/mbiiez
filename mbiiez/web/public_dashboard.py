@@ -1,7 +1,7 @@
 """Cached WEB projection of authenticated API summaries, safe for anonymous visitors."""
 import threading
 import time
-from mbiiez.api.client import Client, nodes
+from mbiiez.api.client import Client, nodes, is_local_node
 
 _lock = threading.Lock()
 _cache = {}
@@ -26,7 +26,7 @@ def projection(summary):
                     games=[fields(row, 'id name ' + counters) for row in casino['games'][:20]],
                     daily=[fields(row, 'date ' + counters) for row in casino['daily'][-30:]],
                     recent=[fields(row, 'time player game result stake net_credits') for row in casino['recent'][:20]]),
-        servers=[fields(row, 'name title engine online players max_players map mode') for row in summary['servers']],
+        servers=[fields(row, 'name title engine online players max_players map mode port') for row in summary['servers']],
         warnings=summary.get('warnings', [])[:5],
     )
 
@@ -42,7 +42,8 @@ def data(identifier):
         if entry and time.monotonic() < entry[0]: return entry[1]
         try:
             summary = Client(identifier, actor='public-dashboard').call('GET', 'public/stats')
-            result = dict(online=True, node=dict(id=identifier, name=node['name']), **projection(summary))
+            # local: its game servers are on this page's own host (players connect to it).
+            result = dict(online=True, node=dict(id=identifier, name=node['name'], local=is_local_node(node)), **projection(summary))
         except Exception:
             # No raw upstream errors: these can contain private hostnames and filesystem paths.
             result = dict(online=False, node=dict(id=identifier, name=node['name']), error='This node is temporarily unavailable. Please check back shortly.')

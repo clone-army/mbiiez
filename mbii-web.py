@@ -10,14 +10,14 @@ import requests
 import threading
 from functools import wraps
 
-from flask import Flask, abort, g, jsonify, redirect, render_template, request, session, url_for
+from flask import Flask, Response, abort, g, jsonify, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from mbiiez import settings
 from mbiiez.api.storage import state_dir, locked, read as read_state, write as write_state
 from mbiiez.api import SOFTWARE_VERSION
 from mbiiez.api.client import Client, NodeError, nodes, selected_node, save_node, remove_node, is_local_node
-from mbiiez.web import auto_sync, public_dashboard
+from mbiiez.web import auto_sync, public_dashboard, levelshots
 from mbiiez.web.remote import controller as remote_controller, instance_admin, bansync, guidbans
 from mbiiez.db import db
 
@@ -279,7 +279,7 @@ def _role_allows(current_role, required_role):
 def _required_role_for_path(path, method):
     if method == 'POST' and path == '/shared/v1/exchange':
         return None
-    if method == 'GET' and path in ('/', '/public', '/public/data'):
+    if method == 'GET' and (path in ('/', '/public', '/public/data') or path.startswith('/public/levelshot/')):
         return None
     if path.startswith("/assets/"):
         return None
@@ -439,6 +439,7 @@ def enforce_auth_and_role():
             or path.startswith("/login")
             or path.startswith("/logout")
             or path in ("/public", "/public/data")
+            or path.startswith("/public/levelshot/")
         )
         if not setup_allowed:
             return redirect("/setup", code=302)
@@ -472,7 +473,7 @@ def enforce_auth_and_role():
 
 @app.before_request
 def select_api_node():
-    if request.path in ('/public', '/public/data', '/shared/v1/exchange'):
+    if request.path in ('/public', '/public/data', '/shared/v1/exchange') or request.path.startswith('/public/levelshot/'):
         # Public browsing does not change the administrator's selected node or session.
         return None
     data = nodes()
@@ -631,7 +632,7 @@ def nodes_delete(identifier):
 
 @app.context_processor
 def include_instances_and_auth():
-    if request.path in ('/public', '/public/data', '/shared/v1/exchange'):
+    if request.path in ('/public', '/public/data', '/shared/v1/exchange') or request.path.startswith('/public/levelshot/'):
         return {}
     users = _load_users() if settings.web_service.auth_enabled else {}
 
@@ -948,6 +949,18 @@ def public_data():
     response.headers["Cache-Control"] = "public, max-age=15"
     response.headers["X-Content-Type-Options"] = "nosniff"
     return response, 200 if result["online"] else 503
+
+
+@app.get("/public/levelshot/<name>")
+def public_levelshot(name):
+    """A map's loading-screen picture, for the server cards."""
+    shot = levelshots.levelshot(name)
+    if not shot:
+        abort(404)
+    response = Response(shot[0], mimetype=shot[1])
+    response.headers["Cache-Control"] = "public, max-age=604800"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    return response
 
 
 @app.route("/dashboard", methods=["GET", "POST"])

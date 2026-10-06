@@ -2,44 +2,117 @@
 <html lang="en">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="description" content="Movie Battles II Clone Army servers, player rankings and community records.">
+<meta name="description" content="Clone Army's Movie Battles II servers: who's playing now, how to join, and every trooper's service record.">
+<meta name="theme-color" content="#0B1524">
 <title>Clone Army · Movie Battles II</title>
-<link rel="icon" href="/assets/img/bootstraper-logo.png">
-<link rel="stylesheet" href="/assets/css/public-dashboard.css?v=clan-1">
-<script src="/assets/js/public-dashboard.js?v=clan-1" defer></script>
+<link rel="icon" href="/assets/img/clonearmy.jpg">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Big+Shoulders+Display:wght@500;700;800;900&display=swap">
+<link rel="stylesheet" href="/assets/css/public-dashboard.css?v=republic-1">
+<script src="/assets/js/public-dashboard.js?v=republic-1" defer></script>
 </head>
 <body data-node="{{ public_node }}">
-<header class="topbar"><a class="brand" href="/public"><span class="brand-mark" aria-hidden="true">CA</span><span>CLONE ARMY<small>MOVIE BATTLES II</small></span></a>
-<nav aria-label="Main navigation"><a href="#servers">Servers</a><a href="#players">Leaderboard</a><a href="#casino">Cantina</a><a class="admin-link" href="/login">Admin login <span aria-hidden="true">↗</span></a></nav></header>
-<main>
-<section class="hero"><div><p class="eyebrow"><span class="live-dot"></span> CLONE ARMY / SERVER HUB</p><h1>See you on<br><span>the battlefield.</span></h1><p class="hero-copy">Find your server. Check the competition. Make your mark.<br>Movie Battles II, with the Clone Army.</p><div class="hero-actions"><a class="primary-action" href="#servers">Find a server <span aria-hidden="true">↗</span></a><a class="secondary-action" href="#players">Player rankings →</a></div></div>
-<div class="hero-aside"><label for="node-picker">CHOOSE A REGION</label><select id="node-picker" {% if public_nodes|length < 2 %}hidden{% endif %}>{% for key, node in public_nodes.items() %}<option value="{{ key }}" {% if key == public_node %}selected{% endif %}>{{ node.name }}</option>{% endfor %}</select>{% if public_nodes|length == 1 %}<strong>{{ public_nodes[public_node].name }}</strong>{% endif %}<p id="updated">Loading recorded statistics…</p><button id="refresh" class="subtle-button" type="button">↻ Refresh</button><small>Server status and records refresh every minute.</small></div></section>
-<div id="notice" class="notice" role="status" hidden></div>
-<div id="loading" class="loading" role="status">Checking servers and player records…</div>
-<div id="content" hidden>
-<section id="servers" class="section"><div class="section-heading"><div><p class="eyebrow">JOIN THE ACTION</p><h2>Live servers</h2></div><span id="server-count" class="tag">—</span></div><div id="server-cards" class="server-cards"></div><p class="footnote">Pick your battlefield. Player counts and maps update automatically.</p></section>
-<section class="metrics" aria-label="Gameplay totals">
-<article class="metric"><span class="metric-label">PLAYERS</span><strong id="total-players">—</strong><small>Accounts and guest nicknames</small></article>
-<article class="metric"><span class="metric-label">HOURS ON THE FRONTLINE</span><strong id="total-hours">—</strong><small>Combined recorded playtime</small></article>
-<article class="metric"><span class="metric-label">KILLS</span><strong id="total-kills">—</strong><small>Across recorded battles</small></article>
-<article class="metric"><span class="metric-label">KILL / DEATH RATIO</span><strong id="total-kd">—</strong><small>Recorded kills ÷ deaths</small></article>
-</section>
-<section id="players" class="section"><div class="section-heading"><div><p class="eyebrow">THE FRONTLINE</p><h2>Player leaderboard</h2></div><span class="tag">RECORDED TOTALS</span></div>
-<div id="highlights" class="highlights"></div>
-<div class="panel"><div class="table-toolbar"><label class="search"><span aria-hidden="true">⌕</span><input id="player-search" type="search" placeholder="Find a player…" aria-label="Search player leaderboard"></label><label class="sort-label">Rank by <select id="player-sort"><option value="kills">Kills</option><option value="playtime_seconds">Playtime</option><option value="kd">K/D · 10+ deaths</option><option value="deaths">Deaths</option></select></label></div>
-<div class="table-scroll"><table><thead><tr><th scope="col">Rank</th><th scope="col">Player</th><th scope="col">Kills</th><th scope="col">Deaths</th><th scope="col">K/D</th><th scope="col">Playtime</th></tr></thead><tbody id="player-rows"></tbody></table></div>
-<div class="table-footer"><span id="player-count"></span><div><button id="player-prev" type="button" aria-label="Previous player page">←</button><button id="player-next" type="button" aria-label="Next player page">→</button></div></div></div>
-<p class="footnote">Accounts and guest nicknames have separate records. K/D requires at least one recorded death.</p></section>
-<section id="casino" class="section"><div class="section-heading"><div><p class="eyebrow">OFF DUTY</p><h2>Cantina games</h2></div><span id="casino-coverage" class="tag">RECORDED RESULTS</span></div>
-<p id="casino-empty" class="empty-state" hidden>Quiet at the cantina. Game results will appear here when players take a break from the battle.</p>
-<details id="casino-content" class="cantina-details"><summary>Game stats &amp; credit leaderboard <span aria-hidden="true">+</span></summary><div class="cantina-body">
-<div class="metrics casino-metrics"><article class="metric"><span class="metric-label">PLAYER RESULTS</span><strong id="casino-results">—</strong><small>One record per player settlement</small></article><article class="metric"><span class="metric-label">CREDITS WAGERED</span><strong id="casino-wagered">—</strong><small>Refunded stakes excluded</small></article><article class="metric"><span class="metric-label">CREDITS WON</span><strong id="casino-won">—</strong><small>Sum of positive credit results</small></article><article class="metric"><span class="metric-label">WIN RATE</span><strong id="casino-rate">—</strong><small>Wins ÷ wins and losses</small></article></div>
-<div class="casino-grid"><article class="panel chart-panel"><div class="panel-heading"><h3>Activity over 30 days</h3><small>Player results / UTC</small></div><div id="activity-chart" class="activity-chart" role="img"></div><div class="chart-dates"><span id="chart-start"></span><span>Today</span></div></article><article class="panel"><div class="panel-heading"><h3>Games played</h3><small>Results / wins / prizes</small></div><div id="game-breakdown" class="game-breakdown"></div></article></div>
-<div class="panel"><div class="table-toolbar"><div><h3>Credit leaderboard</h3><small>Ranked by net credits earned</small></div><label class="search"><span aria-hidden="true">⌕</span><input id="casino-search" type="search" placeholder="Find a player…" aria-label="Search casino leaderboard"></label></div><div class="table-scroll"><table><thead><tr><th scope="col">Rank</th><th scope="col">Player</th><th scope="col">Results</th><th scope="col">Wins</th><th scope="col">Win rate</th><th scope="col">Net credits</th></tr></thead><tbody id="casino-rows"></tbody></table></div><div class="table-footer"><span id="casino-count"></span><div><button id="casino-prev" type="button" aria-label="Previous casino page">←</button><button id="casino-next" type="button" aria-label="Next casino page">→</button></div></div></div>
-<article class="panel recent-panel"><div class="panel-heading"><h3>Latest results</h3><small>Last 20 recorded settlements</small></div><div id="recent-results" class="recent-results"></div></article>
-</div></details><p id="casino-note" class="footnote">Credits are in-game currency. This page shows settled results, not account balances. Pushes, refunds and prize-wheel awards are excluded from win rate.</p></section>
+<a class="skip" href="#servers">Skip to servers</a>
+<header class="bar">
+  <a class="brand" href="/public" aria-label="Clone Army home">
+    <img class="brand-mark" src="/assets/img/clonearmy.jpg" alt="" width="44" height="44">
+    <span class="brand-name">Clone Army<small>Movie Battles II</small></span>
+  </a>
+  <nav aria-label="Sections"><a href="#servers">Servers</a><a href="#record">Leaderboard</a><a href="#cantina">Cantina</a></nav>
+  <div class="bar-end">
+    {% if public_nodes|length > 1 %}
+    <div class="regions" role="group" aria-label="Region">
+      {% for key, node in public_nodes.items() %}<button type="button" class="region{% if key == public_node %} on{% endif %}" data-node="{{ key }}" aria-pressed="{{ 'true' if key == public_node else 'false' }}">{{ node.name }}</button>{% endfor %}
+    </div>
+    {% elif public_nodes|length == 1 %}<span class="region-one">{{ public_nodes[public_node].name }}</span>{% endif %}
+    <a class="staff" href="/login">Staff login</a>
+  </div>
+</header>
 
-</div>
-<noscript><p class="notice">Enable JavaScript to load the leaderboards and live server statistics.</p></noscript>
-<footer><span>CLONE ARMY <span class="footer-divider">/</span> MOVIE BATTLES II</span><span>Powered by MBIIEZ · <a href="/login">Staff login ↗</a></span></footer>
-</main></body></html>
+<main>
+<section class="hero" id="hero" aria-live="polite">
+  <div class="hero-art" id="hero-art"></div>
+  <div class="hero-body">
+    <p class="hero-kicker" id="hero-kicker"><span class="pulse" aria-hidden="true"></span><span>Checking the front line</span></p>
+    <h1 id="hero-title">Finding where the fighting is…</h1>
+    <p class="hero-sub" id="hero-sub"></p>
+    <div class="hero-actions" id="hero-actions"></div>
+  </div>
+  <div class="hero-roster" id="hero-roster" aria-hidden="true"></div>
+</section>
+
+<div id="notice" class="notice" role="status" hidden></div>
+
+<section id="servers" class="block">
+  <div class="block-head">
+    <h2>Servers</h2>
+    <p id="server-summary" class="block-note"></p>
+  </div>
+  <div id="server-grid" class="server-grid"></div>
+  <p class="hint">In Movie Battles II, open the console with <kbd>~</kbd> and paste the connect command, or find <strong>CloneArmy</strong> in the server browser.</p>
+</section>
+
+<section id="record" class="block">
+  <div class="block-head">
+    <h2>Service record</h2>
+    <p id="record-summary" class="record-summary"></p>
+  </div>
+  <div class="ranks" aria-label="Ranks by time served">
+    <span class="ranks-title">Ranks go by time served</span>
+    <span class="rank-key"><i class="insignia r-trooper"></i>Trooper <small>2 h</small></span>
+    <span class="rank-key"><i class="insignia r-sergeant"></i>Sergeant <small>10 h</small></span>
+    <span class="rank-key"><i class="insignia r-lieutenant"></i>Lieutenant <small>30 h</small></span>
+    <span class="rank-key"><i class="insignia r-captain"></i>Captain <small>75 h</small></span>
+    <span class="rank-key"><i class="insignia r-commander"></i>Commander <small>150 h</small></span>
+  </div>
+  <div class="board-tools">
+    <div class="tabs" role="tablist" aria-label="Rank players by">
+      <button type="button" role="tab" class="tab on" data-sort="kills" aria-selected="true">Kills</button>
+      <button type="button" role="tab" class="tab" data-sort="kd" aria-selected="false">K/D</button>
+      <button type="button" role="tab" class="tab" data-sort="playtime_seconds" aria-selected="false">Time served</button>
+    </div>
+    <label class="find"><span class="sr">Find a player</span><input id="player-search" type="search" placeholder="Find a trooper" autocomplete="off"></label>
+  </div>
+  <ol id="podium" class="podium"></ol>
+  <div class="board">
+    <table>
+      <thead><tr><th scope="col" class="c-pos">#</th><th scope="col">Trooper</th><th scope="col" class="c-num">Kills</th><th scope="col" class="c-num">Deaths</th><th scope="col" class="c-num">K/D</th><th scope="col" class="c-num">Time served</th></tr></thead>
+      <tbody id="player-rows"></tbody>
+    </table>
+    <div class="board-foot"><span id="player-count"></span><span class="pager"><button id="player-prev" type="button">Previous</button><button id="player-next" type="button">Next</button></span></div>
+  </div>
+  <p id="board-note" class="hint">K/D needs at least 10 deaths to be ranked. Players who log in (<kbd>!login</kbd>) keep one record as an account; everyone else is counted by nickname, so a new name starts a new record.</p>
+</section>
+
+<section id="cantina" class="block">
+  <div class="block-head">
+    <h2>The cantina</h2>
+    <p id="cantina-summary" class="block-note"></p>
+  </div>
+  <details id="cantina-more" class="cantina">
+    <summary>Game results and the credit leaderboard</summary>
+    <div class="cantina-body">
+      <div class="cantina-grid">
+        <div class="panel"><h3>Last 30 days</h3><div id="activity-chart" class="chart" role="img"></div><div class="chart-ends"><span id="chart-start"></span><span>Today</span></div></div>
+        <div class="panel"><h3>Games</h3><div id="game-rows" class="games"></div></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h3>Credit leaderboard</h3><label class="find"><span class="sr">Find a player</span><input id="casino-search" type="search" placeholder="Find a player" autocomplete="off"></label></div>
+        <table><thead><tr><th scope="col" class="c-pos">#</th><th scope="col">Player</th><th scope="col" class="c-num">Games</th><th scope="col" class="c-num">Wins</th><th scope="col" class="c-num">Win rate</th><th scope="col" class="c-num">Net credits</th></tr></thead><tbody id="casino-rows"></tbody></table>
+        <div class="board-foot"><span id="casino-count"></span><span class="pager"><button id="casino-prev" type="button">Previous</button><button id="casino-next" type="button">Next</button></span></div>
+      </div>
+      <div class="panel"><h3>Latest results</h3><ul id="recent" class="recent"></ul></div>
+      <p id="casino-note" class="hint"></p>
+    </div>
+  </details>
+</section>
+<noscript><p class="notice">Turn on JavaScript to see the live servers and leaderboards.</p></noscript>
+</main>
+
+<footer class="foot">
+  <span>Clone Army, a Movie Battles II community</span>
+  <span id="updated">Live data refreshes every minute</span>
+  <span>Run with MBIIEZ. <a href="/login">Staff login</a></span>
+</footer>
+</body>
+</html>

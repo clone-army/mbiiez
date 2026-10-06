@@ -146,6 +146,7 @@ def server_info(name):
     try:
         port = int(config.get('port', 0))
         if not 1 <= port <= 65535: return result
+        result['port'] = port  # as the master server list shows it: for players' connect command
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
             sock.settimeout(.6)
             sock.connect(('127.0.0.1', port))
