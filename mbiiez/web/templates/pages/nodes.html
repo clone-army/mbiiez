@@ -2,9 +2,22 @@
 {% block content %}
 <h3>Nodes</h3>
 <p>Each node runs MBIIEZ CLI and API. Game servers and plugins run on that node; this panel manages them remotely.</p>
-<table class="table"><thead><tr><th>Node</th><th>API URL</th><th>Status</th><th>Version</th><th>Sync CADED data</th><th></th></tr></thead><tbody>
+<table class="table"><thead><tr><th>Node</th><th>API URL</th><th>Status</th><th>Version</th><th>Update</th><th>Sync CADED data</th><th></th></tr></thead><tbody>
 {% for node in node_statuses %}
 <tr><td><a href="/dashboard?node={{ node.id }}">{{ node.name }} / {{ node.id }}</a></td><td>{{ node.url }}</td><td>{{ node.status }}</td><td>{{ node.version }}</td>
+<td>{% set u = node.update_status %}
+{% if node.status == 'Offline' %}<span class="text-muted">-</span>
+{% elif u is none %}<span class="small text-muted">This version can't update from here. Update it on its host once.</span>
+{% else %}
+  {% set busy = u.request %}
+  {% if latest_revision and node.revision == latest_revision %}<span class="badge bg-success">Up to date</span>
+  {% elif latest_revision %}<span class="badge bg-warning text-dark">Update available</span> <span class="small text-muted">{{ latest_revision[:7] }}</span>{% endif %}
+  {% if u.request and not u.state in ('building', 'waiting', 'restarting') %}<div class="small text-info">Queued by {{ u.request.requested_by }}</div>
+  {% elif u.message %}<div class="small {{ 'text-danger' if u.state == 'failed' else 'text-info' if busy else 'text-muted' }}">{{ u.message }}{% if u.updated_at %} &middot; <span data-update-t="{{ u.updated_at }}"></span>{% endif %}</div>{% endif %}
+  {% if not u.updater %}<div class="small text-muted">{% if node.local %}Native install: <code>git pull --ff-only</code> then <code>install.sh --update</code>.{% else %}Updater not running on this node's host (deploy/node-updater.sh).{% endif %}</div>
+  {% elif not busy and latest_revision and node.revision != latest_revision %}<button type="button" class="btn btn-sm btn-outline-warning mt-1" onclick='updateNode({{ node.id|tojson }}, {{ node.name|tojson }})'>Update to main</button>{% endif %}
+{% endif %}
+</td>
 <td>{% if node.local %}<span class="badge bg-secondary">Local source of truth</span>{% else %}
 <input type="checkbox" aria-label="Sync CADED data for {{ node.name }}" onchange="toggleAutomaticSync(this,'{{ node.id }}')" {% if node.automatic_sync %}checked{% endif %} {% if not node.automatic_sync and (node.sync.shared_protocol != 2 or not node.sync.ready) %}disabled{% endif %}>
 {% endif %}
@@ -151,5 +164,13 @@ function resetNodeForm() {
   form.elements.id.readOnly = false;
   document.getElementById('node-form-title').textContent = 'Add a node';
 }
+async function updateNode(id, name) {
+  if (!confirm('Update ' + name + ' to the latest main? It builds now and restarts once nobody is playing.')) return;
+  const r = await fetch('/nodes/' + id + '/update', {method:'POST'}); const d = await r.json();
+  if (d.error) { mbiiToast(d.error, 'danger'); return; }
+  mbiiToast(name + ': update queued. It restarts once the servers are empty.', 'success');
+  setTimeout(() => location.reload(), 1500);
+}
+document.querySelectorAll('[data-update-t]').forEach(el => { el.textContent = new Date(el.dataset.updateT * 1000).toLocaleString(undefined, {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'}); });
 async function testNode(id) { const r = await fetch('/nodes/' + id + '/test', {method:'POST'}); const d = await r.json(); mbiiToast(d.error || 'Connected: API v' + d.api_version + ', ' + d.version.slice(0,12), d.error ? 'danger' : 'success'); }</script>
 {% endblock %}

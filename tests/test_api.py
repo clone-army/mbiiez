@@ -211,3 +211,26 @@ def test_info_reports_contract_and_software_version(api):
     assert response.json['api_version'] == 1
     assert response.json['version'] == '3.0.0'
     assert 'revision' in response.json
+
+
+def test_update_request_is_admin_only_and_queued(api):
+    assert api.post('/api/v1/update', json={}, headers=auth('mod')).status_code == 403
+    assert api.post('/api/v1/update', json={'branch': '../evil'}, headers=auth()).status_code == 400
+    assert api.post('/api/v1/update', json={'branch': '-x'}, headers=auth()).status_code == 400
+    response = api.post('/api/v1/update', json={}, headers=auth())
+    assert response.status_code == 202 and response.json['branch'] == 'main'
+    status = api.get('/api/v1/update', headers=auth()).json
+    assert status['request']['branch'] == 'main'
+    assert status['updater'] is False
+
+
+def test_update_status_reports_host_updater(api):
+    import time
+    from mbiiez.api import updates
+    from mbiiez.api.storage import write
+    write(updates.status_path(), {'state': 'waiting', 'message': 'Built abc1234', 'checked_at': int(time.time())})
+    status = api.get('/api/v1/update', headers=auth()).json
+    assert status['updater'] is True and status['state'] == 'waiting' and status['request'] is None
+    write(updates.status_path(), {'state': 'done', 'checked_at': int(time.time()) - updates.UPDATER_STALE - 1})
+    assert api.get('/api/v1/update', headers=auth()).json['updater'] is False
+    assert 'self_update' in api.get('/api/v1/info', headers=auth('viewer')).json['capabilities']

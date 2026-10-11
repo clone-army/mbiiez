@@ -499,18 +499,42 @@ def node_error(error):
     return jsonify(error=str(error)), 502
 
 
+UPDATE_REMOTE = "https://github.com/clone-army/mbiiez"
+UPDATE_BRANCH = "main"
+_latest = {"at": 0, "revision": ""}
+
+
+def _latest_revision():
+    """The commit nodes update to. Cached, so the Nodes page doesn't ask GitHub on every load."""
+    if time.time() - _latest["at"] > 300:
+        _latest["at"] = time.time()
+        try:
+            output = subprocess.run(["git", "ls-remote", UPDATE_REMOTE, "refs/heads/" + UPDATE_BRANCH],
+                                    capture_output=True, text=True, timeout=10).stdout.split()
+            _latest["revision"] = output[0] if output else _latest["revision"]
+        except (OSError, subprocess.SubprocessError):
+            pass
+    return _latest["revision"]
+
+
 @app.route("/nodes")
 @require_role("admin")
 def nodes_page():
     def check(item):
         identifier, node = item
-        sync_capabilities = {}
+        sync_capabilities, revision, update = {}, "", None
         try:
             info = Client(identifier).call("GET", "info")
             status = "Online" if info.get("api_version") == 1 else "API version mismatch"
             if info.get("version") != SOFTWARE_VERSION and info.get("api_version") == 1:
                 status = "Online (software version differs)"
             version = info.get("version", "") + " / " + info.get("revision", "")[:12]
+            revision = info.get("revision", "")
+            if "self_update" in info.get("capabilities", []):
+                try:
+                    update = Client(identifier).call("GET", "update")
+                except NodeError:
+                    pass
             if "data_sync" in info.get("capabilities", []):
                 try:
                     sync_capabilities = Client(identifier).call("GET", "sync/info")
@@ -518,7 +542,8 @@ def nodes_page():
                     pass
         except NodeError:
             status, version = "Offline", ""
-        return {"id": identifier, "name": node["name"], "url": node["url"], "status": status, "version": version, "local": is_local_node(node), "sync": sync_capabilities}
+        return {"id": identifier, "name": node["name"], "url": node["url"], "status": status, "version": version, "local": is_local_node(node), "sync": sync_capabilities,
+                "revision": revision, "update_status": update}
     policy = auto_sync.settings()["nodes"]
     sync_status = auto_sync.status()
     with ThreadPoolExecutor(max_workers=8) as pool:
@@ -528,7 +553,8 @@ def nodes_page():
         node["sync_result"] = sync_status.get("nodes", {}).get(node["id"], {})
         last = node["sync_result"].get("last_success")
         node["last_sync"] = time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime(last)) if last else ""
-    return render_template("pages/nodes.html", sync_error=sync_status.get("error", ""), node_statuses=statuses, sync_capabilities={node["id"]: node["sync"] for node in statuses}, view_bag={"instance": None})
+    return render_template("pages/nodes.html", sync_error=sync_status.get("error", ""), node_statuses=statuses, sync_capabilities={node["id"]: node["sync"] for node in statuses},
+                           latest_revision=_latest_revision(), view_bag={"instance": None})
 
 
 @app.route("/nodes/save", methods=["POST"])
@@ -615,6 +641,16 @@ def nodes_test(identifier):
     if identifier not in nodes():
         abort(404)
     return jsonify(Client(identifier).call("GET", "info"))
+
+
+@app.route("/nodes/<identifier>/update", methods=["POST"])
+@require_role("admin")
+def nodes_update(identifier):
+    if identifier not in nodes():
+        abort(404)
+    result = Client(identifier).call("POST", "update", {"branch": UPDATE_BRANCH})
+    _audit("node_update", details=identifier + " -> " + UPDATE_BRANCH)
+    return jsonify(result)
 
 
 @app.route("/nodes/<identifier>/delete", methods=["POST"])

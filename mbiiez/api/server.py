@@ -104,7 +104,20 @@ def create_app():
                                 capture_output=True, text=True, timeout=3)
         return jsonify(api_version=API_VERSION, version=SOFTWARE_VERSION,
                        revision=result.stdout.strip() or os.environ.get("MBIIEZ_REVISION", "unknown"),
-                       capabilities=['instances', 'config', 'logs', 'chat', 'plugins', 'moderation', 'data_sync', 'shared_ledger_v2', 'public_stats'])
+                       capabilities=['instances', 'config', 'logs', 'chat', 'plugins', 'moderation', 'data_sync', 'shared_ledger_v2', 'public_stats', 'self_update'])
+
+    @app.get('/api/v1/update')
+    @protected('admin')
+    def update_status():
+        from . import updates
+        return jsonify(updates.status())
+
+    @app.post('/api/v1/update')
+    @protected('admin')
+    def update_request():
+        from . import updates
+        # Queued for the host's updater, which restarts only once nobody is playing.
+        return jsonify(updates.request_update(g.actor, body().get('branch', updates.BRANCH))), 202
 
     @app.get('/api/v1/public/stats')
     @protected('viewer')

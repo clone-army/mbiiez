@@ -1,0 +1,8 @@
+[Unit]
+Description=MBIIEZ node updater (applies updates requested from the panel)
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/mbiiez-node-updater

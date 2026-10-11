@@ -35,6 +35,33 @@ The new key is printed once. Copy it into WEB's **Nodes** page. Use `viewer`, `m
 
 Use a private VPN/LAN endpoint or a TLS reverse proxy. Public HTTP endpoints are rejected by the node registry. Certificate verification is always enabled and redirects are refused. Bind API to loopback behind a local proxy, or a private interface when the proxy is on another host. Do not forward its raw port from the internet.
 
+## Updating Docker nodes from the panel
+
+The **Nodes** page shows whether each node runs the latest `main` and has an **Update to main** button.
+A container can't rebuild itself, so the node API only records the request; `deploy/node-updater.sh`
+on the node's host does the work every minute. It fetches `main`, builds the new image while the game keeps
+running, waits until no one is playing on any of the node's servers and then restarts the node onto it.
+It never moves the host checkout backwards or over local commits or changes. Progress shows on the Nodes
+page; the full output is `update.log` in the node's state directory. Install it on the host once:
+
+```sh
+sudo install -m755 deploy/node-updater.sh /usr/local/sbin/mbiiez-node-updater
+sudo cp deploy/mbiiez-node-updater.service deploy/mbiiez-node-updater.timer /etc/systemd/system/
+sudoedit /etc/default/mbiiez-node-updater   # see below
+sudo systemctl daemon-reload && sudo systemctl enable --now mbiiez-node-updater.timer
+```
+
+```sh
+MBIIEZ_REPO=/path/to/mbiiez
+MBIIEZ_STATE=/path/to/mbiiez/eu-state
+MBIIEZ_COMPOSE=compose.eu.yml
+MBIIEZ_CONTAINER=mbiiez-eu
+```
+
+A node running a version from before this needs one update on its host first: `git pull --ff-only`
+there, then rebuild it with `docker compose -f compose.eu.yml up -d --build`. Native installs update with
+`git pull --ff-only` and `install.sh --update`.
+
 ## API v1 contract
 
 All `/api/v1/*` routes require `Authorization: Bearer KEY`. `/health` contains no server data and is unauthenticated. Acting user and role headers (`X-MBIIEZ-Actor`, `X-MBIIEZ-Role`) are trusted assertions from the service key holder; the role can restrict the key but cannot elevate it. Keep human authentication in WEB.
@@ -42,6 +69,7 @@ All `/api/v1/*` routes require `Authorization: Bearer KEY`. `/health` contains n
 | Endpoint | Method | Scope | Response / input |
 |---|---|---|---|
 | `/api/v1/info` | GET | viewer | API major version, software version, git revision, capabilities |
+| `/api/v1/update` | GET / POST | admin | Software update status; POST `{ "branch": "main" }` queues an update for the host's updater (202) |
 | `/api/v1/instances` | GET | viewer | Instance names on this node |
 | `/api/v1/instances/{name}/status` | GET | viewer | Structured runtime status |
 | `/api/v1/instances/{name}/players` | GET | viewer | Current players |
