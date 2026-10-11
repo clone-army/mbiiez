@@ -7,6 +7,7 @@ class controller:
     controller_bag = {}
 
     def __init__(self, instance = None, page = 1, per_page = 100, search=None):
+            self.controller_bag = {}
     
             conn = db().connect()
             cur = conn.cursor()  
@@ -18,7 +19,7 @@ class controller:
                 where_clauses.append('LOWER(instance) = LOWER(?)')
                 params.append(instance)
             if search:
-                where_clauses.append('log_line LIKE ?')
+                where_clauses.append('log LIKE ?')
                 params.append(f'%{search}%')
 
             where_sql = ''
@@ -44,6 +45,7 @@ class controller:
             self.controller_bag['instance'] = instance
             self.controller_bag['page'] = page
             self.controller_bag['search'] = search
+            conn.close()
             
             
             if(instance == None or instance.lower() == "all"):
@@ -62,10 +64,10 @@ def get_logs_data():
     params = []
 
     if tag:
-        where_clauses.append('log_line LIKE ?')
+        where_clauses.append('log LIKE ?')
         params.append(f'%{tag}%')
     if search:
-        where_clauses.append('log_line LIKE ?')
+        where_clauses.append('log LIKE ?')
         params.append(f'%{search}%')
 
     where_sql = ''

@@ -4,6 +4,7 @@ MBIIEZ runs and manages [Movie Battles II](https://www.moviebattles.org/) dedica
 Python wrapper around the game server with three parts:
 
 - **`mbii` CLI** - start/stop/restart instances, send RCON, change maps and modes, check status.
+- **API agent** - authenticated management endpoints on each server; CLI-generated service keys.
 - **Web panel** - a browser UI for everything the CLI does, plus settings editing, logs, chat, moderation,
   user accounts and a new-instance wizard.
 - **Plugin system** - optional features (voting, economy, chaos mode, gun game, auto messages, VPN blocking,
@@ -13,6 +14,10 @@ You describe each server ("instance") in one small JSON file. MBIIEZ generates t
 the engine, watches its log, restarts it if it crashes, and runs any plugins you've enabled.
 
 ---
+
+## CLI, API and WEB
+
+The panel manages local and remote MBIIEZ installations through independent API agents. See [API.md](API.md) for service keys, node management, the API contract and Docker deployment.
 
 ## Contents
 
@@ -38,8 +43,8 @@ Every instance names the dedicated-server binary it runs with (`"engine"` in its
 | Engine | Where it comes from | Notes |
 |---|---|---|
 | **`caded.i386`** | Built from **our OpenJK fork: [github.com/clone-army/OpenJK](https://github.com/clone-army/OpenJK)** | Recommended. Adds the economy (credits, shop, bounties, accounts), Chaos Mode, Gun Game, kill streaks and native `!stats`. |
-| `mbiided.i386` | Bundled in this repo; `install.sh` copies it to `/usr/bin` | Standard MBII dedicated server, none of the extra features. |
-| `openjkded.i386` | Stock 2018 OpenJK build downloaded by `install.sh` | Plain OpenJK. |
+| `mbiided.i386` | Bundled in this repo; selected by default in `install.sh` | Standard MBII dedicated server, none of the extra features. |
+| `openjkded.i386` | Stock 2018 OpenJK build, selectable in `install.sh` | Plain OpenJK. |
 
 > **Several plugins only work with `caded.i386`.** Accounts, Credits (and the Shop, Bounties, Cantina Bar, Jukebox and Casino built on it), Social Mode, Holotable, Chaos Mode, Gun Game, Kill Streaks and Stats
 > don't add features themselves: they switch features on and off in our engine with cvars
@@ -67,12 +72,12 @@ and cvars for every feature are documented in the [OpenJK fork's README](https:/
 
 ## Installing
 
-Debian or Ubuntu (or a derivative), as root.
+Debian or Ubuntu (or a derivative), as root. Prebuilt CADED releases require glibc 2.35 or newer (Ubuntu 22.04+, Debian 12+).
 
 ```bash
 git clone https://github.com/clone-army/mbiiez
 cd mbiiez
-sudo ./install.sh
+sudo ./install.sh --mode web   # CLI + API + WEB
 ```
 
 `install.sh`:
@@ -83,20 +88,168 @@ sudo ./install.sh
 - downloads and installs **MBII** into `/opt/openjk/MBII` using the official MBII command-line updater
 - downloads the **Jedi Academy base assets** into `/opt/openjk/base` (if any fail, it lists them at the end:
   re-run the script or copy them in yourself)
-- installs **OpenJK** (`openjkded.i386`) and the bundled **`mbiided.i386`** into `/usr/bin`
+- offers an engine checklist: **OpenJK** (`openjkded.i386`) and **`mbiided.i386`** start checked,
+  **`caded.i386`** is optional; at least one engine must be selected
+- downloads CADED from the OpenJK fork's [latest GitHub release](https://github.com/clone-army/OpenJK/releases/latest),
+  verifies its checksum and installs the selected engines into `/usr/bin`
 - installs the **`mbii`** command into `/usr/local/bin`
 - creates `mbiiez.conf` from `mbiiez.conf.example`
-- offers to install the **web panel** (you can also run `sudo ./install_web.sh` later)
+- installs the selected profile: `--mode cli`, `--mode api` (CLI + API), or `--mode web` (CLI + API + WEB)
+
+On a fresh host, omitting `--mode` prompts in a terminal and defaults to CLI in automation.
+On an existing host, the installer detects the previous profile (including legacy services) and
+updates application dependencies and selected services. It preserves configuration, users, keys
+and databases, and never runs the game updater, replaces engines or restarts game instances.
+Use `--dry-run` to inspect the plan. API-only installs do not create web credentials.
+
+For an unattended install, choose engines explicitly:
+
+```bash
+sudo ./install.sh --mode api --engines caded
+sudo ./install.sh --mode cli --engines openjkded,mbiided
+```
+
+Use `--choose-engines` to open the checklist later. Deselection never uninstalls an engine.
+Normal updates preserve existing engine binaries. To explicitly stage a new CADED release:
+
+```bash
+sudo ./install.sh --update --engines caded --refresh-engines
+```
+
+This replaces the selected binary atomically; running games retain their current binary and
+pick up the new one at their next planned restart. The installer never restarts games.
 
 Then:
 
-1. Build **`caded.i386`** from [clone-army/OpenJK](https://github.com/clone-army/OpenJK) if you want the
+1. Select **`caded.i386`** during installation, or build it from [clone-army/OpenJK](https://github.com/clone-army/OpenJK) if you want the
    extra features (see above).
 2. Check the paths in **`mbiiez.conf`** (the defaults match what `install.sh` sets up).
 3. Create your first instance, either with the web panel's **New instance** wizard or by copying
-   `configs/demo.json.example` to `configs/<name>.json`.
+   `configs/demo.json.example` to `configs/<name>.json`. Set `server.engine` to an installed engine.
 4. Open the instance's port (UDP) in your firewall.
 5. `mbii -i <name> start`
+
+### Multiple servers in one web interface
+
+1. On the central server, install `sudo ./install.sh --mode web`. The installer registers its
+   local API automatically with the name **Local**. You can rename it with **Edit** on Nodes,
+   but cannot delete it. A panel with only its local node hides the node selector.
+   Existing node registrations and keys survive updates.
+2. On every additional game server, install `sudo ./install.sh --mode api`. It needs CLI and API;
+   it does not need the web panel. Create a service key there:
+
+   ```bash
+   mbii api keygen --scope admin --label central-web
+   ```
+
+3. Give that API a reachable address through a trusted VPN or HTTPS reverse proxy. Native agents
+   default to `127.0.0.1:8081`. For a proxy on another LAN host, create `/etc/default/mbii-api`:
+
+   ```ini
+   MBIIEZ_API_HOST=10.25.0.166
+   MBIIEZ_API_PORT=18081
+   ```
+
+   Restart **only** `mbii-api` to apply the bind settings. Point nginx/Caddy at that private address
+   and publish an HTTPS name such as `https://mb2-eu-api.example.com`. Public HTTPS port 443 may
+   proxy any internal API port. Keep the central native panel's local agent on loopback port 8081.
+4. Log into the central panel as admin, open **Nodes**, and add a unique ID (for example `eu`),
+   display name, API base URL and generated key. Use **Edit** to change an existing node; leave
+   the key blank to keep it. Test the connection, then select that node from
+   the navigation selector. Its instances appear in the dashboard and server menus; identical
+   instance names on different nodes are supported. Keys remain on the panel server.
+
+Use `viewer` for read-only keys or `mod` for moderation. To rotate a key, generate a replacement,
+update and test the node in the panel, then run `mbii api revoke KEY_ID` on its agent.
+Each node keeps its own game data. CADED accounts, balances, bans and statistics can be linked to Local through **Sync CADED data**. Panel login accounts are central.
+For standalone Docker WEB, node images, persistent volumes and nginx examples, see [API.md](API.md).
+
+### Sync CADED data between nodes
+
+**Local is the authority.** In **Nodes**, tick **Sync CADED data** on a remote node to
+link it to Local. Local has no checkbox; you only tick EU (or another remote node).
+The agents exchange changes automatically, about once a second, in both directions.
+You do not install WEB on remote machines.
+
+Before enabling, install the shared-ledger CADED release on both machines and let **all**
+CADEd instances use it at their next planned restart. The checkbox checks the binary
+actually running, as well as the installed engine. Updating API or WEB never restarts
+games. Legacy CADED cannot safely share a live wallet, so it cannot join this group.
+
+At first enrollment, both nodes save private migration backups. Local's existing PINs,
+balances, stats and moderation records win for matching identities. Remote-only accounts,
+stats and bans are retained. Existing matching totals are not added: they might already
+be copies. From that point, unique recorded changes can safely be combined exactly once.
+For example, a balance of **100**, earnings of **20** on NA and spending of **30** on EU
+leaves **90** on both; three kills on NA and two on EU add five to the common total.
+
+| Data | Shared behavior |
+|---|---|
+| Accounts | Same registration, PIN, failed attempts, lockout, PIN reset, deletion and engine admin privileges across the group. WEB login accounts remain central and separate. |
+| Credits | Earnings, gambling payouts, purchases, gifts and admin adjustments affect one wallet. Local reserves purchases atomically before game effects, preventing simultaneous overspending. |
+| Daily rewards | One daily claim per account across the group, including Local's existing claim history. |
+| Gameplay | New kills, deaths, suicides and playtime add to a common total; retries never add them twice. Account and nickname identities remain separate. |
+| Moderation | GUID/IP bans, notes and unbans flow both ways. Tombstones prevent stale peers from restoring removed bans; recent GUID/IP associations preserve CADED's existing IP linking. |
+
+Bans may disconnect banned players. Shared IP addresses can link multiple GUIDs, just as
+in CADED's existing local rules. Ban propagation does not restart engines.
+
+Local's ledger uses SQLite transactions with durable receipts; agents retain durable
+outboxes and recover interrupted purchases. While Local is unreachable, **spending,
+registration and login pause**; existing games keep running, and earned credits/stats
+queue for reconnection. No node can spend a stale independent copy of the wallet.
+Cached counters can lag briefly. Keep `/var/lib/mbiiez` and game data on persistent volumes.
+Back up Local's complete state directory, including the SQLite database, using a consistent
+SQLite backup or stopping API only; copying its live database file alone is insufficient.
+
+The agents synchronize independently of WEB. By default they use the authenticated
+`/shared/v1/exchange` relay on the panel's HTTPS hostname, so that relay must remain
+reachable. Set `MBIIEZ_PUBLIC_WEB_URL=https://your-panel.example.com` if proxy headers do
+not expose the correct public address. Nginx must forward this path, Authorization and
+`X-MBIIEZ-Peer` with a 2 MB request limit. API-only deployments can use the authority's
+HTTPS API URL directly instead of the panel relay; see [API.md](API.md).
+
+Unlink a remote node during a **planned stop of its CADED instances**. MBIIEZ refuses to
+stop games for you or abandon an offline outbox. After successful unlinking, its cached
+accounts, balances and totals remain as an independent local copy. Local remains the
+authority. Drain and unlink a node before replacing or removing it. Editing its API URL
+revokes its old enrollment; re-enable sync to approve the destination.
+
+**Advanced: manual data transfer** remains a separate reviewed snapshot merge for nodes
+that are not linked. It copies missing accounts/bans and uses highest counters, retaining
+existing destination balances. It does not create a shared wallet, and imports are blocked
+on linked nodes. Initial shared enrollment backups are owner-only under
+`/var/lib/mbiiez/shared_initial_backups/`; manual backups use `sync_backups/`.
+Connection/chat history and historical casino result logs stay on their originating node.
+Gambling credits still use the shared wallet. Public pages never sum repeated common totals
+from different nodes.
+
+### Public community dashboard
+
+Open **`/public`** (for example `https://mb2.example.com/public`) without signing in.
+Anonymous visits to `/` also open the public dashboard; signed-in users keep the operations
+homepage. **Public stats** in the admin navigation links to the same page.
+
+The dashboard includes searchable, sortable player leaderboards for kills, deaths, K/D and
+playtime; featured players; public live server cards with engine and map; casino results,
+credits wagered/won, win rates, net-credit rankings, game breakdowns, 30-day activity and
+recent settlements. Choose a node by name to see its data. Each page shows a single node,
+so synced CADED counters are never summed across regions.
+
+WEB fetches an authenticated, read-only summary from `/api/v1/public/stats` and refreshes
+once a minute. Visitors never receive API keys, PIN hashes, IP addresses, bans, RCON
+credentials, private chat or account balances. Password-protected instances are omitted
+from live cards. Set `server.public_stats` to `false` in an instance JSON config to hide
+its live card even if it has no password. CADED counters are shared at node level and
+cannot be separated by instance; account and nickname identities remain separate.
+
+Gameplay comes from `player_stats.dat`; settled casino outcomes come from
+`game_results.log`. Missing data is shown as an empty state. Results are per-player
+settlements, so a two-player game may produce two results. Win rate counts wins and losses
+only; refunds, pushes and prize-wheel awards are excluded. Credits are game currency.
+Large casino logs use the newest 50,000 complete records within 16 MiB, explicitly labeled
+as a recorded window. Casino rankings are capped at 1,000 players. No external analytics,
+CDN scripts or browser account login is needed. API-only nodes keep authentication enabled.
 
 ### `mbiiez.conf`
 
@@ -402,8 +555,19 @@ keeps servers current automatically.
 
 ### Updating MBIIEZ
 
-`git pull` in this folder, or use **Update** on the web panel's dashboard. Restart instances to pick up
-changes to plugins or the core.
+```bash
+git pull --ff-only
+sudo ./install.sh --update
+```
+
+The saved profile is reused. For a legacy installation, existing API/web services determine the
+profile automatically. To add the API or panel later, use `--mode api` or `--mode web`.
+The installer updates Python dependencies and restarts only API/web services; running games keep
+their current code until you choose to restart them. Pulling source alone does not install new
+dependencies or migrate services. The dashboard **Update** button queues this same installer
+for the panel host; update remote agents separately. Check a queued update with
+`journalctl -u mbiiez-application-update`. Docker installations require rebuilding their images
+and recreating containers during a suitable maintenance window (see [API.md](API.md)).
 
 ### Updating the engine
 

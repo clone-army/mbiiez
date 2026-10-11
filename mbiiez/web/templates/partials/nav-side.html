@@ -6,6 +6,7 @@
                 <li>
                     <a href="/dashboard"><i class="fas fa-home"></i> Dashboard</a>
                 </li>
+                <li><a href="/public"><i class="fas fa-chart-bar"></i> Public stats</a></li>
                 <li>
                     <a href="#instancesmenu" data-bs-toggle="collapse" aria-expanded="true" class="dropdown-toggle no-caret-down"><i class="fas fa-server"></i> Instances</a>
                     <ul class="collapse list-unstyled show" id="instancesmenu">
@@ -39,10 +40,10 @@
                                 {% endfor %}
                                 {% endif %}
                                 {% if can_mod %}
-                                <li>
+                                {% if can_admin %}<li>
                                     <a href="/rcon?instance={{ instance|lower }}" class="{% if request.path.startswith('/rcon') and is_active_instance %}active{% endif %}"><i class="fas fa-terminal"></i> RCON</a>
                                 </li>
-                                <li><a href="/mod?instance={{ instance|lower }}"><i class="fas fa-wrench"></i> Mod</a></li>
+                                {% endif %}<li><a href="/mod?instance={{ instance|lower }}"><i class="fas fa-wrench"></i> Mod</a></li>
                                 {% endif %}
                             </ul>
                         </li>
@@ -71,6 +72,7 @@
                 {% endif %}
                 {% if can_admin %}
                 <li>
+                    <a href="/nodes"><i class="fas fa-network-wired"></i> Nodes</a></li><li>
                     <a href="/admin/users"><i class="fas fa-users-cog"></i> Admin Users</a>
                 </li>
                 {% endif %}
@@ -126,4 +128,3 @@
                 #}
             </ul>
         </nav>
-

@@ -6,6 +6,7 @@ class controller:
     controller_bag = {}
 
     def __init__(self, instance = None, page = 1, per_page = 100):
+            self.controller_bag = {}
     
             conn = db().connect()
             cur = conn.cursor()  
@@ -37,4 +38,5 @@ class controller:
             players = cur.fetchall()
             
             self.controller_bag['players'] = players
+            conn.close()
                       

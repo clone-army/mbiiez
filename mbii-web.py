@@ -1,3 +1,4 @@
+from concurrent.futures import ThreadPoolExecutor
 import hashlib
 import json
 import os
@@ -5,33 +6,35 @@ import secrets
 import socket
 import subprocess
 import time
+import requests
+import threading
 from functools import wraps
 
-from flask import Flask, abort, g, jsonify, redirect, render_template, request, session, url_for
+from flask import Flask, Response, abort, g, jsonify, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from mbiiez import settings, plugin_loader, bansync, guidbans
+from mbiiez import settings
+from mbiiez.api.storage import state_dir, locked, read as read_state, write as write_state
+from mbiiez.api import SOFTWARE_VERSION
+from mbiiez.api.client import Client, NodeError, nodes, selected_node, save_node, remove_node, is_local_node
+from mbiiez.web import auto_sync, public_dashboard, levelshots
+from mbiiez.web.remote import controller as remote_controller, instance_admin, bansync, guidbans
 from mbiiez.db import db
 
 # Web Tools
-from mbiiez.web.tools import tools
 
-# Controllers
-from mbiiez.web.controllers.chat import controller as chat_c
-from mbiiez.web.controllers.config import controller as config_c
-from mbiiez.web.controllers.dashboard import controller as dashboard_c
-from mbiiez.web.controllers.instance import controller as instance_c
-from mbiiez.web.controllers.logs import controller as logs_c
-from mbiiez.web.controllers.logs_api import logs_api
-from mbiiez.web.controllers.chat_api import chat_api
-from mbiiez.web.controllers.mod import controller as mod_c
-from mbiiez.web.controllers.players import controller as players_c
-from mbiiez.web.controllers.rcon import controller as rcon_c
-from mbiiez.web.controllers.stats import controller as stats_c
-from mbiiez.web.controllers.plugin_page import controller as plugin_page_c
-from mbiiez.web.controllers.plugin_page import load_instance_config as plugin_page_load_instance_config
-from mbiiez.web.controllers import instance_admin
 
+# Controllers are API presentation adapters, including the local node.
+chat_c = remote_controller("chat")
+config_c = remote_controller("config")
+dashboard_c = remote_controller("dashboard")
+instance_c = remote_controller("instance")
+logs_c = remote_controller("logs")
+mod_c = remote_controller("mod")
+players_c = remote_controller("players")
+rcon_c = remote_controller("rcon")
+stats_c = remote_controller("stats")
+plugin_page_c = remote_controller("plugin_page")
 # Views
 from mbiiez.web.views.chat import view as chat_v
 from mbiiez.web.views.config import view as config_v
@@ -48,10 +51,11 @@ from mbiiez.web.views.plugin_page import view as plugin_page_v
 app = Flask(
     __name__,
     static_url_path="/assets",
-    static_folder="mbiiez/web/static",
-    template_folder="mbiiez/web/templates",
+    static_folder=os.path.join(os.path.dirname(os.path.abspath(__file__)), "mbiiez/web/static"),
+    template_folder=os.path.join(os.path.dirname(os.path.abspath(__file__)), "mbiiez/web/templates"),
 )
 app.config["TEMPLATES_AUTO_RELOAD"] = True
+app.config["MAX_CONTENT_LENGTH"] = 2 * 1024 * 1024
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 
@@ -273,6 +277,10 @@ def _role_allows(current_role, required_role):
 
 
 def _required_role_for_path(path, method):
+    if method == 'POST' and path == '/shared/v1/exchange':
+        return None
+    if method == 'GET' and (path in ('/', '/public', '/public/data') or path.startswith('/public/levelshot/')):
+        return None
     if path.startswith("/assets/"):
         return None
 
@@ -283,6 +291,7 @@ def _required_role_for_path(path, method):
         return None
 
     admin_prefixes = [
+        "/nodes",
         "/config",
         "/instance/",
         "/instances",
@@ -309,7 +318,10 @@ def _required_role_for_path(path, method):
     if path == "/config/sync_smod_admin":
         return "admin"
 
-    if path in ["/rcon/send", "/chat/send"]:
+    if path.startswith("/rcon") or path.startswith("/nodes"):
+        return "admin"
+
+    if path == "/chat/send":
         return "mod"
 
     if path.startswith("/admin"):
@@ -319,8 +331,7 @@ def _required_role_for_path(path, method):
         return "admin"
 
     if any(path.startswith(prefix) for prefix in admin_prefixes):
-        if path in ["/config", "/config/save"]:
-            return "admin"
+        return "admin"
 
     if any(path.startswith(prefix) for prefix in mod_prefixes):
         return "mod"
@@ -353,69 +364,33 @@ def _authenticate_credentials(username, password):
     return True, user.get("role", "viewer")
 
 
+def _node_metadata():
+    if not hasattr(g, "node_metadata"):
+        g.node_metadata = {"instances": [], "plugins": {}, "global": []}
+        g.node_metadata = Client().call("GET", "menus") if _role_allows(_current_role(), "admin") else {
+            "instances": Client().call("GET", "instances"), "plugins": {}, "global": []}
+    return g.node_metadata
+
+
 def _list_instances_cached():
-    now = time.time()
-    if now < _instance_list_cache["expires"]:
-        return _instance_list_cache["items"]
-
     try:
-        items = tools().list_of_instances()
-    except Exception:
-        items = []
-
-    _instance_list_cache["items"] = items
-    _instance_list_cache["expires"] = now + INSTANCE_LIST_CACHE_SECONDS
-    return items
-
-
-_plugin_menu_cache = {"expires": 0.0, "menus": {}}
-
-
-_global_menu_cache = {"expires": 0.0, "menus": []}
+        return _node_metadata()["instances"]
+    except NodeError:
+        return []
 
 
 def _global_menus_cached():
-    """Menu items plugins add outside any instance (web_global_menu), from
-    the plugins on for at least one instance."""
-    now = time.time()
-    if now < _global_menu_cache["expires"]:
-        return _global_menu_cache["menus"]
     try:
-        from mbiiez.web.controllers.plugin_page import all_instance_configs
-        menus = plugin_loader.global_menus(all_instance_configs())
-    except Exception:
-        menus = []
-    _global_menu_cache["menus"] = menus
-    _global_menu_cache["expires"] = now + INSTANCE_LIST_CACHE_SECONDS
-    return menus
+        return _node_metadata()["global"]
+    except NodeError:
+        return []
 
 
 def _plugin_menus_cached():
-    """{instance_name: [menu_entry, ...]} for every instance's currently
-    enabled plugins that declare a web_menu(). Cached briefly since this
-    runs on every page render via the context processor below."""
-    now = time.time()
-    if now < _plugin_menu_cache["expires"]:
-        return _plugin_menu_cache["menus"]
-
-    menus = {}
-    for instance_name in _list_instances_cached():
-        try:
-            instance_config = plugin_page_load_instance_config(instance_name)
-        except Exception:
-            instance_config = None
-
-        entries = []
-        if instance_config:
-            for plugin_name in (instance_config.get("plugins", {}) or {}).keys():
-                entry = plugin_loader.call_web_menu(plugin_name, instance_name, instance_config)
-                if entry:
-                    entries.append(entry)
-        menus[instance_name] = entries
-
-    _plugin_menu_cache["menus"] = menus
-    _plugin_menu_cache["expires"] = now + INSTANCE_LIST_CACHE_SECONDS
-    return menus
+    try:
+        return _node_metadata()["plugins"]
+    except NodeError:
+        return {}
 
 
 def _audit(action, instance_name=None, details=""):
@@ -463,6 +438,8 @@ def enforce_auth_and_role():
             or path.startswith("/setup")
             or path.startswith("/login")
             or path.startswith("/logout")
+            or path in ("/public", "/public/data")
+            or path.startswith("/public/levelshot/")
         )
         if not setup_allowed:
             return redirect("/setup", code=302)
@@ -494,11 +471,175 @@ def enforce_auth_and_role():
     return None
 
 
+@app.before_request
+def select_api_node():
+    if request.path in ('/public', '/public/data', '/shared/v1/exchange') or request.path.startswith('/public/levelshot/'):
+        # Public browsing does not change the administrator's selected node or session.
+        return None
+    data = nodes()
+    chosen = request.headers.get("X-MBIIEZ-Node") or request.args.get("node") or request.form.get("node") or session.get("mbiiez_node") or next(iter(data), "na")
+    if chosen not in data and data:
+        return jsonify(error="Unknown node"), 404
+    g.node_id = chosen
+    session.setdefault("csrf_token", secrets.token_urlsafe(32))
+    if request.method in ("POST", "PUT", "PATCH", "DELETE") and _is_logged_in():
+        token = request.headers.get("X-MBIIEZ-CSRF") or request.form.get("csrf_token", "")
+        if not secrets.compare_digest(token, session["csrf_token"]):
+            return jsonify(error="Invalid CSRF token; reload the page"), 403
+    # GET navigation may choose a default; JS commands always carry the page's node ID.
+    if request.method == "GET" and request.args.get("node") and chosen in data:
+        session["mbiiez_node"] = chosen
+
+
+@app.errorhandler(NodeError)
+def node_error(error):
+    if request.method == "GET" and not _is_api_request(request.path) and not request.path.endswith("/data"):
+        g.node_metadata = {"instances": [], "plugins": {}, "global": []}
+        return render_template("pages/node-offline.html", error=str(error), view_bag={"instance": None}), 502
+    return jsonify(error=str(error)), 502
+
+
+@app.route("/nodes")
+@require_role("admin")
+def nodes_page():
+    def check(item):
+        identifier, node = item
+        sync_capabilities = {}
+        try:
+            info = Client(identifier).call("GET", "info")
+            status = "Online" if info.get("api_version") == 1 else "API version mismatch"
+            if info.get("version") != SOFTWARE_VERSION and info.get("api_version") == 1:
+                status = "Online (software version differs)"
+            version = info.get("version", "") + " / " + info.get("revision", "")[:12]
+            if "data_sync" in info.get("capabilities", []):
+                try:
+                    sync_capabilities = Client(identifier).call("GET", "sync/info")
+                except NodeError:
+                    pass
+        except NodeError:
+            status, version = "Offline", ""
+        return {"id": identifier, "name": node["name"], "url": node["url"], "status": status, "version": version, "local": is_local_node(node), "sync": sync_capabilities}
+    policy = auto_sync.settings()["nodes"]
+    sync_status = auto_sync.status()
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        statuses = list(pool.map(check, nodes().items()))
+    for node in statuses:
+        node["automatic_sync"] = policy.get(node["id"], {}).get("enabled", False)
+        node["sync_result"] = sync_status.get("nodes", {}).get(node["id"], {})
+        last = node["sync_result"].get("last_success")
+        node["last_sync"] = time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime(last)) if last else ""
+    return render_template("pages/nodes.html", sync_error=sync_status.get("error", ""), node_statuses=statuses, sync_capabilities={node["id"]: node["sync"] for node in statuses}, view_bag={"instance": None})
+
+
+@app.route("/nodes/save", methods=["POST"])
+@require_role("admin")
+def nodes_save():
+    data = request.form
+    try:
+        save_node(data.get("id", ""), data.get("name", ""), data.get("url", ""), data.get("key", ""))
+    except ValueError as exc:
+        return jsonify(error=str(exc)), 400
+    _audit("node_save", details=data.get("id", ""))
+    return redirect("/nodes")
+
+
+@app.route("/nodes/<identifier>/automatic-sync", methods=["POST"])
+@require_role("admin")
+def nodes_automatic_sync(identifier):
+    try:
+        enabled = (request.get_json() or {}).get("enabled")
+        public_url=os.environ.get("MBIIEZ_PUBLIC_WEB_URL")
+        if not public_url:
+            proto=request.headers.get("X-Forwarded-Proto",request.scheme).split(",")[0].strip()
+            public_url=proto+"://"+request.host
+        setting = auto_sync.configure(identifier, enabled, hub=public_url)
+    except ValueError as error:
+        return jsonify(error=str(error)), 400
+    _audit("node_automatic_sync", details=identifier + (" enabled" if enabled else " disabled"))
+    return jsonify(success=True, enabled=setting["enabled"])
+
+
+@app.route("/nodes/sync/preview", methods=["POST"])
+@require_role("admin")
+def nodes_sync_preview():
+    data = request.get_json() or {}
+    source, target = data.get("source"), data.get("target")
+    configured = nodes()
+    if source not in configured or target not in configured or source == target:
+        return jsonify(error="Choose two different configured nodes"), 400
+    datasets = data.get("datasets")
+    if not isinstance(datasets, list) or not datasets or any(name not in ("accounts", "stats", "guid_bans", "ip_bans") for name in datasets):
+        return jsonify(error="Select supported datasets"), 400
+    snapshot = Client(source).call("POST", "sync/export", {"datasets": datasets})
+    report = Client(target).call("POST", "sync/import", {"snapshot": snapshot, "preview": True})
+    directory = state_dir() / "sync_jobs"
+    directory.mkdir(parents=True, exist_ok=True, mode=0o700)
+    # Discard expired credential snapshots; bound retained previews.
+    files = sorted(directory.glob("*.json"), key=lambda path: path.stat().st_mtime)
+    for index, path in enumerate(files):
+        if time.time() - path.stat().st_mtime > 600 or index < len(files) - 19:
+            path.unlink(missing_ok=True)
+    identifier = secrets.token_hex(16)
+    write_state(directory / (identifier + ".json"), {
+        "owner": _current_user(), "expires": time.time() + 600,
+        "source": source, "target": target, "target_url": configured[target]["url"],
+        "snapshot": snapshot,
+    })
+    _audit("node_sync_preview", details=source + " -> " + target)
+    return jsonify(job=identifier, report=report)
+
+
+@app.route("/nodes/sync/apply", methods=["POST"])
+@require_role("admin")
+def nodes_sync_apply():
+    identifier = (request.get_json() or {}).get("job", "")
+    if not isinstance(identifier, str) or len(identifier) != 32 or any(c not in "0123456789abcdef" for c in identifier):
+        return jsonify(error="Invalid sync preview"), 400
+    path = state_dir() / "sync_jobs" / (identifier + ".json")
+    with locked(path):
+        job = read_state(path, {})
+        if job.get("owner") != _current_user() or job.get("expires", 0) < time.time():
+            return jsonify(error="Sync preview expired; preview again"), 400
+        target = job["target"]
+        if nodes().get(target, {}).get("url") != job["target_url"]:
+            return jsonify(error="Target changed; preview again"), 400
+        report = Client(target).call("POST", "sync/import", {"snapshot": job["snapshot"], "preview": False})
+        path.unlink()
+    _audit("node_sync_apply", details=job["source"] + " -> " + target)
+    return jsonify(report=report)
+
+
+@app.route("/nodes/<identifier>/test", methods=["POST"])
+@require_role("admin")
+def nodes_test(identifier):
+    if identifier not in nodes():
+        abort(404)
+    return jsonify(Client(identifier).call("GET", "info"))
+
+
+@app.route("/nodes/<identifier>/delete", methods=["POST"])
+@require_role("admin")
+def nodes_delete(identifier):
+    try:
+        if auto_sync.settings()['nodes'].get(identifier,{}).get('enabled') and identifier!=auto_sync.local_node():
+            raise ValueError('Unlink shared data before deleting this node')
+        remove_node(identifier)
+    except ValueError as exc:
+        return jsonify(error=str(exc)), 400
+    _audit("node_delete", details=identifier)
+    return redirect("/nodes")
+
+
 @app.context_processor
 def include_instances_and_auth():
+    if request.path in ('/public', '/public/data', '/shared/v1/exchange') or request.path.startswith('/public/levelshot/'):
+        return {}
     users = _load_users() if settings.web_service.auth_enabled else {}
 
     return dict(
+        csrf_token=session.get("csrf_token", ""),
+        nodes={identifier: {"name": node["name"], "local": is_local_node(node)} for identifier, node in nodes().items()},
+        selected_node=getattr(g, "node_id", "na"),
         instances=_list_instances_cached(),
         current_user=_current_user(),
         current_role=_current_role(),
@@ -770,7 +911,56 @@ def admin_users_delete():
 
 @app.route("/", methods=["GET", "POST"])
 def home():
-    return redirect("/dashboard", code=302)
+    return redirect("/dashboard" if _is_logged_in() or not settings.web_service.auth_enabled else "/public", code=302)
+
+
+@app.post("/shared/v1/exchange")
+def shared_exchange_proxy():
+    local=auto_sync.local_node()
+    if not local:return jsonify(error="Shared authority not configured"),503
+    auth=request.headers.get("Authorization","");peer=request.headers.get("X-MBIIEZ-Peer","")
+    if not auth.startswith("Bearer ") or len(auth)>512 or len(peer)>32:
+        return jsonify(error="A shared peer credential is required"),401
+    try:
+        upstream=requests.post(nodes()[local]["url"]+"/api/v1/shared/exchange",
+            headers={"Authorization":auth,"X-MBIIEZ-Peer":peer},json=request.get_json(),timeout=(2,8),allow_redirects=False)
+        response=jsonify(upstream.json());response.headers["Cache-Control"]="no-store"
+        return response,upstream.status_code
+    except (requests.RequestException,ValueError):return jsonify(error="Shared authority temporarily unavailable"),503
+
+
+@app.get("/public")
+def public_page():
+    configured = nodes()
+    identifier = request.args.get("node") or next(iter(configured), "")
+    if identifier and identifier not in configured:
+        abort(404)
+    return render_template("pages/public.html", public_nodes={key: {"name": node["name"]} for key, node in configured.items()}, public_node=identifier)
+
+
+@app.get("/public/data")
+def public_data():
+    configured = nodes()
+    identifier = request.args.get("node") or next(iter(configured), "")
+    if identifier not in configured:
+        return jsonify(online=False, error="No public node is available yet."), 503
+    result = public_dashboard.data(identifier)
+    response = jsonify(result)
+    response.headers["Cache-Control"] = "public, max-age=15"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    return response, 200 if result["online"] else 503
+
+
+@app.get("/public/levelshot/<name>")
+def public_levelshot(name):
+    """A map's loading-screen picture, for the server cards."""
+    shot = levelshots.levelshot(name)
+    if not shot:
+        abort(404)
+    response = Response(shot[0], mimetype=shot[1])
+    response.headers["Cache-Control"] = "public, max-age=604800"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    return response
 
 
 @app.route("/dashboard", methods=["GET", "POST"])
@@ -812,67 +1002,15 @@ def instance():
 
 
 @app.route("/instance/<instance_name>/command", methods=["POST"])
+@app.route("/instance/<instance_name>/command_async", methods=["POST"])
 @require_role("admin")
 def instance_command(instance_name):
     data = request.get_json() or {}
-    cmd = data.get("command")
-    if cmd not in ["start", "stop", "restart"]:
-        return {"error": "Unknown command."}, 400
-
-    actual_cmd = cmd
-    if actual_cmd in ["stop", "restart"]:
-        cli_cmd = ["mbii", "-i", instance_name, actual_cmd, "--force"]
-    else:
-        cli_cmd = ["mbii", "-i", instance_name, actual_cmd]
-
-    try:
-        result = subprocess.run(cli_cmd, capture_output=True, text=True, timeout=30)
-        output = (result.stdout or "") + ("\n" + result.stderr if result.stderr else "")
-        output = output.strip()
-
-        _audit("instance_command", instance_name, f"cmd={actual_cmd}; rc={result.returncode}")
-
-        if result.returncode == 0:
-            return {"output": output or f"Instance {instance_name} {cmd}ed."}
-
-        return {"error": output or f"Failed to {cmd} instance {instance_name}."}, 500
-    except Exception as e:
-        _audit("instance_command_error", instance_name, str(e))
-        return {"error": str(e)}, 500
-
-
-@app.route("/instance/<instance_name>/command_async", methods=["POST"])
-@require_role("admin")
-def instance_command_async(instance_name):
-    data = request.get_json() or {}
-    cmd = data.get("command")
-    if cmd not in ["start", "stop", "restart"]:
-        return {"error": "Unknown command."}, 400
-
-    actual_cmd = cmd
-    if actual_cmd in ["stop", "restart"]:
-        mbii_args = ["mbii", "-i", instance_name, actual_cmd, "--force"]
-    else:
-        mbii_args = ["mbii", "-i", instance_name, actual_cmd]
-
-    # Use systemd-run --scope to launch in a new transient cgroup so the spawned
-    # processes survive a web service restart/stop (double-fork alone is not enough
-    # under modern systemd with cgroup v2 tracking).
-    cli_cmd = ["systemd-run", "--scope", "--"] + mbii_args
-
-    try:
-        subprocess.Popen(
-            cli_cmd,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            stdin=subprocess.DEVNULL,
-        )
-        _audit("instance_command_async", instance_name, f"cmd={actual_cmd}")
-        return {"output": f"Instance {instance_name} {cmd} initiated.", "async": True}
-
-    except Exception as e:
-        _audit("instance_command_async_error", instance_name, str(e))
-        return {"error": str(e)}, 500
+    command = data.get("command")
+    if command not in ("start", "stop", "restart"):
+        return jsonify(error="Unknown command"), 400
+    return jsonify(Client().call("POST", "instances/" + instance_name + "/" + command,
+                                 {"force": data.get("force", False)})), 202
 
 
 @app.route("/chat", methods=["GET", "POST"])
@@ -1048,7 +1186,7 @@ def guidbans_note():
 
 
 @app.route("/rcon", methods=["GET"])
-@require_role("mod")
+@require_role("admin")
 def rcon():
     instance = request.args.get("instance")
     c = rcon_c(instance)
@@ -1056,7 +1194,7 @@ def rcon():
 
 
 @app.route("/rcon/send", methods=["POST"])
-@require_role("mod")
+@require_role("admin")
 def rcon_send():
     data = request.get_json() or {}
     success, response = rcon_c.send_rcon(data["instance"], data["command"])
@@ -1130,10 +1268,7 @@ def config_save():
 
 
 def _forget_instance_lists():
-    """Drop the cached instance list/menus so a just-created or deleted
-    instance shows up (or disappears) in the sidebar immediately."""
-    _instance_list_cache["expires"] = 0.0
-    _plugin_menu_cache["expires"] = 0.0
+    g.pop("node_metadata", None)
 
 
 @app.route("/instances/new", methods=["GET"])
@@ -1215,63 +1350,36 @@ def api_audit():
     return jsonify(rows)
 
 
-@app.route("/api/check_server/<instance_name>", methods=["GET"])
+@app.route("/api/check_server/<instance_name>")
 @require_role("viewer")
 def check_server_status(instance_name):
-    """Check if server is running by attempting UDP connection."""
-    from mbiiez.instance import instance as MBInstance
-
-    try:
-        inst = MBInstance(instance_name)
-        config = inst.config
-
-        server_ip = config.get("server", {}).get("ip", "127.0.0.1")
-        server_port = int(config.get("server", {}).get("port", 29070))
-
-        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sock.settimeout(1)
-
-        try:
-            sock.sendto(b"", (server_ip, server_port))
-            sock.close()
-            return jsonify({"running": True, "error": None})
-        except Exception:
-            sock.close()
-            return jsonify({"running": False, "error": None})
-
-    except Exception as e:
-        return jsonify({"running": False, "error": str(e)})
+    status = Client().call("GET", "instances/" + instance_name + "/status")
+    return jsonify(running=status.get("server_running", False), error=None)
 
 
-@app.route("/api/instance_status/<instance_name>", methods=["GET"])
+@app.route("/api/instance_status/<instance_name>")
 @require_role("viewer")
 def status_api(instance_name):
-    from mbiiez.instance import instance as MBInstance
-
-    try:
-        inst = MBInstance(instance_name)
-        status = inst.status()
-        return jsonify(
-            {
-                "server_name": status.get("server_name", ""),
-                "server_name_html": status.get("server_name_html", ""),
-                "port": status.get("port", ""),
-                "players_count": status.get("players_count", 0),
-                "map": status.get("map", ""),
-                "map_html": status.get("map_html", ""),
-                "mode": status.get("mode", ""),
-                "mode_html": status.get("mode_html", ""),
-                "uptime": status.get("uptime", ""),
-                "running": status.get("server_running", False),
-                "error": None,
-            }
-        )
-    except Exception as e:
-        return jsonify({"error": str(e)})
+    status = Client().call("GET", "instances/" + instance_name + "/status")
+    return jsonify(dict(status, running=status.get("server_running", False), error=None))
 
 
-app.register_blueprint(logs_api)
-app.register_blueprint(chat_api)
+@app.route("/logs/data")
+@require_role("viewer")
+def logs_data():
+    return jsonify(Client().call("GET", "logs", params=request.args.to_dict()))
+
+
+@app.route("/chat/data")
+@require_role("viewer")
+def chat_data():
+    return jsonify(Client().call("GET", "chat", params=request.args.to_dict()))
+
+
+@app.route("/chat/send", methods=["POST"])
+@require_role("mod")
+def chat_send():
+    return jsonify(Client().call("POST", "chat", request.get_json() or {}))
 
 
 @app.route("/api/web/restart", methods=["POST"])
@@ -1280,6 +1388,9 @@ def web_restart():
     """Restart the mbii-web systemd service."""
     _audit("web_restart", details="requested by {}".format(_current_user()))
     try:
+        if os.environ.get("MBIIEZ_CONTAINER") == "1":
+            threading.Timer(1, lambda: os._exit(0)).start()
+            return jsonify(success=True, message="Web container restart initiated.")
         subprocess.Popen(
             ["systemctl", "restart", "mbii-web"],
             stdout=subprocess.DEVNULL,
@@ -1293,12 +1404,14 @@ def web_restart():
 @app.route("/api/web/update", methods=["POST"])
 @require_role("admin")
 def web_update():
-    """git pull the mbiiez repo; restart the web service only if files changed."""
+    """Pull source and queue the profile-aware installer outside the web service."""
     _audit("web_update", details="requested by {}".format(_current_user()))
+    if os.environ.get("MBIIEZ_CONTAINER") == "1":
+        return jsonify(success=False, error="Rebuild and redeploy the web image to update this panel."), 409
     repo_dir = os.path.dirname(os.path.abspath(__file__))
     try:
         result = subprocess.run(
-            ["git", "pull"],
+            ["git", "pull", "--ff-only"],
             cwd=repo_dir,
             capture_output=True,
             text=True,
@@ -1307,16 +1420,19 @@ def web_update():
         output = (result.stdout or "").strip()
         changed = result.returncode == 0 and "Already up to date." not in output
         if changed:
-            subprocess.Popen(
-                ["systemctl", "restart", "mbii-web"],
+            subprocess.run(
+                ["systemd-run", "--unit=mbiiez-application-update", "--collect",
+                 "--working-directory=" + repo_dir, "/bin/bash",
+                 os.path.join(repo_dir, "install.sh"), "--update", "--mode", "web"],
                 stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
+                stderr=subprocess.PIPE, text=True, check=True, timeout=10,
             )
         return jsonify({
             "success": result.returncode == 0,
             "output": output,
             "changed": changed,
-            "restarted": changed,
+            "restarted": False,
+            "update_queued": changed,
             "error": (result.stderr or "").strip() if result.returncode != 0 else None,
         })
     except Exception as e:
@@ -1324,5 +1440,5 @@ def web_update():
 
 
 if __name__ == "__main__":
-    bansync.start_background()
+    auto_sync.start()
     app.run(debug=False, host="0.0.0.0", port=settings.web_service.port, use_reloader=False)

@@ -20,6 +20,7 @@
           <li class="list-group-item"><strong>Map:</strong> <span class="mb-preserve-space">{{ view_bag.status.map_html|safe }}</span></li>
           <li class="list-group-item"><strong>Mode:</strong> <span class="mb-preserve-space">{{ view_bag.status.mode_html|safe }}</span></li>
           <li class="list-group-item"><strong>Uptime:</strong> <span class="mb-preserve-space">{{ view_bag.status.uptime }}</span></li>
+          <li class="list-group-item"><strong>Engine:</strong> <span>{{ view_bag.status.engine or 'Unknown' }}</span></li>
           <li class="list-group-item"><strong>Version:</strong> <span class="mb-preserve-space">{{ view_bag.version }}</span></li>
         </ul>
       </div>
@@ -132,15 +133,16 @@ function sendCommand(cmd) {
   const endpoint = (cmd === 'start' || cmd === 'restart') ? 
     `/instance/${instance}/command_async` : `/instance/${instance}/command`;
 
-  fetch(endpoint, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ command: cmd })
-  })
-  .then(r => r.json())
+  mbiiInstanceCommand(endpoint, instance, cmd)
+  .then(r => r ? r.json() : {cancelled: true})
   .then(data => {
     if (reloadTimeout) clearTimeout(reloadTimeout);
     
+    if (data.cancelled) {
+      setButtonSpinner(btn, false);
+      btns.forEach(b => b.disabled = false);
+      return;
+    }
     if (data.output) {
       if (cmd === 'start' || cmd === 'restart') {
         // For start/restart, show message and start monitoring

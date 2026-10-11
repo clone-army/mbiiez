@@ -63,6 +63,8 @@ def _infer_help(key):
     None (shown as no hint at all) when nothing confident applies."""
     lower = key.lower()
 
+    if lower.startswith("idle_") and lower.endswith("_seconds"):
+        return "In seconds of doing nothing - 0 = never."
     if lower.endswith("_hours"):
         return "In hours."
     if lower.endswith("_minutes"):

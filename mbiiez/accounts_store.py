@@ -71,12 +71,19 @@ def read_admins():
 
 
 def set_admin(handle, on):
+    from mbiiez.api import shared_node
+    if shared_node.enabled():
+        try:shared_node.edit('admin_edit',handle=handle,enabled=on);return True,'Admin privileges updated on all linked nodes.'
+        except Exception as error:return False,str(error)
     if not valid_handle(handle):
         return False, "Not a valid account handle."
     fd = os.open(admins_path(), os.O_RDWR | os.O_CREAT, 0o644)
     try:
         fcntl.flock(fd, fcntl.LOCK_EX)
         with os.fdopen(fd, "r+", encoding="utf-8", errors="ignore") as f:
+            if shared_node.enabled():
+                fcntl.flock(f.fileno(),fcntl.LOCK_UN)
+                return set_admin(handle,on)
             handles = [w for w in f.read().split() if w.lower() != handle.lower()]
             if on:
                 handles.append(handle)
@@ -88,7 +95,7 @@ def set_admin(handle, on):
     return True, "{} is {} an admin.".format(handle, "now" if on else "no longer")
 
 
-def _edit_account(handle, change):
+def _edit_account(handle, change, shared_action=None, shared_values=None):
     """Read-modify-write one account's line under the engine's lock.
     change(parts) edits the 6-part list in place, or returns an error."""
     if not valid_handle(handle):
@@ -102,6 +109,10 @@ def _edit_account(handle, change):
     try:
         fcntl.flock(fd, fcntl.LOCK_EX)
         with os.fdopen(fd, "r+", encoding="utf-8", errors="ignore") as f:
+            from mbiiez.api import shared_node
+            if shared_node.enabled():
+                fcntl.flock(f.fileno(),fcntl.LOCK_UN)
+                return _shared_edit(handle,shared_action,**(shared_values or {}))
             lines = f.readlines()
             found = None
             for n, line in enumerate(lines):
@@ -123,30 +134,47 @@ def _edit_account(handle, change):
         return False, "Could not update the accounts file: {}".format(e)
 
 
+def _shared_edit(handle,action,**values):
+    from mbiiez.api import shared_node
+    if not shared_node.enabled():return None
+    try:
+        result=shared_node.edit('account_edit',handle=handle,action=action,**values)
+        return True, ('{} now has {} credits.'.format(handle,result['credits']) if 'credits' in result else '{} updated on all linked nodes.'.format(handle))
+    except Exception as error:return False,str(error)
+
+
 def add_credits(handle, amount):
+    shared=_shared_edit(handle,'credit',amount=amount)
+    if shared is not None:return shared
     def change(parts):
         try:
             parts[3] = str(int(parts[3]) + amount)
         except ValueError:
             return "That account's credits are corrupt."
-    ok, result = _edit_account(handle, change)
+    ok, result = _edit_account(handle, change, 'credit', {'amount':amount})
     if not ok:
         return False, result
+    if isinstance(result,str):return ok,result
     return True, "{} now has {} credits.".format(result[0], result[3])
 
 
 def unlock(handle):
+    shared=_shared_edit(handle,'unlock')
+    if shared is not None:return shared
     """Clears failed PIN attempts and any lockout."""
     def change(parts):
         parts[4] = "0"
         parts[5] = "0"
-    ok, result = _edit_account(handle, change)
+    ok, result = _edit_account(handle, change, 'unlock')
     if not ok:
         return False, result
+    if isinstance(result,str):return ok,result
     return True, "{} is unlocked.".format(result[0])
 
 
 def set_pin(handle, pin):
+    shared=_shared_edit(handle,'pin',pin=pin)
+    if shared is not None:return shared
     """A new PIN (4 digits), hashed as the engine does - HMAC-MD5 keyed by a
     fresh random salt (SV_EconomyHashPin) - and the account unlocked."""
     pin = str(pin or "").strip()
@@ -160,13 +188,16 @@ def set_pin(handle, pin):
         parts[2] = digest
         parts[4] = "0"
         parts[5] = "0"
-    ok, result = _edit_account(handle, change)
+    ok, result = _edit_account(handle, change, 'pin', {'pin':pin})
     if not ok:
         return False, result
+    if isinstance(result,str):return ok,result
     return True, "{}'s PIN is changed.".format(result[0])
 
 
 def delete_account(handle):
+    shared=_shared_edit(handle,'delete')
+    if shared is not None:return shared
     """Removes the account (and its admin flag). A player logged into it on a
     server keeps playing, but nothing more is saved to it."""
     if not valid_handle(handle):
@@ -179,6 +210,10 @@ def delete_account(handle):
         fcntl.flock(fd, fcntl.LOCK_EX)
         with os.fdopen(fd, "r+", encoding="utf-8", errors="ignore") as f:
             lines = f.readlines()
+            from mbiiez.api import shared_node
+            if shared_node.enabled():
+                fcntl.flock(f.fileno(),fcntl.LOCK_UN)
+                return _shared_edit(handle,'delete')
             keep = [line for line in lines if not (len(line.split()) == 6 and line.split()[0].lower() == handle.lower())]
             if len(keep) == len(lines):
                 return False, "No account called '{}'.".format(handle)

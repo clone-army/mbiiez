@@ -6,6 +6,7 @@ class controller:
     controller_bag = {}
 
     def __init__(self, instance=None):
+        self.controller_bag = {}
         self.controller_bag['instance'] = instance
         # Load last 100 chat messages for this instance
         conn = db().connect()
@@ -20,6 +21,7 @@ class controller:
         # Reverse for chat order (oldest at top)
         self.controller_bag['messages'] = list(reversed(rows))
         self.controller_bag['instance'] = instance
+        conn.close()
 
     @staticmethod
     def send_message(instance, message):

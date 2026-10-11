@@ -24,7 +24,8 @@ class conf:
     # Fetch Config, add additionals and save as dictionary
     def get_config(self):
 
-        config_file_path = self.config_path + "/" + self.name + ".json"
+        from mbiiez.api.paths import config_path
+        config_file_path = config_path(self.name)
         
         if(not os.path.isfile(config_file_path)):
             return False
@@ -133,6 +134,9 @@ class conf:
             data = data.replace("[map_win_limit]",str(self.config['game']['map_win_limit']))
             data = data.replace("[map_round_limit]",str(self.config['game']['map_round_limit']))
             data = data.replace("[balance_mode]",str(self.config['game']['balance_mode']))
+            # MBII's own idle handling: to spectator, then kicked (0 = never).
+            data = data.replace("[idle_to_spectator_seconds]", str(int(self.config['game'].get('idle_to_spectator_seconds', 180) or 0)))
+            data = data.replace("[idle_kick_seconds]", str(int(self.config['game'].get('idle_kick_seconds', 0) or 0)))
             data = data.replace("[competitive_config]",str(self.config['game']['competitive_config']))
             
             # Spin settings

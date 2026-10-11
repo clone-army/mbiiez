@@ -182,7 +182,9 @@
     "map_round_limit": 20,
     "competitive_config": 0,
     "balance_mode": 1,
-    "message_of_the_day": "Welcome to the Open MBII Server!\n\nRules:\n- Be respectful\n- No trolling or teamkilling\n- Follow fair play"
+    "message_of_the_day": "Welcome to the Open MBII Server!\n\nRules:\n- Be respectful\n- No trolling or teamkilling\n- Follow fair play",
+    "idle_to_spectator_seconds": 180,
+    "idle_kick_seconds": 0
   },
   "smod": {
     "admin_1": { "config": 65535, "password": "AdminPass1!" },

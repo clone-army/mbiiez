@@ -10,6 +10,7 @@ class controller:
     controller_bag = {}
 
     def __init__(self, instance=None):
+        self.controller_bag = {}
         self.controller_bag['instance'] = instance
         self.controller_bag['maps_catalog'] = maps_catalog.get_maps()
         if instance:

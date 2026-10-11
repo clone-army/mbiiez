@@ -21,6 +21,7 @@ away; otherwise sync() runs every minute from mbii-web.
 An IP ban also bans every GUID seen on that IP (mbiiez.guidbans), and
 unbanning the IP lifts them again.
 """
+import copy
 import fcntl
 import json
 import os
@@ -114,11 +115,18 @@ class _Locked:
             self.data = {}
         self.data.setdefault("bans", {})     # ip -> {note, added, by}
         self.data.setdefault("seen", {})     # instance -> [ips] after the last sync
+        self.before=copy.deepcopy(self.data["bans"])
         return self.data
 
     def __exit__(self, exc_type, exc, tb):
         try:
             if exc_type is None:
+                from mbiiez.api import shared_node
+                if shared_node.enabled():
+                    revision=self.data.get('shared_revision',0);after=self.data['bans']
+                    for key in self.before.keys()-after.keys():shared_node.append(dict(kind='ban_delete',dataset='ip_bans',key=key,base_revision=revision))
+                    for key,row in after.items():
+                        if self.before.get(key)!=row:shared_node.append(dict(kind='ban_update' if key in self.before else 'ban_set',dataset='ip_bans',row=dict(ip=key,**row),base_revision=revision))
                 path = _master_path()
                 tmp = path + ".tmp"
                 with open(tmp, "w", encoding="utf-8") as f:
