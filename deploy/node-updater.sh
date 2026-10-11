@@ -115,8 +115,9 @@ if [[ "$(cat "$BUILT" 2>/dev/null)" != "$TARGET" ]]; then
     echo "$TARGET" > "$BUILT"
 fi
 
+# mbiiez can print while loading, so only the last line is the count.
 PLAYERS="$(docker exec -i -w /app "$MBIIEZ_CONTAINER" /opt/openjk/venv/bin/python3 - \
-    < "$MBIIEZ_REPO/deploy/players-online.py" 2>> "$LOG")"
+    < "$MBIIEZ_REPO/deploy/players-online.py" 2>> "$LOG" | tail -n 1)"
 if [[ ! "$PLAYERS" =~ ^[0-9]+$ ]]; then
     status waiting "Built $SHORT - couldn't check for players, trying again shortly" "$TARGET"
     exit 0
