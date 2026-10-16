@@ -1159,8 +1159,10 @@ def chatlog_page():
         page = int(request.args.get("page") or 0)
     except ValueError:
         days, page = 1, 0
-    data = connections.chat_search(request.args.get("q", ""), request.args.get("instance", ""),
-                                   request.args.get("type", ""), days, page, bool(request.args.get("server")))
+    # One dict: the node API takes at most five arguments.
+    data = connections.chat_search({"q": request.args.get("q", ""), "instance": request.args.get("instance", ""),
+                                    "type": request.args.get("type", ""), "days": days, "page": page,
+                                    "server": bool(request.args.get("server"))})
     return render_template("pages/chatlog.html", view_bag=data)
 
 
