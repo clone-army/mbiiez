@@ -216,17 +216,22 @@ def _sessions_by_name(since):
     return by_name
 
 
-def chat_search(query="", instance="", type_="", days=1, page=0, include_server=False):
+def chat_search(filters=None):
     """What the Chat Log page shows: chat on every instance, newest first, a
     page at a time - each line with the IP (and GUID) of the session it was
     said in. The query matches the message, the name or who a tell went to;
     an IP (or the start of one) matches the lines said from it instead."""
-    query = str(query or "").strip()[:64]
-    instance = str(instance or "").strip()[:64]
-    type_ = str(type_ or "").upper()
+    filters = filters if isinstance(filters, dict) else {}
+    query = str(filters.get("q") or "").strip()[:64]
+    instance = str(filters.get("instance") or "").strip()[:64]
+    type_ = str(filters.get("type") or "").upper()
     type_ = type_ if type_ in ("PUBLIC", "TEAM", "TELL") else ""
-    days = max(1, min(LOG_DAYS, int(days or 1)))
-    page = max(0, int(page or 0))
+    try:
+        days = max(1, min(LOG_DAYS, int(filters.get("days") or 1)))
+        page = max(0, int(filters.get("page") or 0))
+    except (TypeError, ValueError):
+        days, page = 1, 0
+    include_server = bool(filters.get("server"))
     now = int(time.time())
     by_ip = bool(query and _IP.match(query))
 
