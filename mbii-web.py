@@ -18,7 +18,7 @@ from mbiiez.api.storage import state_dir, locked, read as read_state, write as w
 from mbiiez.api import SOFTWARE_VERSION
 from mbiiez.api.client import Client, NodeError, nodes, selected_node, save_node, remove_node, is_local_node
 from mbiiez.web import auto_sync, public_dashboard, levelshots
-from mbiiez.web.remote import controller as remote_controller, instance_admin, bansync, guidbans
+from mbiiez.web.remote import controller as remote_controller, instance_admin, bansync, guidbans, connections
 from mbiiez.db import db
 
 # Web Tools
@@ -1112,9 +1112,14 @@ def mod_kick():
 @require_role("mod")
 def mod_ban():
     data = request.get_json() or {}
-    success, msg = bansync.add_ban(data.get("ip"), by="{} (web, from {})".format(_current_user(), data.get("instance", "")))
+    # The node API passes arguments by position only (note, then who).
+    success, msg = bansync.add_ban(data.get("ip"), str(data.get("note", ""))[:200], "{} (web, from {})".format(_current_user(), data.get("instance") or "Connections"))
     if success:
         _audit("mod_ban", data.get("instance"), data.get("ip", ""))
+        # An IP ban stops them coming back; it doesn't take them out of the
+        # game they're in - so kick them too.
+        if str(data.get("player_id", "")).isdigit():
+            mod_c.kick_player(data.get("instance"), str(data.get("player_id")))
     return {"success": success, "error": None if success else msg}
 
 
@@ -1126,6 +1131,73 @@ def mod_unban():
     if success:
         _audit("mod_unban", data.get("instance"), data.get("ip", ""))
     return {"success": success, "error": None if success else msg}
+
+
+@app.route("/mod/removetempban", methods=["POST"])
+@require_role("mod")
+def mod_removetempban():
+    data = request.get_json() or {}
+    success, msg = mod_c.remove_tempban(data.get("instance"), data.get("ip"))
+    if success:
+        _audit("mod_removetempban", data.get("instance"), data.get("ip", ""))
+    return {"success": success, "error": None if success else msg}
+
+
+@app.route("/mod/tempban", methods=["POST"])
+@require_role("mod")
+def mod_tempban():
+    data = request.get_json() or {}
+    try:
+        player_id, rounds = int(data.get("player_id")), int(data.get("rounds"))
+    except (TypeError, ValueError):
+        return {"success": False, "error": "Pick a player and a number of rounds."}
+    success, msg = mod_c.tempban_player(data.get("instance"), player_id, rounds)
+    if success:
+        _audit("mod_tempban", data.get("instance"), "{} for {} rounds ({})".format(player_id, rounds, data.get("ip", "")))
+    return {"success": success, "message": msg, "error": None if success else msg}
+
+
+@app.route("/mod/mute", methods=["POST"])
+@require_role("mod")
+def mod_mute():
+    data = request.get_json() or {}
+    try:
+        player_id = int(data.get("player_id"))
+        minutes = int(data.get("minutes") or 0)
+    except (TypeError, ValueError):
+        return {"success": False, "error": "Pick a player and how many minutes."}
+    if data.get("unmute"):
+        success, msg = mod_c.unmute_player(data.get("instance"), player_id)
+    else:
+        success, msg = mod_c.mute_player(data.get("instance"), player_id, minutes)
+    if success:
+        _audit("mod_unmute" if data.get("unmute") else "mod_mute", data.get("instance"),
+               "{}{}".format(player_id, "" if data.get("unmute") else " for {} min".format(minutes)))
+    return {"success": success, "message": msg, "error": None if success else msg}
+
+
+@app.route("/connections", methods=["GET"])
+@require_role("mod")
+def connections_page():
+    try:
+        days = int(request.args.get("days") or 14)
+    except ValueError:
+        days = 14
+    data = connections.search(request.args.get("q", ""), days)
+    return render_template("pages/connections.html", view_bag=data)
+
+
+@app.route("/chatlog", methods=["GET"])
+@require_role("mod")
+def chatlog_page():
+    try:
+        days = int(request.args.get("days") or 1)
+        page = int(request.args.get("page") or 0)
+    except ValueError:
+        days, page = 1, 0
+    data = connections.chat_search(request.args.get("q", ""), request.args.get("instance", ""),
+                                   request.args.get("type", ""), days, page, bool(request.args.get("server")))
+    return render_template("pages/chatlog.html", view_bag=data)
 
 
 @app.route("/mod/tell", methods=["POST"])
@@ -1151,7 +1223,7 @@ def bans_page():
 @require_role("mod")
 def bans_add():
     data = request.get_json(silent=True) or {}
-    success, msg = bansync.add_ban(data.get("ip"), str(data.get("note", ""))[:200], by="{} (web)".format(_current_user()))
+    success, msg = bansync.add_ban(data.get("ip"), str(data.get("note", ""))[:200], "{} (web)".format(_current_user()))
     if success:
         _audit("ban_add", details="{} {}".format(data.get("ip", ""), data.get("note", ""))[:200])
     return {"success": success, "message": msg, "error": None if success else msg}

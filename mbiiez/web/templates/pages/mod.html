@@ -62,10 +62,13 @@
         <ul class="list-group">
           {% for player in view_bag.players %}
           <li class="list-group-item d-flex flex-column flex-sm-row justify-content-sm-between align-items-sm-center gap-2">
-            <span>{{ player.name|safe }} <span class="text-muted small">({{ player.ip }})</span></span>
+            <span>{{ player.name|safe }} <a class="small" href="/connections?q={{ player.ip|urlencode }}" title="Every name and connection from this IP">({{ player.ip }})</a></span>
             <span class="d-flex flex-wrap gap-2">
-              <button class="btn btn-sm btn-danger" onclick="banPlayer('{{ player.ip }}')">Ban</button>
+              <button class="btn btn-sm btn-danger" onclick="banPlayer('{{ player.ip }}', '{{ player.id }}')" title="Ban the IP on every server, and kick them">Ban</button>
+              <button class="btn btn-sm btn-outline-danger" onclick="tempbanPlayer('{{ player.id }}', '{{ player.ip }}')" title="Ban from this server for some rounds">Temp ban</button>
               <button class="btn btn-sm btn-warning" onclick="kickPlayer('{{ player.id }}')">Kick</button>
+              <button class="btn btn-sm btn-secondary" onclick="mutePlayer('{{ player.id }}')" title="Stop them chatting for some minutes">Mute</button>
+              <button class="btn btn-sm btn-outline-secondary" onclick="unmutePlayer('{{ player.id }}')">Unmute</button>
               <button class="btn btn-sm btn-info" onclick="showTellModal('{{ player.id }}', '{{ player.name|escape }}')">Tell</button>
             </span>
           </li>
@@ -82,9 +85,30 @@
         <ul class="list-group" id="bans-list">
           {% for ban in view_bag.bans %}
           <li class="list-group-item d-flex flex-column flex-sm-row justify-content-sm-between align-items-sm-center gap-2">
-            <span>{{ ban }}</span>
+            <span><a href="/connections?q={{ ban|urlencode }}">{{ ban }}</a></span>
             <button class="btn btn-sm btn-success" onclick="unbanIp('{{ ban }}')">Unban</button>
           </li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="row">
+  <!-- Temp Bans Card -->
+  <div class="col-md-6 mb-4">
+    <div class="card">
+      <div class="card-body">
+        <h5 class="card-title">Temp Bans</h5>
+        <div class="text-muted small mb-2">Round-limited bans (in game: <code>tempban &lt;player&gt; &lt;rounds&gt;</code>). They're only on this server and clear when it restarts.</div>
+        <ul class="list-group" id="tempbans-list">
+          {% for tb in view_bag.tempbans %}
+          <li class="list-group-item d-flex flex-column flex-sm-row justify-content-sm-between align-items-sm-center gap-2">
+            <span><a href="/connections?q={{ tb.ip|urlencode }}">{{ tb.ip }}</a> <span class="text-muted small">({{ tb.rounds }} round{{ '' if tb.rounds == 1 else 's' }} left)</span></span>
+            <button class="btn btn-sm btn-success" onclick="removeTempban('{{ tb.ip }}')">Remove</button>
+          </li>
+          {% else %}
+          <li class="list-group-item text-muted">No temp bans.</li>
           {% endfor %}
         </ul>
       </div>
@@ -169,12 +193,13 @@ function showTellModal(playerId, playerName) {
     });
   };
 }
-function banPlayer(ip) {
-  if (!confirm(`Ban IP ${ip}?`)) return;
+function banPlayer(ip, playerId) {
+  const note = prompt(`Ban IP ${ip} on every server (and kick them)? Add a note - who and why:`, '');
+  if (note === null) return;
   fetch(`/mod/ban`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ instance: '{{ view_bag.instance }}', ip })
+    body: JSON.stringify({ instance: '{{ view_bag.instance }}', ip, player_id: playerId, note })
   }).then(r => r.json()).then(data => {
     if (!data.success) {
       mbiiToast(data.error || 'Ban failed', 'danger');
@@ -182,6 +207,36 @@ function banPlayer(ip) {
     }
     location.reload();
   });
+}
+function tempbanPlayer(id, ip) {
+  const rounds = prompt('Temp ban from this server for how many rounds?', '3');
+  if (rounds === null) return;
+  if (!/^\d+$/.test(rounds.trim()) || +rounds < 1) { mbiiToast('Rounds: a whole number, 1 or more.', 'danger'); return; }
+  fetch('/mod/tempban', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ instance: '{{ view_bag.instance }}', player_id: id, rounds: +rounds, ip })
+  }).then(r => r.json()).then(data => {
+    if (!data.success) { mbiiToast(data.error || 'Temp ban failed', 'danger'); return; }
+    location.reload();
+  });
+}
+function mutePlayer(id) {
+  const minutes = prompt('Mute for how many minutes?', '10');
+  if (minutes === null) return;
+  if (!/^\d+$/.test(minutes.trim()) || +minutes < 1) { mbiiToast('Minutes: a whole number, 1 or more.', 'danger'); return; }
+  fetch('/mod/mute', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ instance: '{{ view_bag.instance }}', player_id: id, minutes: +minutes })
+  }).then(r => r.json()).then(data => mbiiToast(data.success ? data.message : (data.error || 'Mute failed'), data.success ? 'success' : 'danger'));
+}
+function unmutePlayer(id) {
+  fetch('/mod/mute', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ instance: '{{ view_bag.instance }}', player_id: id, unmute: true })
+  }).then(r => r.json()).then(data => mbiiToast(data.success ? data.message : (data.error || 'Unmute failed'), data.success ? 'success' : 'danger'));
 }
 function kickPlayer(id) {
   if (!confirm(`Kick player ${id}?`)) return;
@@ -205,6 +260,20 @@ function unbanIp(ip) {
   }).then(r => r.json()).then(data => {
     if (!data.success) {
       mbiiToast(data.error || 'Unban failed', 'danger');
+      return;
+    }
+    location.reload();
+  });
+}
+function removeTempban(ip) {
+  if (!confirm(`Remove temp ban on ${ip}?`)) return;
+  fetch(`/mod/removetempban`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ instance: '{{ view_bag.instance }}', ip })
+  }).then(r => r.json()).then(data => {
+    if (!data.success) {
+      mbiiToast(data.error || 'Remove failed', 'danger');
       return;
     }
     location.reload();

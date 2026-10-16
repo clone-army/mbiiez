@@ -15,7 +15,8 @@ def controller(name):
     methods = {
         'config': ['save_config', 'sync_smod_admins', 'plugins_page'],
         'chat': ['send_message'], 'rcon': ['send_rcon'],
-        'mod': ['change_map', 'change_mode', 'kick_player', 'tell_player', 'run_plugin_action'],
+        'mod': ['change_map', 'change_mode', 'kick_player', 'tell_player', 'run_plugin_action',
+                'tempban_player', 'remove_tempban', 'mute_player', 'unmute_player'],
         'plugin_page': ['global_page', 'run_action', 'run_global_action'],
     }
     for method in methods.get(name, []):
@@ -33,3 +34,4 @@ class Module:
 instance_admin = Module('instance_admin', ['wizard_bag', 'create_instance', 'delete_instance', 'is_running'])
 bansync = Module('bansync', ['list_bans', 'add_ban', 'remove_ban', 'set_note'])
 guidbans = Module('guidbans', ['list_bans', 'add_ban', 'remove_ban', 'set_note'])
+connections = Module('connections', ['search', 'chat_search'])

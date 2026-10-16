@@ -267,7 +267,10 @@ class log_handler:
                     
             elif ': sayteam: ' in last_line:
                 self._process_chat_message(last_line, is_team=True)
-                
+
+            elif ' tell: ' in last_line:
+                self._process_tell(last_line)
+
             elif 'Kill:' in last_line:
                 self._process_kill_message(last_line)
                 
@@ -596,6 +599,20 @@ class log_handler:
                 })
         except Exception as e:
             self.instance.log_handler.log("Error processing SMOD say: {} - Line: {}".format(str(e), last_line[:100]))
+
+    def _process_tell(self, last_line):
+        """A private message: "  12:34 tell: SENDER to TARGET: MESSAGE" """
+        try:
+            from mbiiez import connections
+            tell = None
+            if " to " in last_line:
+                tell = connections.split_tell(last_line, connections.known_names(self.instance.name).__contains__)
+            if tell and tell[0] and tell[2]:
+                self.instance.event_handler.run_event("player_tell", {
+                    "player": tell[0], "target": tell[1], "message": tell[2]
+                })
+        except Exception as e:
+            self.instance.log_handler.log("Error processing tell: {} - Line: {}".format(str(e), last_line[:100]))
 
     def _process_smod_login(self, last_line):
         """Process SMOD login messages safely"""

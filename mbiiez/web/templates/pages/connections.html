@@ -1,0 +1,254 @@
+{% extends 'base.html' %}
+{% block content %}
+<style>
+  .conn-card { border: 0; box-shadow: 0 8px 22px rgba(31, 44, 62, 0.08); }
+  .conn-table td, .conn-table th { vertical-align: middle; }
+  .conn-table td { font-size: 0.9rem; }
+  .conn-ip { font-family: var(--bs-font-monospace); white-space: nowrap; }
+  .conn-guid { font-family: var(--bs-font-monospace); font-size: 0.8rem; }
+  .conn-names .badge { font-weight: 500; }
+  .conn-when { white-space: nowrap; }
+</style>
+
+<div class="page-header mb-4">
+  <h3 class="page-title mb-1">Connections</h3>
+  <div class="text-muted">Everyone who's connected to this node's servers, for tracing trolls. Search an IP (or the start of one), a name, or a GUID to see every name, IP and GUID linked to them, and when and where they played. IPs and GUIDs seen together are treated as one person - a shared IP (a household, a VPN) can join people who aren't.</div>
+</div>
+
+<form class="row g-2 align-items-end mb-4" method="get" action="/connections">
+  <div class="col-12 col-md-6">
+    <label class="form-label fw-semibold mb-1" for="conn-q">Search</label>
+    <input type="search" class="form-control" id="conn-q" name="q" value="{{ view_bag.query }}" placeholder="IP, name or GUID" autofocus>
+  </div>
+  <div class="col-6 col-md-2">
+    <label class="form-label fw-semibold mb-1" for="conn-days">Over the last</label>
+    <select class="form-select" id="conn-days" name="days">
+      {% for d in [1, 3, 7, 14, 30] %}<option value="{{ d }}" {% if d == view_bag.days %}selected{% endif %}>{{ d }} day{{ '' if d == 1 else 's' }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="col-6 col-md-auto">
+    <button class="btn btn-primary" type="submit"><i class="fas fa-search"></i> Search</button>
+    {% if view_bag.query %}<a class="btn btn-outline-secondary" href="/connections?days={{ view_bag.days }}">Clear</a>{% endif %}
+  </div>
+</form>
+
+{% if not view_bag.has_engine_log %}
+<div class="alert alert-info py-2">Name changes in game and GUIDs on every connect are recorded by each server once it's restarted onto the latest engine. Until then this goes by the game logs' connects.</div>
+{% endif %}
+
+{% macro ip_link(ip, banned) -%}
+<a class="conn-ip" href="/connections?q={{ ip|urlencode }}&days={{ view_bag.days }}">{{ ip }}</a>{% if banned %} <span class="badge bg-danger">banned</span>{% endif %}
+{%- endmacro %}
+{% macro when(t) -%}<span class="conn-when" data-t="{{ t }}"></span>{%- endmacro %}
+
+{% if view_bag.query %}
+  {% if not view_bag.people %}
+  <div class="alert alert-secondary">Nobody matching <b>{{ view_bag.query }}</b> in the last {{ view_bag.days }} day{{ '' if view_bag.days == 1 else 's' }}.</div>
+  {% endif %}
+  {% if view_bag.more %}<div class="alert alert-warning py-2">{{ view_bag.more }} more matched - search for something more exact.</div>{% endif %}
+  {% for person in view_bag.people %}
+  <div class="card conn-card mb-4">
+    <div class="card-body">
+      <div class="d-flex flex-wrap justify-content-between align-items-baseline gap-2 mb-3">
+        <h5 class="card-title mb-0">
+          {% if person.names %}{{ person.names[0].name }}{% else %}Unnamed{% endif %}
+          {% if person.names|length > 1 %}<span class="text-muted fw-normal">and {{ person.names|length - 1 }} other name{{ '' if person.names|length == 2 else 's' }}</span>{% endif %}
+        </h5>
+        <span class="text-muted small">first seen {{ when(person.first) }} &middot; last seen {{ when(person.last) }}</span>
+      </div>
+      <div class="row">
+        <div class="col-lg-6 mb-3">
+          <h6 class="text-uppercase text-muted small fw-bold">Names</h6>
+          <div class="table-responsive">
+            <table class="table table-sm conn-table mb-0">
+              <thead><tr><th>Name</th><th>Sessions</th><th>Last seen</th><th>Servers</th></tr></thead>
+              <tbody>
+                {% for n in person.names %}
+                <tr>
+                  <td><a href="/connections?q={{ n.name|urlencode }}&days={{ view_bag.days }}">{{ n.name }}</a></td>
+                  <td>{{ n.sessions }}</td>
+                  <td>{{ when(n.last) }}</td>
+                  <td class="small">{{ n.instances|join(', ') }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="col-lg-6 mb-3">
+          <h6 class="text-uppercase text-muted small fw-bold">IPs</h6>
+          <ul class="list-group mb-3">
+            {% for ip in person.ips %}
+            <li class="list-group-item d-flex flex-wrap justify-content-between align-items-center gap-2 py-2">
+              <span>{{ ip_link(ip.ip, ip.banned) }} {% if ip.last %}<span class="text-muted small">last {{ when(ip.last) }}</span>{% endif %}</span>
+              {% if not ip.banned %}<button class="btn btn-sm btn-outline-danger" type="button" onclick="connBan('{{ ip.ip }}')">Ban IP</button>{% endif %}
+            </li>
+            {% endfor %}
+          </ul>
+          {% if person.guids %}
+          <h6 class="text-uppercase text-muted small fw-bold">GUIDs</h6>
+          <div class="d-flex flex-wrap gap-2">
+            {% for g in person.guids %}
+            <a class="conn-guid badge {{ 'bg-danger' if g.banned else 'bg-secondary text-white' }}" href="/connections?q={{ g.guid }}&days={{ view_bag.days }}" title="{{ 'Banned' if g.banned else 'Search this GUID' }}">{{ g.guid }}</a>
+            {% endfor %}
+          </div>
+          {% endif %}
+        </div>
+      </div>
+      <h6 class="text-uppercase text-muted small fw-bold">Sessions</h6>
+      <div class="table-responsive" style="max-height: 420px; overflow-y: auto;">
+        <table class="table table-sm table-hover conn-table mb-0">
+          <thead><tr><th>When</th><th>Server</th><th>Name</th><th>IP</th></tr></thead>
+          <tbody>
+            {% for s in person.sessions %}
+            <tr>
+              <td>{{ when(s.start) }}{% if s.end - s.start > 60 %} &ndash; {{ when(s.end) }}{% endif %}</td>
+              <td>{{ s.instance }}</td>
+              <td>{{ s.name }}{% if s.renamed_from %} <span class="text-muted small">(renamed from {{ s.renamed_from }})</span>{% endif %}</td>
+              <td>{{ ip_link(s.ip, s.banned) }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% set kinds = [('', 'All', person.chat|length), ('PUBLIC', 'Say', person.chat|selectattr('type', 'eq', 'PUBLIC')|list|length),
+                      ('TEAM', 'Team', person.chat|selectattr('type', 'eq', 'TEAM')|list|length),
+                      ('TELL', 'Tell', person.chat|selectattr('type', 'eq', 'TELL')|list|length)] %}
+      <div class="conn-chat mt-4">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+          <h6 class="text-uppercase text-muted small fw-bold mb-0">Chat</h6>
+          {% if person.chat %}
+          <div class="d-flex flex-wrap align-items-center gap-2">
+            <div class="btn-group btn-group-sm" role="group">
+              {% for k, label, n in kinds %}
+              <button type="button" class="btn btn-outline-secondary{% if not k %} active{% endif %}" data-chat-type="{{ k }}">{{ label }} <span class="badge bg-secondary text-white">{{ n }}</span></button>
+              {% endfor %}
+            </div>
+            <input type="search" class="form-control form-control-sm" style="width: 14rem;" placeholder="Filter messages or names" data-chat-text>
+          </div>
+          {% endif %}
+        </div>
+        {% if person.chat %}
+        <div class="table-responsive" style="max-height: 420px; overflow-y: auto;">
+          <table class="table table-sm table-hover conn-table mb-0">
+            <thead><tr><th>When</th><th>Server</th><th>Type</th><th>Name</th><th>To</th><th>Message</th></tr></thead>
+            <tbody>
+              {% for c in person.chat %}
+              <tr data-type="{{ c.type }}">
+                <td>{{ when(c.t) }}</td>
+                <td>{{ c.instance }}</td>
+                <td><span class="badge {{ {'PUBLIC': 'bg-primary', 'TEAM': 'bg-info text-dark', 'TELL': 'bg-warning text-dark'}.get(c.type, 'bg-secondary') }}">{{ {'PUBLIC': 'say', 'TEAM': 'team', 'TELL': 'tell'}.get(c.type, c.type|lower) }}</span></td>
+                <td>{{ c.name }}</td>
+                <td>{% if c.target %}<a href="/connections?q={{ c.target|urlencode }}&days={{ view_bag.days }}">{{ c.target }}</a>{% endif %}</td>
+                <td style="word-break: break-word;">{{ c.message }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="text-muted small">No chat in the last {{ view_bag.days }} day{{ '' if view_bag.days == 1 else 's' }}{% if view_bag.days > 7 %} (chat is kept 7 days){% endif %}.</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+{% else %}
+  <div class="row">
+    <div class="col-xl-6 mb-4">
+      <div class="card conn-card h-100">
+        <div class="card-body">
+          <h5 class="card-title">IPs used under more than one name <span class="badge bg-secondary">{{ view_bag.shared_ips|length }}</span></h5>
+          <div class="text-muted small mb-3">Most names first. Click an IP for everything linked to it.</div>
+          <div class="table-responsive" style="max-height: 640px; overflow-y: auto;">
+            <table class="table table-sm table-hover conn-table mb-0">
+              <thead><tr><th>IP</th><th>Names</th><th>Last seen</th></tr></thead>
+              <tbody>
+                {% for d in view_bag.shared_ips %}
+                <tr>
+                  <td>{{ ip_link(d.ip, d.banned) }}</td>
+                  <td class="conn-names">{% for n in d.names %}{% if n.name %}<span class="badge bg-secondary text-white me-1 mb-1">{{ n.name }}</span>{% endif %}{% endfor %}</td>
+                  <td>{{ when(d.last) }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="3" class="text-muted">None.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-xl-6 mb-4">
+      <div class="card conn-card h-100">
+        <div class="card-body">
+          <h5 class="card-title">Latest sessions</h5>
+          <div class="text-muted small mb-3">A name on an IP and server, played through map changes.</div>
+          <div class="table-responsive" style="max-height: 640px; overflow-y: auto;">
+            <table class="table table-sm table-hover conn-table mb-0">
+              <thead><tr><th>When</th><th>Server</th><th>Name</th><th>IP</th><th></th></tr></thead>
+              <tbody>
+                {% for s in view_bag.sessions %}
+                <tr>
+                  <td>{{ when(s.end) }}</td>
+                  <td>{{ s.instance }}</td>
+                  <td><a href="/connections?q={{ s.name|urlencode }}&days={{ view_bag.days }}">{{ s.name }}</a>{% if s.renamed_from %} <span class="text-muted small">(was {{ s.renamed_from }})</span>{% endif %}</td>
+                  <td>{{ ip_link(s.ip, s.banned) }}</td>
+                  <td class="text-end">{% if not s.banned %}<button class="btn btn-sm btn-outline-danger py-0" type="button" onclick="connBan('{{ s.ip }}')">Ban</button>{% endif %}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="5" class="text-muted">No connections yet.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endif %}
+
+<script>
+(function () {
+  const now = Date.now() / 1000;
+  const ago = (s) => s < 90 ? 'just now' : s < 5400 ? Math.round(s / 60) + ' min ago' : s < 129600 ? Math.round(s / 3600) + ' h ago' : Math.round(s / 86400) + ' days ago';
+  document.querySelectorAll('[data-t]').forEach(function (el) {
+    const t = +el.dataset.t;
+    if (!t) return;
+    const d = new Date(t * 1000);
+    el.textContent = d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    el.title = ago(now - t);
+  });
+  document.querySelectorAll('.conn-chat').forEach(function (box) {
+    let type = '';
+    const text = box.querySelector('[data-chat-text]');
+    const apply = function () {
+      const q = text ? text.value.trim().toLowerCase() : '';
+      box.querySelectorAll('tr[data-type]').forEach(function (tr) {
+        tr.hidden = (type && tr.dataset.type !== type) || (q && !tr.textContent.toLowerCase().includes(q));
+      });
+    };
+    box.querySelectorAll('[data-chat-type]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        type = btn.dataset.chatType;
+        box.querySelectorAll('[data-chat-type]').forEach(b => b.classList.toggle('active', b === btn));
+        apply();
+      });
+    });
+    if (text) text.addEventListener('input', apply);
+  });
+})();
+function connBan(ip) {
+  const note = prompt('Ban ' + ip + ' on every server? Add a note (who and why):', '');
+  if (note === null) return;
+  fetch('/mod/ban', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ instance: '', ip: ip, note: note })
+  }).then(r => r.json()).then(data => {
+    if (!data.success) { mbiiToast(data.error || 'Ban failed', 'danger'); return; }
+    location.reload();
+  });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,114 @@
+{% extends 'base.html' %}
+{% block content %}
+<style>
+  .chatlog-card { border: 0; box-shadow: 0 8px 22px rgba(31, 44, 62, 0.08); }
+  .chatlog-table td, .chatlog-table th { vertical-align: middle; }
+  .chatlog-table td { font-size: 0.9rem; }
+  .chatlog-ip { font-family: var(--bs-font-monospace); white-space: nowrap; }
+  .chatlog-when { white-space: nowrap; }
+  .chatlog-msg { word-break: break-word; min-width: 16rem; }
+  .chatlog-trace { opacity: 0.55; }
+  .chatlog-trace:hover { opacity: 1; }
+</style>
+
+{% set vb = view_bag %}
+{% macro link(q='', instance=vb.instance, type=vb.type, page=0) -%}
+/chatlog?q={{ q|urlencode }}&instance={{ instance|urlencode }}&type={{ type }}&days={{ vb.days }}{% if vb.server %}&server=1{% endif %}{% if page %}&page={{ page }}{% endif %}
+{%- endmacro %}
+
+<div class="page-header mb-4">
+  <h3 class="page-title mb-1">Chat Log</h3>
+  <div class="text-muted">Everything said on this node's servers - says, team chat and tells. Search a message, a name or who a tell went to, or an IP (or the start of one) for everything said from it. The IP is the one that name was connected from at the time. Chat is kept {{ vb.kept_days }} days.</div>
+</div>
+
+<form class="row g-2 align-items-end mb-4" method="get" action="/chatlog">
+  <div class="col-12 col-md-4">
+    <label class="form-label fw-semibold mb-1" for="cl-q">Search</label>
+    <input type="search" class="form-control" id="cl-q" name="q" value="{{ vb.query }}" placeholder="Message, name or IP" autofocus>
+  </div>
+  <div class="col-6 col-md-2">
+    <label class="form-label fw-semibold mb-1" for="cl-instance">Server</label>
+    <select class="form-select" id="cl-instance" name="instance">
+      <option value="">All servers</option>
+      {% for i in vb.instances %}<option value="{{ i }}" {% if i|lower == vb.instance|lower %}selected{% endif %}>{{ i }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="col-6 col-md-2">
+    <label class="form-label fw-semibold mb-1" for="cl-type">Type</label>
+    <select class="form-select" id="cl-type" name="type">
+      {% for k, label in [('', 'All chat'), ('PUBLIC', 'Says'), ('TEAM', 'Team'), ('TELL', 'Tells')] %}<option value="{{ k }}" {% if k == vb.type %}selected{% endif %}>{{ label }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="col-6 col-md-2">
+    <label class="form-label fw-semibold mb-1" for="cl-days">Over the last</label>
+    <select class="form-select" id="cl-days" name="days">
+      {% for d in [1, 3, 7, 14, 30] if d <= vb.kept_days or d == vb.days %}<option value="{{ d }}" {% if d == vb.days %}selected{% endif %}>{{ d }} day{{ '' if d == 1 else 's' }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="col-6 col-md-auto">
+    <div class="form-check mb-2">
+      <input class="form-check-input" type="checkbox" id="cl-server" name="server" value="1" {% if vb.server %}checked{% endif %}>
+      <label class="form-check-label" for="cl-server">Server messages</label>
+    </div>
+  </div>
+  <div class="col-12 col-md-auto">
+    <button class="btn btn-primary" type="submit"><i class="fas fa-search"></i> Search</button>
+    {% if vb.query or vb.instance or vb.type %}<a class="btn btn-outline-secondary" href="/chatlog?days={{ vb.days }}">Clear</a>{% endif %}
+  </div>
+</form>
+
+<div class="card chatlog-card">
+  <div class="card-body">
+    {% if vb.lines %}
+    <div class="table-responsive">
+      <table class="table table-sm table-hover chatlog-table mb-0">
+        <thead><tr><th>When</th><th>Server</th><th>Type</th><th>Name</th><th>IP</th><th>To</th><th>Message</th></tr></thead>
+        <tbody>
+          {% for c in vb.lines %}
+          <tr>
+            <td><span class="chatlog-when" data-t="{{ c.t }}"></span></td>
+            <td><a href="{{ link(vb.query, c.instance) }}">{{ c.instance }}</a></td>
+            <td><a href="{{ link(vb.query, type=c.type) }}" class="badge {{ {'PUBLIC': 'bg-primary', 'TEAM': 'bg-info text-dark', 'TELL': 'bg-warning text-dark'}.get(c.type, 'bg-secondary') }}">{{ {'PUBLIC': 'say', 'TEAM': 'team', 'TELL': 'tell'}.get(c.type, c.type|lower) }}</a></td>
+            <td class="text-nowrap"><a href="{{ link(c.name) }}" title="Search this name">{{ c.name }}</a></td>
+            <td class="text-nowrap">
+              {% if c.ip %}
+              <a class="chatlog-ip" href="{{ link(c.ip) }}" title="Everything said from this IP">{{ c.ip }}</a>
+              <a class="chatlog-trace ms-1" href="/connections?q={{ c.ip|urlencode }}&days=30" title="Trace on Connections"><i class="fas fa-route"></i></a>
+              {% if c.banned %}<span class="badge bg-danger">banned</span>{% endif %}
+              {% else %}<span class="text-muted small" title="No connection of this name on this server around then">unknown</span>{% endif %}
+            </td>
+            <td class="text-nowrap">{% if c.target %}<a href="{{ link(c.target) }}">{{ c.target }}</a>{% endif %}</td>
+            <td class="chatlog-msg">{{ c.message }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="d-flex justify-content-between align-items-center mt-3">
+      <div>{% if vb.page %}<a class="btn btn-sm btn-outline-secondary" href="{{ link(vb.query, page=vb.page - 1) }}"><i class="fas fa-chevron-left"></i> Newer</a>{% endif %}</div>
+      <div class="text-muted small">Page {{ vb.page + 1 }}</div>
+      <div>{% if vb.more %}<a class="btn btn-sm btn-outline-secondary" href="{{ link(vb.query, page=vb.page + 1) }}">Older <i class="fas fa-chevron-right"></i></a>{% endif %}</div>
+    </div>
+    {% else %}
+    <div class="text-muted">No chat matching that in the last {{ vb.days }} day{{ '' if vb.days == 1 else 's' }}.</div>
+    {% endif %}
+  </div>
+</div>
+
+<script>
+(function () {
+  const now = Date.now() / 1000;
+  const ago = (s) => s < 90 ? 'just now' : s < 5400 ? Math.round(s / 60) + ' min ago' : s < 129600 ? Math.round(s / 3600) + ' h ago' : Math.round(s / 86400) + ' days ago';
+  document.querySelectorAll('[data-t]').forEach(function (el) {
+    const t = +el.dataset.t;
+    if (!t) return;
+    const d = new Date(t * 1000);
+    el.textContent = d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    el.title = ago(now - t);
+  });
+  ['cl-instance', 'cl-type', 'cl-days', 'cl-server'].forEach(function (id) {
+    document.getElementById(id).addEventListener('change', function () { this.form.submit(); });
+  });
+})();
+</script>
+{% endblock %}
