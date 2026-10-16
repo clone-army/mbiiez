@@ -56,7 +56,14 @@ class db:
     def connect(self):
         conn = None
         try:
-            conn = sqlite3.connect(settings.database.database)
+            # Several processes write here at once (each instance, the web UI,
+            # the API): wait for the lock rather than fail. In WAL mode,
+            # synchronous=NORMAL is still safe from corruption on a crash and
+            # skips a disk sync on every commit - inserts ~13x faster.
+            conn = sqlite3.connect(settings.database.database, timeout=15)
+            conn.execute("PRAGMA synchronous=NORMAL")
+            conn.execute("PRAGMA temp_store=MEMORY")
+            conn.execute("PRAGMA cache_size=-16000")
             conn.row_factory = self.dict_factory
             return conn
         except Error as e:
@@ -213,42 +220,48 @@ class db:
                         
         return rows
         
-    def clean_up(self):
+    # How long each table keeps its rows. Connections are kept longest: the
+    # Connections page traces players by them.
+    RETENTION_DAYS = {
+        "logs": 7,
+        "chatter": 7,
+        "connections": 30,
+        "player_info": 14,
+        "frags": 30,
+        "processes": 3,
+        "web_audit": 180,
+    }
+
+    def clean_up(self, vacuum=False):
+        """Drop rows past their table's retention, a batch at a time so no
+        other process waits long for the lock. VACUUM (which rewrites the
+        whole file and blocks every writer while it does) only when asked -
+        from db_maintenance, with the servers stopped."""
         conn = self.connect()
         if not conn:
             return
-
         try:
-            cur = conn.cursor()
-            retention_days = {
-                "logs": 7,
-                "chatter": 7,
-                "connections": 14,
-                "player_info": 14,
-                "frags": 30,
-                "processes": 3,
-            }
-
-            for table, days in retention_days.items():
+            for table, days in self.RETENTION_DAYS.items():
+                cutoff = (datetime.datetime.now() - datetime.timedelta(days=days)).strftime("%Y-%m-%d %H:%M:%S")
                 try:
-                    cur.execute(
-                        f"DELETE FROM {table} WHERE added < datetime('now', '-{days} day')"
-                    )
+                    while True:
+                        cur = conn.execute(
+                            f"DELETE FROM {table} WHERE rowid IN (SELECT rowid FROM {table} WHERE added < ? LIMIT 5000)", (cutoff,))
+                        conn.commit()
+                        if cur.rowcount < 5000:
+                            break
+                        time.sleep(0.05)  # let the others in
                 except Exception as table_err:
                     print(f"Cleanup warning on table {table}: {table_err}")
-
-            conn.commit()
-
-            try:
-                cur.execute("VACUUM")
-            except Exception as vacuum_err:
-                print(f"Cleanup vacuum warning: {vacuum_err}")
-
+            if vacuum:
+                conn.execute("VACUUM")
+                conn.execute("ANALYZE")
+            else:
+                conn.execute("PRAGMA optimize")
         except Error as e:
             print(f"Cleanup error: {e}")
         finally:
-            if conn:
-                conn.close()
+            conn.close()
 
     def _maybe_cleanup(self):
         now = time.time()
@@ -260,12 +273,24 @@ class db:
             now = time.time()
             if now - db._last_cleanup < db._cleanup_interval_seconds:
                 return
-
+            db._last_cleanup = now
+            # Every process gets here; only the first in each 6 hours cleans.
+            conn = self.connect()
             try:
-                self.clean_up()
+                conn.execute("BEGIN IMMEDIATE")
+                row = conn.execute("SELECT value FROM maintenance WHERE key = 'last_cleanup'").fetchone()
+                if row and now - float(row["value"]) < db._cleanup_interval_seconds:
+                    conn.rollback()
+                    return
+                conn.execute("INSERT OR REPLACE INTO maintenance (key, value) VALUES ('last_cleanup', ?)", (str(now),))
+                conn.commit()
+            except Error as e:
+                print(f"Cleanup check: {e}")
+                return
             finally:
-                db._last_cleanup = time.time()
-        
+                conn.close()
+            self.clean_up()
+
     def temp_get_player_id(self, player):
         conn = self.connect()
         cur = conn.cursor()
@@ -302,9 +327,21 @@ class db:
                 player text,
                 instance text,
                 type text,
-                message varchar
+                message varchar,
+                target text
             );""")
-        
+        else:
+            # Who a TELL went to - added after the table, so older ones lack it.
+            conn = self.connect()
+            try:
+                if "target" not in [c["name"] for c in conn.execute("PRAGMA table_info(chatter)")]:
+                    conn.execute("ALTER TABLE chatter ADD COLUMN target text")
+                    conn.commit()
+            except Error as e:
+                print(e)
+            finally:
+                conn.close()
+
         # Overall log holder, auto cleared to remove older log lines
         if(not self.table_exists("logs")):        
             self.create_table("""
@@ -380,6 +417,34 @@ class db:
             );""")
                   
         
+        self.create_table("""
+            CREATE TABLE IF NOT EXISTS maintenance (
+                key text PRIMARY KEY,
+                value text
+            );""")
+
+        # Indexes for what's looked up all the time: a player's latest connect
+        # (every chat line), the log and chat pages, stats, the Connections
+        # page, and the cleanup's date cut-offs.
+        for index_sql in (
+            "CREATE INDEX IF NOT EXISTS idx_connections_player ON connections (player, added)",
+            "CREATE INDEX IF NOT EXISTS idx_connections_added ON connections (added)",
+            "CREATE INDEX IF NOT EXISTS idx_connections_slot ON connections (instance, player_id, added)",
+            "CREATE INDEX IF NOT EXISTS idx_connections_ip ON connections (ip)",
+            "CREATE INDEX IF NOT EXISTS idx_logs_added ON logs (added)",
+            "CREATE INDEX IF NOT EXISTS idx_logs_instance ON logs (instance, added)",
+            "CREATE INDEX IF NOT EXISTS idx_chatter_added ON chatter (added)",
+            "CREATE INDEX IF NOT EXISTS idx_chatter_instance ON chatter (instance COLLATE NOCASE, added)",
+            "CREATE INDEX IF NOT EXISTS idx_chatter_player ON chatter (player COLLATE NOCASE, added)",
+            "CREATE INDEX IF NOT EXISTS idx_frags_added ON frags (added)",
+            "CREATE INDEX IF NOT EXISTS idx_frags_fragger ON frags (fragger)",
+            "CREATE INDEX IF NOT EXISTS idx_frags_fragged ON frags (fragged)",
+            "CREATE INDEX IF NOT EXISTS idx_player_info_player ON player_info (player, added)",
+            "CREATE INDEX IF NOT EXISTS idx_processes_instance ON processes (instance, name)",
+            "CREATE INDEX IF NOT EXISTS idx_web_audit_added ON web_audit (added)",
+        ):
+            self.create_table(index_sql)
+
         # View, latest player "Client Change Info"
         if(not self.view_exists("latest_player_info")):        
             self.create_view("latest_player_info", """

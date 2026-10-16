@@ -62,6 +62,12 @@
                 <li>
                     <a href="/guidbans" class="{% if request.path.startswith('/guidbans') %}active{% endif %}"><i class="fas fa-fingerprint"></i> GUID Bans</a>
                 </li>
+                <li>
+                    <a href="/connections" class="{% if request.path.startswith('/connections') %}active{% endif %}"><i class="fas fa-route"></i> Connections</a>
+                </li>
+                <li>
+                    <a href="/chatlog" class="{% if request.path.startswith('/chatlog') %}active{% endif %}"><i class="fas fa-comment-dots"></i> Chat Log</a>
+                </li>
                 {% endif %}
                 {% if can_admin %}
                 {% for item in global_plugin_menus %}

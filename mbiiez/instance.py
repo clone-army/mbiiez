@@ -230,6 +230,7 @@ class instance:
         self.event_handler.register_event("player_chat_command", self.event_handler.player_chat_command)
         self.event_handler.register_event("player_chat", self.event_handler.player_chat)
         self.event_handler.register_event("player_chat_team", self.event_handler.player_chat_team)
+        self.event_handler.register_event("player_tell", self.event_handler.player_tell)
         self.event_handler.register_event("player_killed", self.event_handler.player_killed)       
         self.event_handler.register_event("player_connected", self.event_handler.player_connected)               
         self.event_handler.register_event("player_disconnected", self.event_handler.player_disconnected)       
@@ -457,6 +458,44 @@ class instance:
     # List banned players
     def listbans(self):
         self.console.rcon("g_banips")
+
+    # This server's temp bans (MBII "tempban <player> <rounds>"), as
+    # [{"id": 0, "rounds": 3, "ip": "1.2.3.4"}]. They live only in the
+    # running server's memory, so each instance has its own list.
+    def tempbans(self):
+        output = re.sub(r"\^\d", "", self.console.rcon("tempbanlist") or "")
+        bans = []
+        for line in output.splitlines():
+            match = re.match(r"\s*(\d+)\s+(-?\d+)\s+((?:\d{1,3}\.){3}\d{1,3})\b", line)
+            if match:
+                bans.append({"id": int(match.group(1)), "rounds": int(match.group(2)), "ip": match.group(3)})
+        return bans
+
+    # MBII's answer to a player command, or ValueError if it refused it
+    # (no one in that slot, a bad argument...).
+    def _player_command(self, command):
+        reply = re.sub(r"\^\d", "", self.console.rcon(command) or "")
+        for refusal in ("Bad client slot", "Could not find", "No connected player", "Invalid argument", "Usage:"):
+            if refusal in reply:
+                raise ValueError(reply.replace("print", "").strip().splitlines()[-1].strip() or refusal)
+        return reply
+
+    # Temp ban a player (slot) for some rounds - MBII's own "tempban"
+    def tempban(self, player, rounds):
+        return self._player_command("tempban {} {}".format(int(player), max(1, min(100, int(rounds)))))
+
+    # Mute a player (slot) for some minutes, or unmute them - MBII's "mute" / "unmute"
+    def mute(self, player, minutes):
+        return self._player_command("mute {} {}".format(int(player), max(1, min(10080, int(minutes)))))
+
+    def unmute(self, player):
+        return self._player_command("unmute {}".format(int(player)))
+
+    # Lift a temp ban early, by IP (ids shift as bans expire)
+    def remove_tempban(self, ip):
+        if not re.fullmatch(r"(?:\d{1,3}\.){3}\d{1,3}", ip or ""):
+            raise ValueError("Not an IP address: {}".format(ip))
+        self.console.rcon("removetempban " + ip)
            
     # How many humans are on the server, or None if it didn't answer.
     # Read from status's own "players : N humans, M bots" line, asked up to

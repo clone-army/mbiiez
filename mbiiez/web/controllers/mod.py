@@ -28,6 +28,7 @@ class controller:
                 p['name'] = bc.html_color_convert(str(p.get('name', '')))
             self.controller_bag['players'] = players
             self.controller_bag['bans'] = self.get_bans(inst)
+            self.controller_bag['tempbans'] = self.get_tempbans(inst)
             self.controller_bag['plugin_cards'] = self.plugin_cards(instance)
 
     @staticmethod
@@ -82,6 +83,50 @@ class controller:
             return list(dict.fromkeys(ips))
         except Exception:
             return []
+
+    @staticmethod
+    def get_tempbans(inst):
+        """This server's own temp bans - unlike IP bans they aren't shared."""
+        try:
+            return inst.tempbans()
+        except Exception:
+            return []
+
+    @staticmethod
+    def remove_tempban(instance, ip):
+        inst = MBInstance(instance)
+        try:
+            inst.remove_tempban(ip)
+            return True, 'Temp ban removed.'
+        except Exception as e:
+            return False, str(e)
+
+    @staticmethod
+    def tempban_player(instance, player_id, rounds):
+        inst = MBInstance(instance)
+        try:
+            inst.tempban(player_id, rounds)
+            return True, 'Temp banned for {} round{}.'.format(int(rounds), '' if int(rounds) == 1 else 's')
+        except Exception as e:
+            return False, str(e)
+
+    @staticmethod
+    def mute_player(instance, player_id, minutes):
+        inst = MBInstance(instance)
+        try:
+            inst.mute(player_id, minutes)
+            return True, 'Muted for {} minute{}.'.format(int(minutes), '' if int(minutes) == 1 else 's')
+        except Exception as e:
+            return False, str(e)
+
+    @staticmethod
+    def unmute_player(instance, player_id):
+        inst = MBInstance(instance)
+        try:
+            inst.unmute(player_id)
+            return True, 'Unmuted.'
+        except Exception as e:
+            return False, str(e)
 
     @staticmethod
     def change_map(instance, mapname):

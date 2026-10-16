@@ -3,6 +3,7 @@ from mbiiez.process import process
 from mbiiez.db import db
 import os
 import datetime
+from mbiiez.helpers import helpers
 import time
 import subprocess
 
@@ -176,7 +177,12 @@ class event_handler:
         
     def player_chat_team(self, args):
         d = {"added": str(datetime.datetime.now()), "player":args['player'], "instance": self.instance.name, "type": "TEAM", "message": args['message']}
-        return db().insert("chatter", d)    
+        return db().insert("chatter", d)
+
+    def player_tell(self, args):
+        d = {"added": str(datetime.datetime.now()), "player": args['player'], "instance": self.instance.name, "type": "TELL",
+             "message": args['message'], "target": args['target']}
+        return db().insert("chatter", d)
     
     def player_killed (self, args):
         d = {"added": str(datetime.datetime.now()), "instance": self.instance.name, "fragger": args['fragger'], "fragged": args['fragged'], "weapon": args['weapon']}
@@ -184,6 +190,18 @@ class event_handler:
         
     def player_connected (self, args):    
         d = {"added": str(datetime.datetime.now()), "player": args['player'], "player_id": args['player_id'], "instance": self.instance.name, "ip": args['ip'], "type": "CONNECT"}
+        # MBII logs everyone in the game again at each map change: one row a
+        # stay, not one a map (same slot, IP and name in the last 6 hours).
+        conn = db().connect()
+        try:
+            since = str(datetime.datetime.now() - datetime.timedelta(hours=6))
+            seen = conn.execute(
+                "SELECT 1 FROM connections WHERE instance = ? AND player_id = ? AND added >= ? AND ip = ? AND player = ? AND type = 'CONNECT' LIMIT 1",
+                (self.instance.name, str(args['player_id']), since, helpers().ansi_strip(str(args['ip'])), helpers().ansi_strip(str(args['player'])))).fetchone()
+        finally:
+            conn.close()
+        if seen:
+            return None
         return db().insert("connections", d)
     
     def player_disconnected (self, args):  

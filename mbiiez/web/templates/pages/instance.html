@@ -96,7 +96,7 @@
             <li class="list-group-item d-flex align-items-center justify-content-between">
               <div>
                 <span class="fw-bold mb-preserve-space">{{ player.player_html|safe }}</span><br>
-                <span class="badge bg-primary">{{ player.ip }}</span>
+                <a class="badge bg-primary text-decoration-none" href="/connections?q={{ player.ip|urlencode }}" title="Every name and connection from this IP">{{ player.ip }}</a>
               </div>
               <span class="badge bg-info">{{ player.id }}</span>
             </li>
