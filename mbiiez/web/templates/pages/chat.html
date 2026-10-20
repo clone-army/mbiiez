@@ -96,23 +96,18 @@ function sendChat() {
   const input = document.getElementById('chat-input');
   const message = input.value.trim();
   if (!message) return;
+  // Enter submits the form - this is its only sender. Clear straight away so
+  // a quick second Enter can't send the same line again.
+  input.value = '';
   fetch(`/chat/send`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ instance, message })
-  }).then(() => {
-    input.value = '';
-    loadChat();
-  });
+  }).then(() => loadChat());
 }
 document.getElementById('chat-form').addEventListener('submit', function(e) {
   e.preventDefault();
   sendChat();
-});
-document.getElementById('chat-input').addEventListener('keydown', function(e) {
-  if (e.key === 'Enter') {
-    sendChat();
-  }
 });
 let chatInterval = setInterval(loadChat, 2000);
 window.onload = loadChat;
