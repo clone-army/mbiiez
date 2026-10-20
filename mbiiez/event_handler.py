@@ -184,6 +184,25 @@ class event_handler:
              "message": args['message'], "target": args['target']}
         return db().insert("chatter", d)
     
+    def _smod(self, action, args):
+        d = {"added": str(datetime.datetime.now()), "instance": self.instance.name, "action": action,
+             "admin": args.get('admin', ''), "admin_id": int(args.get('admin_id') or 0), "ip": args.get('ip', ''),
+             "command": args.get('command', ''), "args": args.get('args', ''), "target": args.get('target', ''),
+             "target_ip": args.get('target_ip', ''), "message": args.get('message', '')}
+        return db().insert("smod_log", d)
+
+    def smod_login(self, args):
+        return self._smod("login", args)
+
+    def smod_login_failed(self, args):
+        return self._smod("login_failed", args)
+
+    def smod_command(self, args):
+        return self._smod("command", args)
+
+    def smod_say(self, args):
+        return self._smod("say", dict(args, command=args.get('kind', 'say')))
+
     def player_killed (self, args):
         d = {"added": str(datetime.datetime.now()), "instance": self.instance.name, "fragger": args['fragger'], "fragged": args['fragged'], "weapon": args['weapon']}
         return db().insert("frags", d)

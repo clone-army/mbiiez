@@ -68,6 +68,9 @@
                 <li>
                     <a href="/chatlog" class="{% if request.path.startswith('/chatlog') %}active{% endif %}"><i class="fas fa-comment-dots"></i> Chat Log</a>
                 </li>
+                <li>
+                    <a href="/smodlog" class="{% if request.path.startswith('/smodlog') %}active{% endif %}"><i class="fas fa-user-shield"></i> SMOD Log</a>
+                </li>
                 {% endif %}
                 {% if can_admin %}
                 {% for item in global_plugin_menus %}

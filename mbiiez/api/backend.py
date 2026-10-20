@@ -18,7 +18,7 @@ ACTIONS = {
     'rcon.send_rcon': 'admin', 'mod.change_map': 'mod', 'mod.change_mode': 'mod',
     'mod.kick_player': 'mod', 'mod.tell_player': 'mod', 'mod.run_plugin_action': 'mod',
     'mod.tempban_player': 'mod', 'mod.remove_tempban': 'mod', 'mod.mute_player': 'mod', 'mod.unmute_player': 'mod',
-    'connections.search': 'mod', 'connections.chat_search': 'mod',
+    'connections.search': 'mod', 'connections.chat_search': 'mod', 'smodlog.search': 'mod',
     'plugin_page.global_page': 'admin', 'plugin_page.run_global_action': 'admin',
     'plugin_page.run_action': 'admin',
     'instance_admin.wizard_bag': 'admin', 'instance_admin.create_instance': 'admin',
@@ -65,7 +65,7 @@ def action(name, args):
         config_path(args[0])
     if module == 'instance_admin' and method in ('delete_instance', 'is_running'):
         config_path(args[0])
-    if module in ('bansync', 'guidbans', 'connections'):
+    if module in ('bansync', 'guidbans', 'connections', 'smodlog'):
         obj = importlib.import_module('mbiiez.' + module)
     elif module == 'instance_admin':
         obj = importlib.import_module('mbiiez.web.controllers.instance_admin')

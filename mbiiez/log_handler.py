@@ -19,6 +19,13 @@ from mbiiez.db import db
 
 from mbiiez.models import chatter, log, frag, connection
 
+# SMOD's own log lines. Names are as typed, colour codes and all; the command
+# line has no space before "(adminID", the say and login lines do.
+_SMOD_COMMAND = re.compile(r"SMOD command \((.*?)\) executed by (.+?)\s*\(adminID: (\d+)\) \(IP: ([^)]*)\)"
+                           r"(?: against (.*?))?(?: \(\S+ resolved to (.+) \(IP: ([^)]*)\)\)?)?\s*$")
+_SMOD_SAY = re.compile(r"SMOD (\w+): (.+?)\s*\(adminID: (\d+)\) \(IP: ([^)]*)\)\s*: (.*)$")
+_SMOD_LOGIN = re.compile(r"(Successful|Failed) SMOD login (?:attempt )?by (.+?)\s*\(adminID: (\d+)\) \(IP: ([^)]*)\)")
+
 
 class log_handler:
     
@@ -292,11 +299,11 @@ class log_handler:
             elif "SMOD command (" in last_line:
                 self._process_smod_command(last_line)
 
-            elif "SMOD say:" in last_line:
-                self._process_smod_say(last_line)
-
-            elif "Successful SMOD login by" in last_line:
+            elif "SMOD login" in last_line:
                 self._process_smod_login(last_line)
+
+            elif _SMOD_SAY.search(last_line):
+                self._process_smod_say(last_line)
 
         except Exception as e:
             self.instance.log_handler.log("Critical error processing log line: {} - Line: {}".format(str(e), last_line[:100]))
@@ -571,31 +578,29 @@ class log_handler:
             self.instance.log_handler.log("Error processing client begin: {} - Line: {}".format(str(e), last_line[:100]))
 
     def _process_smod_command(self, last_line):
-        """Process SMOD command messages safely"""
+        """An SMOD command: "SMOD command (kick) executed by NAME(adminID: 7)
+        (IP: x) against 0 r (0 resolved to TARGET (IP: y)" - the "against"
+        part only when it had arguments, the "resolved" part only when one
+        named a player."""
         try:
-            match = re.search(r'SMOD command \((.*?)\) executed by (.+?)\(adminID: (\d+)\) \(IP: (.+?)\)', last_line)
+            match = _SMOD_COMMAND.search(last_line)
             if match:
-                command = match.group(1)
-                admin = match.group(2).strip()
-                admin_id = match.group(3)
-                ip = match.group(4)
                 self.instance.event_handler.run_event("smod_command", {
-                    "command": command, "admin": admin, "admin_id": admin_id, "ip": ip
+                    "command": match.group(1), "admin": match.group(2).strip(), "admin_id": match.group(3),
+                    "ip": match.group(4), "args": (match.group(5) or "").strip(),
+                    "target": (match.group(6) or "").strip(), "target_ip": match.group(7) or ""
                 })
         except Exception as e:
             self.instance.log_handler.log("Error processing SMOD command: {} - Line: {}".format(str(e), last_line[:100]))
 
     def _process_smod_say(self, last_line):
-        """Process SMOD say messages safely"""
+        """SMOD say / smsay: "SMOD say: NAME (adminID: 7) (IP: x) : MESSAGE" """
         try:
-            match = re.search(r'SMOD say: (.+?) \(adminID: (\d+)\) \(IP: (.+?)\) : (.+)', last_line)
+            match = _SMOD_SAY.search(last_line)
             if match:
-                admin = match.group(1).strip()
-                admin_id = match.group(2)
-                ip = match.group(3)
-                message = match.group(4).strip()
                 self.instance.event_handler.run_event("smod_say", {
-                    "admin": admin, "admin_id": admin_id, "ip": ip, "message": message
+                    "kind": match.group(1), "admin": match.group(2).strip(), "admin_id": match.group(3),
+                    "ip": match.group(4), "message": match.group(5).strip()
                 })
         except Exception as e:
             self.instance.log_handler.log("Error processing SMOD say: {} - Line: {}".format(str(e), last_line[:100]))
@@ -615,17 +620,14 @@ class log_handler:
             self.instance.log_handler.log("Error processing tell: {} - Line: {}".format(str(e), last_line[:100]))
 
     def _process_smod_login(self, last_line):
-        """Process SMOD login messages safely"""
+        """Successful SMOD login by NAME (adminID: 7) (IP: x) - or a "Failed
+        SMOD login attempt by", which goes out as smod_login_failed."""
         try:
-            match = re.search(r'Successful SMOD login by (.+?) \(adminID: (\d+)\) \(IP: (.+?)\)', last_line)
+            match = _SMOD_LOGIN.search(last_line)
             if match:
-                admin = match.group(1).strip()
-                admin_id = match.group(2)
-                ip = match.group(3)
-                self.instance.event_handler.run_event("smod_login", {
-                    "admin": admin, "admin_id": admin_id, "ip": ip
-                })
+                self.instance.event_handler.run_event(
+                    "smod_login" if match.group(1) == "Successful" else "smod_login_failed", {
+                        "admin": match.group(2).strip(), "admin_id": match.group(3), "ip": match.group(4)
+                    })
         except Exception as e:
             self.instance.log_handler.log("Error processing SMOD login: {} - Line: {}".format(str(e), last_line[:100]))
-
-  
