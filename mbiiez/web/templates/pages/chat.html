@@ -71,15 +71,20 @@ function toggleHideServer() {
   loadChat();
 }
 
+// Names and messages are typed by players in game: text, never HTML.
+function esc(value) {
+  return String(value == null ? '' : value).replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'})[c]);
+}
+
 function buildMessage(msg) {
   if (msg.player === 'Server') {
     if (hideServer) return '';
     if (msg.type === 'PUBLIC') {
-      return `<div class='mb-2 p-2 rounded border text-white bg-primary' style='max-width:600px;margin-left:auto;text-align:right;'><div style='display:flex;justify-content:flex-end;align-items:center;'><span class='fw-bold'>Server</span><span class='text-light small ms-2' style='white-space:nowrap;'>${msg.added}</span></div><div class='mt-1'>${msg.message}</div></div>`;
+      return `<div class='mb-2 p-2 rounded border text-white bg-primary' style='max-width:600px;margin-left:auto;text-align:right;'><div style='display:flex;justify-content:flex-end;align-items:center;'><span class='fw-bold'>Server</span><span class='text-light small ms-2' style='white-space:nowrap;'>${esc(msg.added)}</span></div><div class='mt-1'>${esc(msg.message)}</div></div>`;
     }
-    return `<div class='mb-2 p-2 rounded border text-white' style='background-color:#6f42c1;max-width:600px;margin-left:auto;text-align:right;'><div style='display:flex;justify-content:flex-end;align-items:center;'><span class='fw-bold'>Server (Tell)</span><span class='text-light small ms-2' style='white-space:nowrap;'>${msg.added}</span></div><div class='mt-1'>${msg.message}</div></div>`;
+    return `<div class='mb-2 p-2 rounded border text-white' style='background-color:#6f42c1;max-width:600px;margin-left:auto;text-align:right;'><div style='display:flex;justify-content:flex-end;align-items:center;'><span class='fw-bold'>Server (Tell)</span><span class='text-light small ms-2' style='white-space:nowrap;'>${esc(msg.added)}</span></div><div class='mt-1'>${esc(msg.message)}</div></div>`;
   }
-  return `<div class='mb-2 p-2 rounded bg-light border' style='max-width:600px;'><div style='display:flex;justify-content:space-between;align-items:center;'><span class='fw-bold'>${msg.player}</span><span class='text-muted small' style='white-space:nowrap;'>${msg.added}</span></div><div class='mt-1'>${msg.message}</div></div>`;
+  return `<div class='mb-2 p-2 rounded bg-light border' style='max-width:600px;'><div style='display:flex;justify-content:space-between;align-items:center;'><span class='fw-bold'>${esc(msg.player)}</span><span class='text-muted small' style='white-space:nowrap;'>${esc(msg.added)}</span></div><div class='mt-1'>${esc(msg.message)}</div></div>`;
 }
 
 function loadChat() {
