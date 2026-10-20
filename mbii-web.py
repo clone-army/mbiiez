@@ -1202,6 +1202,54 @@ def chatlog_page():
     return render_template("pages/chatlog.html", view_bag=data)
 
 
+@app.route("/smodlog", methods=["GET"])
+@require_role("mod")
+def smodlog_page():
+    """Every node's SMOD log, merged: who logged in as which admin, and what
+    they did and when, on any server."""
+    try:
+        days = int(request.args.get("days") or 7)
+        page = int(request.args.get("page") or 0)
+    except ValueError:
+        days, page = 7, 0
+    filters = {"q": request.args.get("q", ""), "instance": request.args.get("instance", ""),
+               "action": request.args.get("action", ""), "days": days}
+    node_filter = request.args.get("node", "")
+    actor = getattr(g, "current_user", "") or "web"
+
+    def fetch(item):
+        identifier, node = item
+        try:
+            return identifier, node["name"], Client(identifier, actor=actor).action("smodlog.search", filters), ""
+        except NodeError as exc:
+            return identifier, node["name"], None, str(exc)
+
+    targets = [(i, n) for i, n in nodes().items() if not node_filter or i == node_filter]
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        results = list(pool.map(fetch, targets))
+    entries, admins, instances, errors, truncated, kept = [], [], set(), [], False, 180
+    for identifier, name, data, error in results:
+        if data is None:
+            errors.append({"node": name, "error": error})
+            continue
+        for row in data["entries"]:
+            entries.append(dict(row, node=identifier, node_name=name))
+        for a in data["admins"]:
+            admins.append(dict(a, node=identifier, node_name=name))
+        instances.update(data["instances"])
+        truncated = truncated or data["truncated"]
+        days, kept = data["days"], data["kept_days"]
+    entries.sort(key=lambda e: -e["t"])
+    admins.sort(key=lambda a: -a["last"])
+    per_page = 250
+    view_bag = {"query": filters["q"], "instance": filters["instance"], "action": filters["action"], "days": days,
+                "node": node_filter, "nodes": [{"id": i, "name": n["name"]} for i, n in nodes().items()],
+                "entries": entries[page * per_page:(page + 1) * per_page], "more": len(entries) > (page + 1) * per_page,
+                "page": page, "total": len(entries), "truncated": truncated, "admins": admins, "errors": errors,
+                "instances": sorted(instances, key=str.lower), "kept_days": kept}
+    return render_template("pages/smodlog.html", view_bag=view_bag)
+
+
 @app.route("/mod/tell", methods=["POST"])
 @require_role("mod")
 def mod_tell():

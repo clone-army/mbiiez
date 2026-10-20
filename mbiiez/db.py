@@ -230,6 +230,7 @@ class db:
         "frags": 30,
         "processes": 3,
         "web_audit": 180,
+        "smod_log": 180,
     }
 
     def clean_up(self, vacuum=False):
@@ -402,6 +403,24 @@ class db:
                 instance text
             );""")        
 
+        # What SMOD admins did in game: logins (and failed ones), commands, says
+        if(not self.table_exists("smod_log")):
+            self.create_table("""
+            CREATE TABLE IF NOT EXISTS smod_log (
+                id integer PRIMARY KEY AUTOINCREMENT,
+                added datetime,
+                instance text,
+                action text,
+                admin text,
+                admin_id integer,
+                ip text,
+                command text,
+                args text,
+                target text,
+                target_ip text,
+                message text
+            );""")
+
         # Tracks moderation/admin actions triggered from the web UI
         if(not self.table_exists("web_audit")):
             self.create_table("""
@@ -442,6 +461,7 @@ class db:
             "CREATE INDEX IF NOT EXISTS idx_player_info_player ON player_info (player, added)",
             "CREATE INDEX IF NOT EXISTS idx_processes_instance ON processes (instance, name)",
             "CREATE INDEX IF NOT EXISTS idx_web_audit_added ON web_audit (added)",
+            "CREATE INDEX IF NOT EXISTS idx_smod_log_added ON smod_log (added)",
         ):
             self.create_table(index_sql)
 

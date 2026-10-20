@@ -35,3 +35,4 @@ instance_admin = Module('instance_admin', ['wizard_bag', 'create_instance', 'del
 bansync = Module('bansync', ['list_bans', 'add_ban', 'remove_ban', 'set_note'])
 guidbans = Module('guidbans', ['list_bans', 'add_ban', 'remove_ban', 'set_note'])
 connections = Module('connections', ['search', 'chat_search'])
+smodlog = Module('smodlog', ['search'])
