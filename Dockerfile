@@ -38,6 +38,13 @@ CMD ["/opt/openjk/venv/bin/python3", "/app/deploy/serve-web.py"]
 
 FROM runtime AS node
 COPY --from=engine /src/OpenJK/build/mbiided.i386 /usr/bin/caded.i386
+# MBII's CLI updater (run by update.sh) targets .NET 6, which is out of support; run it on .NET 8.
+COPY --from=mcr.microsoft.com/dotnet/runtime:8.0-bookworm-slim /usr/share/dotnet /usr/share/dotnet
+RUN apt-get update && apt-get install -y --no-install-recommends libicu72 libssl3 && rm -rf /var/lib/apt/lists/* \
+    && ln -s /usr/share/dotnet/dotnet /usr/bin/dotnet \
+    && curl -fsSL -o /tmp/updater.zip https://www.moviebattles.org/download/MBII_CLI_Updater.zip \
+    && unzip -o -q /tmp/updater.zip -d /app/updater && rm /tmp/updater.zip
+ENV DOTNET_ROLL_FORWARD=Major DOTNET_CLI_TELEMETRY_OPTOUT=1
 COPY deploy/supervisord.conf /etc/supervisor/conf.d/mbiiez.conf
 ENV MBIIEZ_COMPONENT=node
 EXPOSE 8081 29072/udp
