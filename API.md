@@ -174,6 +174,20 @@ MBIIEZ_API_BIND=10.25.0.166 docker compose -f compose.eu.yml up -d
 # Register the private URL or TLS proxy URL on the central panel's Nodes page.
 ```
 
+### Running a whole install in Docker
+
+`docker-compose.yml` is the general-purpose alternative to the native `install.sh`: it runs the game servers and API (`node`) and the web panel (`web`) together. Settings come from `.env`:
+
+```sh
+git clone -b main https://github.com/clone-army/mbiiez && cd mbiiez
+cp .env.example .env              # data directory, ports, bind addresses, container names
+mkdir -p docker-data/game/MBII docker-data/game/base   # copy MBII and Jedi Academy assets in here
+docker compose run --rm node mbii api keygen --scope admin --label web
+docker compose up -d --build
+```
+
+Put each instance config in `docker-data/node/configs/` with a `port` inside `MBIIEZ_GAME_PORTS` (UDP, forward it on your router) and restart the node; configured instances start on boot. Then open the panel on `MBIIEZ_WEB_PORT` and register the node on the Nodes page as `http://node:8081` with the key from `keygen`. Every 10 minutes the node runs `update.sh` to apply MBII game updates, restarting each server once it's empty. To update MBIIEZ itself from the panel, install the node updater below with `MBIIEZ_COMPOSE=docker-compose.yml`, `MBIIEZ_STATE=<MBIIEZ_DATA>/node` and `MBIIEZ_CONTAINER=mbiiez-node`.
+
 The compose files use a dedicated configurable subnet (`MBIIEZ_DOCKER_SUBNET`, default `10.78.0.0/24`) to work on hosts whose automatic Docker address pools are full. Change it if that subnet overlaps your network.
 
 Host UDP 29072 maps to the Legends server, while host TCP 18081 maps to its API. By default the API maps to loopback; set `MBIIEZ_API_BIND` to the host LAN IP for an external LAN proxy. Forward **UDP** for the game on your router; HTTP nginx proxying handles the API only. API autostart defaults off for ad hoc containers; the EU compose explicitly enables starting configured instances on container boot. API process restart is independent of that boot action.

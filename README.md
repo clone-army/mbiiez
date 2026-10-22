@@ -162,7 +162,7 @@ Then:
 Use `viewer` for read-only keys or `mod` for moderation. To rotate a key, generate a replacement,
 update and test the node in the panel, then run `mbii api revoke KEY_ID` on its agent.
 Each node keeps its own game data. CADED accounts, balances, bans and statistics can be linked to Local through **Sync CADED data**. Panel login accounts are central.
-For standalone Docker WEB, node images, persistent volumes and nginx examples, see [API.md](API.md).
+To run everything in Docker instead of installing natively, use `docker-compose.yml`. For it, standalone Docker WEB, node images, persistent volumes and nginx examples, see [API.md](API.md).
 
 ### Sync CADED data between nodes
 

@@ -38,3 +38,4 @@ api_audit.jsonl*
 .install-profile
 
 .install-engines
+/docker-data
