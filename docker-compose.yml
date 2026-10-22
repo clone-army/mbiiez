@@ -1,0 +1,54 @@
+# A whole MBIIEZ install in Docker - game servers, API and web panel - as an
+# alternative to the native install.sh. Copy .env.example to .env and adjust it, then:
+#   docker compose run --rm node mbii api keygen --scope admin --label web
+#   docker compose up -d --build
+# See "Docker" in API.md for game files, instance configs and registering the node.
+services:
+  node:
+    build:
+      context: .
+      target: node
+    image: mbiiez-node:latest
+    container_name: ${MBIIEZ_NODE_CONTAINER:-mbiiez-node}
+    restart: unless-stopped
+    environment:
+      MBIIEZ_AUTOSTART: '1'
+      MBIIEZ_STATE_DIR: /var/lib/mbiiez
+      MBIIEZ_DATABASE: /var/lib/mbiiez/mbiiez.db
+    ports:
+      - '${MBIIEZ_API_BIND:-127.0.0.1}:${MBIIEZ_API_PORT:-18081}:8081/tcp'
+      # Every instance's "port" must fall inside this range.
+      - '${MBIIEZ_GAME_PORTS:-29070-29079}:${MBIIEZ_GAME_PORTS:-29070-29079}/udp'
+    volumes:
+      - ${MBIIEZ_DATA:-./docker-data}/node:/var/lib/mbiiez
+      - ${MBIIEZ_DATA:-./docker-data}/game/MBII:/opt/openjk/MBII
+      - ${MBIIEZ_DATA:-./docker-data}/game/base:/opt/openjk/base:ro
+    healthcheck:
+      test: ['CMD', 'curl', '-fsS', 'http://127.0.0.1:8081/health']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  web:
+    build:
+      context: .
+      target: web
+    image: mbiiez-web:latest
+    container_name: ${MBIIEZ_WEB_CONTAINER:-mbiiez-web}
+    restart: unless-stopped
+    depends_on:
+      - node
+    environment:
+      MBIIEZ_STATE_DIR: /var/lib/mbiiez
+      MBIIEZ_WEB_USERS_FILE: /var/lib/mbiiez/web_users.json
+      MBIIEZ_DATABASE: /var/lib/mbiiez/web_audit.db
+    ports:
+      - '${MBIIEZ_WEB_BIND:-127.0.0.1}:${MBIIEZ_WEB_PORT:-18080}:8080'
+    volumes:
+      - ${MBIIEZ_DATA:-./docker-data}/web:/var/lib/mbiiez
+
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: '${MBIIEZ_DOCKER_SUBNET:-10.78.0.0/24}'
