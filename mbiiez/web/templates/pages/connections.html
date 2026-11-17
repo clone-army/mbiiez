@@ -37,7 +37,7 @@
 {% endif %}
 
 {% macro ip_link(ip, banned) -%}
-<a class="conn-ip" href="/connections?q={{ ip|urlencode }}&days={{ view_bag.days }}">{{ ip }}</a>{% if banned %} <span class="badge bg-danger">banned</span>{% endif %}
+<a class="conn-ip" href="/connections?q={{ ip|urlencode }}&days={{ view_bag.days }}">{{ ip }}</a> <a class="ms-1 text-muted" href="https://proxycheck.io/lookup/{{ ip|urlencode }}" target="_blank" rel="noopener noreferrer" title="Look up this IP on proxycheck.io"><i class="fas fa-shield-alt"></i></a>{% if banned %} <span class="badge bg-danger">banned</span>{% endif %}
 {%- endmacro %}
 {% macro when(t) -%}<span class="conn-when" data-t="{{ t }}"></span>{%- endmacro %}
 

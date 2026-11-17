@@ -72,7 +72,7 @@
             <td class="text-nowrap"><a href="{{ link(c.name) }}" title="Search this name">{{ c.name }}</a></td>
             <td class="text-nowrap">
               {% if c.ip %}
-              <a class="chatlog-ip" href="{{ link(c.ip) }}" title="Everything said from this IP">{{ c.ip }}</a>
+              <a class="chatlog-ip" href="{{ link(c.ip) }}" title="Everything said from this IP">{{ c.ip }}</a> <a class="ms-1 text-muted" href="https://proxycheck.io/lookup/{{ c.ip|urlencode }}" target="_blank" rel="noopener noreferrer" title="Look up this IP on proxycheck.io"><i class="fas fa-shield-alt"></i></a>
               <a class="chatlog-trace ms-1" href="/connections?q={{ c.ip|urlencode }}&days=30" title="Trace on Connections"><i class="fas fa-route"></i></a>
               {% if c.banned %}<span class="badge bg-danger">banned</span>{% endif %}
               {% else %}<span class="text-muted small" title="No connection of this name on this server around then">unknown</span>{% endif %}

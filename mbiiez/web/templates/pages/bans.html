@@ -54,7 +54,7 @@
             <tbody id="bans-body">
               {% for ban in view_bag.bans %}
               <tr data-search="{{ (ban.ip ~ ' ' ~ ban.note ~ ' ' ~ ban.by)|lower }}">
-                <td class="text-nowrap"><code>{{ ban.ip }}</code></td>
+                <td class="text-nowrap"><code>{{ ban.ip }}</code> <a class="ms-1 text-muted" href="https://proxycheck.io/lookup/{{ ban.ip|urlencode }}" target="_blank" rel="noopener noreferrer" title="Look up this IP on proxycheck.io"><i class="fas fa-shield-alt"></i></a></td>
                 <td>
                   <div class="input-group input-group-sm bans-note">
                     <input type="text" class="form-control" maxlength="200" value="{{ ban.note }}" data-ip="{{ ban.ip }}">

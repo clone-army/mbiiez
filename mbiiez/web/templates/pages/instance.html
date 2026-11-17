@@ -96,7 +96,7 @@
             <li class="list-group-item d-flex align-items-center justify-content-between">
               <div>
                 <span class="fw-bold mb-preserve-space">{{ player.player_html|safe }}</span><br>
-                <a class="badge bg-primary text-decoration-none" href="/connections?q={{ player.ip|urlencode }}" title="Every name and connection from this IP">{{ player.ip }}</a>
+                <a class="badge bg-primary text-decoration-none" href="/connections?q={{ player.ip|urlencode }}" title="Every name and connection from this IP">{{ player.ip }}</a> <a class="ms-1 text-muted" href="https://proxycheck.io/lookup/{{ player.ip|urlencode }}" target="_blank" rel="noopener noreferrer" title="Look up this IP on proxycheck.io"><i class="fas fa-shield-alt"></i></a>
               </div>
               <span class="badge bg-info">{{ player.id }}</span>
             </li>

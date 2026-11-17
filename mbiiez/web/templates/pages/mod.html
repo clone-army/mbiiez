@@ -62,7 +62,7 @@
         <ul class="list-group">
           {% for player in view_bag.players %}
           <li class="list-group-item d-flex flex-column flex-sm-row justify-content-sm-between align-items-sm-center gap-2">
-            <span>{{ player.name|safe }} <a class="small" href="/connections?q={{ player.ip|urlencode }}" title="Every name and connection from this IP">({{ player.ip }})</a></span>
+            <span>{{ player.name|safe }} <a class="small" href="/connections?q={{ player.ip|urlencode }}" title="Every name and connection from this IP">({{ player.ip }})</a> <a class="ms-1 text-muted" href="https://proxycheck.io/lookup/{{ player.ip|urlencode }}" target="_blank" rel="noopener noreferrer" title="Look up this IP on proxycheck.io"><i class="fas fa-shield-alt"></i></a></span>
             <span class="d-flex flex-wrap gap-2">
               <button class="btn btn-sm btn-danger" onclick="banPlayer('{{ player.ip }}', '{{ player.id }}')" title="Ban the IP on every server, and kick them">Ban</button>
               <button class="btn btn-sm btn-outline-danger" onclick="tempbanPlayer('{{ player.id }}', '{{ player.ip }}')" title="Ban from this server for some rounds">Temp ban</button>
@@ -104,7 +104,7 @@
         <ul class="list-group" id="tempbans-list">
           {% for tb in view_bag.tempbans %}
           <li class="list-group-item d-flex flex-column flex-sm-row justify-content-sm-between align-items-sm-center gap-2">
-            <span><a href="/connections?q={{ tb.ip|urlencode }}">{{ tb.ip }}</a> <span class="text-muted small">({{ tb.rounds }} round{{ '' if tb.rounds == 1 else 's' }} left)</span></span>
+            <span><a href="/connections?q={{ tb.ip|urlencode }}">{{ tb.ip }}</a> <a class="ms-1 text-muted" href="https://proxycheck.io/lookup/{{ tb.ip|urlencode }}" target="_blank" rel="noopener noreferrer" title="Look up this IP on proxycheck.io"><i class="fas fa-shield-alt"></i></a> <span class="text-muted small">({{ tb.rounds }} round{{ '' if tb.rounds == 1 else 's' }} left)</span></span>
             <button class="btn btn-sm btn-success" onclick="removeTempban('{{ tb.ip }}')">Remove</button>
           </li>
           {% else %}
