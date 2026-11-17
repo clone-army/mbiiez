@@ -29,6 +29,9 @@ class plugin:
                     {"path": ["block_mobile"], "key": "block_mobile", "type": "bool_select", "default": 0,
                      "label": "Block Mobile Connections", "true_label": "Block", "false_label": "Allow",
                      "help": "Also kicks players on a mobile/cellular network (e.g. a tethered phone), not just VPNs."},
+                    {"path": ["padawan_tk"], "key": "padawan_tk", "type": "bool_select", "default": 0,
+                     "label": "PadawanTK Switch", "true_label": "On", "false_label": "Off",
+                     "help": "Kicks players on a mobile/cellular network, but only when their region is Texas."},
                 ],
             },
         ]
@@ -93,10 +96,18 @@ class plugin:
         if det.get('proxy') or det.get('vpn') or det.get('tor'):
             return "VPN"
 
-        try:
-            block_mobile = int(self.config.get('block_mobile', 0))
-        except (TypeError, ValueError):
-            block_mobile = 0
-        if block_mobile and str(info.get('network', {}).get('type', '')).lower() == 'wireless':
+        wireless = str(info.get('network', {}).get('type', '')).lower() == 'wireless'
+        if wireless and self._on('block_mobile'):
             return "Mobile connection"
+
+        if wireless and self._on('padawan_tk'):
+            loc = info.get('location', {})
+            if str(loc.get('region_code', '')).upper() == 'TX' or str(loc.get('region_name', '')).lower() == 'texas':
+                return "Mobile connection"
         return None
+
+    def _on(self, key):
+        try:
+            return int(self.config.get(key, 0)) == 1
+        except (TypeError, ValueError):
+            return False
