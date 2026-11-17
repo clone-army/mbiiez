@@ -56,7 +56,7 @@ class plugin:
         ip = args['ip']
         player = args['player']
 
-        reason = self.check_ip(ip)
+        reason, rule, loc = self.check_ip(ip)
         if not reason:
             return
 
@@ -73,11 +73,21 @@ class plugin:
         # After countdown, kick the player using RCON command
         self.instance.console.rcon(f"clientkick {player_id}")
 
+        if rule == 'padawan_tk':
+            try:
+                from mbiiez.db import db
+                db().insert("shield_kicks", {"instance": self.instance.name, "rule": rule, "player": player,
+                                             "ip": ip, "city": loc.get('city_name', ''),
+                                             "region": loc.get('region_name', '')})
+            except Exception as e:
+                self.instance.log_handler.log(f"Could not record shield kick for {player}: {e}")
+
         self.instance.say(f"A Player {player} was kicked: {reason} not allowed")
         self.instance.log_handler.log(f"A Player {player} was kicked: {reason} not allowed")
 
     def check_ip(self, ip):
-        """Returns a short reason string ("VPN", "Mobile connection") or None."""
+        """Returns (reason, rule, location): reason is "VPN" or "Mobile connection" (None to let them in),
+        rule says which setting caught them."""
         key = self.config.get('proxycheck_apikey', '')
         try:
             response = requests.get(f"https://proxycheck.io/v3/{ip}", params={"key": key}, timeout=10)
@@ -85,26 +95,26 @@ class plugin:
             data = response.json()
         except (requests.RequestException, ValueError) as e:
             self.instance.log_handler.log(f"Error checking IP {ip} with proxycheck.io: {e}")
-            return None
+            return None, None, {}
 
         if data.get('status') not in ('ok', 'warning'):
             self.instance.log_handler.log(f"proxycheck.io error for {ip}: {data.get('message', data.get('status'))}")
-            return None
+            return None, None, {}
 
         info = data.get(ip) or {}
         det = info.get('detections', {})
         if det.get('proxy') or det.get('vpn') or det.get('tor'):
-            return "VPN"
+            return "VPN", "vpn", {}
 
         wireless = str(info.get('network', {}).get('type', '')).lower() == 'wireless'
+        loc = info.get('location', {})
         if wireless and self._on('block_mobile'):
-            return "Mobile connection"
+            return "Mobile connection", "block_mobile", loc
 
         if wireless and self._on('padawan_tk'):
-            loc = info.get('location', {})
             if str(loc.get('region_code', '')).upper() == 'TX' or str(loc.get('region_name', '')).lower() == 'texas':
-                return "Mobile connection"
-        return None
+                return "Mobile connection", "padawan_tk", loc
+        return None, None, {}
 
     def _on(self, key):
         try:
