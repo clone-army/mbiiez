@@ -63,7 +63,7 @@
                 <td>
                   <code class="guid">{{ ban.guid }}</code>
                   <div class="small text-muted">
-                    {{ ban.name or '-' }}{% if ban.ip %} &middot; {{ ban.ip }}{% endif %}
+                    {{ ban.name or '-' }}{% if ban.ip %} &middot; {{ ban.ip }} <a class="ms-1 text-muted" href="https://proxycheck.io/lookup/{{ ban.ip|urlencode }}" target="_blank" rel="noopener noreferrer" title="Look up this IP on proxycheck.io"><i class="fas fa-shield-alt"></i></a>{% endif %}
                     {% if ban.ips|length > 1 %}<span title="{{ ban.ips|join(', ') }}"> (+{{ ban.ips|length - 1 }} more IP{{ 's' if ban.ips|length > 2 }})</span>{% endif %}
                   </div>
                   {% if ban.ban_ip %}<span class="badge bg-info text-dark">from IP ban {{ ban.ban_ip }}</span>{% endif %}

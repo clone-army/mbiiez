@@ -81,7 +81,7 @@
             <td><a href="{{ link(instance=a.instance) }}">{{ a.instance }}</a></td>
             <td><span class="badge bg-secondary">#{{ a.admin_id }}</span></td>
             <td class="smodlog-admin">{% for n in a.names %}<a href="{{ link(q=n) }}">{{ n }}</a>{% if not loop.last %}, {% endif %}{% endfor %}</td>
-            <td>{% for ip in a.ips %}<a class="smodlog-ip" href="{{ link(q=ip) }}">{{ ip }}</a> <a class="smodlog-trace" href="/connections?q={{ ip|urlencode }}&days=30" title="Trace on Connections"><i class="fas fa-route"></i></a>{% if not loop.last %}<br>{% endif %}{% endfor %}</td>
+            <td>{% for ip in a.ips %}<a class="smodlog-ip" href="{{ link(q=ip) }}">{{ ip }}</a> <a class="ms-1 text-muted" href="https://proxycheck.io/lookup/{{ ip|urlencode }}" target="_blank" rel="noopener noreferrer" title="Look up this IP on proxycheck.io"><i class="fas fa-shield-alt"></i></a> <a class="smodlog-trace" href="/connections?q={{ ip|urlencode }}&days=30" title="Trace on Connections"><i class="fas fa-route"></i></a>{% if not loop.last %}<br>{% endif %}{% endfor %}</td>
             <td class="text-end">{{ a.logins }}</td>
             <td class="text-end">{% if a.failed %}<span class="text-danger fw-semibold">{{ a.failed }}</span>{% else %}0{% endif %}</td>
             <td class="text-end">{{ a.commands }}</td>
@@ -113,7 +113,7 @@
             <td><a href="{{ link(instance=e.instance) }}">{{ e.instance }}</a></td>
             <td><a href="{{ link(action=e.action) }}" class="badge {{ b[0] }}">{{ b[1] }}</a></td>
             <td class="text-nowrap"><a href="{{ link(q=e.admin) }}" title="Search this name">{{ e.admin }}</a> <span class="badge bg-secondary" title="Admin slot">#{{ e.admin_id }}</span></td>
-            <td class="text-nowrap">{% if e.ip %}<a class="smodlog-ip" href="{{ link(q=e.ip) }}">{{ e.ip }}</a> <a class="smodlog-trace" href="/connections?q={{ e.ip|urlencode }}&days=30" title="Trace on Connections"><i class="fas fa-route"></i></a>{% endif %}</td>
+            <td class="text-nowrap">{% if e.ip %}<a class="smodlog-ip" href="{{ link(q=e.ip) }}">{{ e.ip }}</a> <a class="ms-1 text-muted" href="https://proxycheck.io/lookup/{{ e.ip|urlencode }}" target="_blank" rel="noopener noreferrer" title="Look up this IP on proxycheck.io"><i class="fas fa-shield-alt"></i></a> <a class="smodlog-trace" href="/connections?q={{ e.ip|urlencode }}&days=30" title="Trace on Connections"><i class="fas fa-route"></i></a>{% endif %}</td>
             <td class="smodlog-what">
               {% if e.action == 'command' %}<code>{{ e.command }}{% if e.args %} {{ e.args }}{% endif %}</code>
               {% elif e.action == 'say' %}{% if e.command and e.command != 'say' %}<span class="text-muted small">{{ e.command }}:</span> {% endif %}{{ e.message }}
