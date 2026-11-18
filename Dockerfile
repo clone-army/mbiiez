@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 FROM debian:bookworm-slim AS engine
-ARG OPENJK_REF=56b0708059b2adfb429419cf6332578393d08767
+ARG OPENJK_REF=4a9046c9f6d2da6934f652c15c365f763018835d
 RUN dpkg --add-architecture i386 && apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates git cmake build-essential gcc-multilib g++-multilib \
     libjpeg-dev:i386 libpng-dev:i386 zlib1g-dev:i386 curl && rm -rf /var/lib/apt/lists/*
