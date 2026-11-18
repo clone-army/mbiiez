@@ -1292,9 +1292,9 @@ def padawankicks_page():
                 whitelist.append(dict(w, node=identifier, node_name=node["name"], added_text=_when(w.get("added", 0))))
         except NodeError as exc:
             errors.append({"node": node["name"], "error": str(exc)})
-    listed = {(w["node"], nicknamebans.normalize(w["name"])) for w in whitelist}
+    listed = {(w["node"], _nick_normalize(w["name"])) for w in whitelist}
     for e in entries:
-        e["whitelisted"] = (e["node"], nicknamebans.normalize(e["player"])) in listed
+        e["whitelisted"] = (e["node"], _nick_normalize(e["player"])) in listed
     per_page = 250
     view_bag = {"whitelist": whitelist, "query": filters["q"], "instance": filters["instance"], "days": days, "node": node_filter,
                 "nodes": [{"id": i, "name": n["name"]} for i, n in nodes().items()],
@@ -1395,6 +1395,9 @@ def guidbans_note():
     data = request.get_json(silent=True) or {}
     success, msg = guidbans.set_note(data.get("guid"), data.get("note", ""))
     return {"success": success, "message": msg, "error": None if success else msg}
+
+
+from mbiiez.nicknamebans import normalize as _nick_normalize
 
 
 def _whitelist_node():
