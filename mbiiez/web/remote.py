@@ -34,6 +34,8 @@ class Module:
 instance_admin = Module('instance_admin', ['wizard_bag', 'create_instance', 'delete_instance', 'is_running'])
 bansync = Module('bansync', ['list_bans', 'add_ban', 'remove_ban', 'set_note'])
 guidbans = Module('guidbans', ['list_bans', 'add_ban', 'remove_ban', 'set_note'])
+nicknamebans = Module('nicknamebans', ['list_bans', 'add_ban', 'remove_ban', 'set_note'])
 connections = Module('connections', ['search', 'chat_search'])
 smodlog = Module('smodlog', ['search'])
 padawankicks = Module('padawankicks', ['search'])
+padawanwhitelist = Module('padawanwhitelist', ['list_names', 'add_name', 'remove_name'])

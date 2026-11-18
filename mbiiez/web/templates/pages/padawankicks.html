@@ -58,7 +58,7 @@
     {% if vb.entries %}
     <div class="table-responsive">
       <table class="table table-sm table-hover pk-table mb-0">
-        <thead><tr><th>When</th>{% if multi_node %}<th>Node</th>{% endif %}<th>Server</th><th>Player</th><th>IP</th><th>Location</th></tr></thead>
+        <thead><tr><th>When</th>{% if multi_node %}<th>Node</th>{% endif %}<th>Server</th><th>Player</th><th>IP</th><th>Location</th><th></th></tr></thead>
         <tbody>
           {% for e in vb.entries %}
           <tr>
@@ -68,6 +68,7 @@
             <td><a href="{{ link(q=e.player) }}" title="Search this name">{{ e.player }}</a></td>
             <td class="text-nowrap">{% if e.ip %}<a class="pk-ip" href="/connections?q={{ e.ip|urlencode }}&days=30" title="Trace on Connections">{{ e.ip }}</a> <a class="ms-1 text-muted" href="https://proxycheck.io/lookup/{{ e.ip|urlencode }}" target="_blank" rel="noopener noreferrer" title="Look up this IP on proxycheck.io"><i class="fas fa-shield-alt"></i></a>{% endif %}</td>
             <td>{{ e.city }}{% if e.city and e.region %}, {% endif %}{{ e.region }}</td>
+            <td class="text-end text-nowrap">{% if e.whitelisted %}<span class="badge bg-success">Whitelisted</span>{% elif e.player %}<button type="button" class="btn btn-sm btn-outline-success pk-wl-add" data-name="{{ e.player }}" data-node="{{ e.node }}" title="Never PadawanTK-kick this nickname"><i class="fas fa-user-check"></i> Whitelist</button>{% endif %}</td>
           </tr>
           {% endfor %}
         </tbody>
@@ -83,6 +84,50 @@
     {% endif %}
   </div>
 </div>
+
+<div class="card pk-card mt-4">
+  <div class="card-body">
+    <h5 class="mb-1">Whitelist</h5>
+    <div class="text-muted small mb-3">Players with these nicknames are never kicked by PadawanTK (colour codes and capitals are ignored; the whole name must match). VPN blocking still applies. Applies to new connections once a server has restarted with this feature.</div>
+    <form class="row g-2 align-items-end mb-3" id="pk-wl-form">
+      <div class="col-12 col-md-4"><input class="form-control" id="pk-wl-name" placeholder="Nickname" maxlength="64" required></div>
+      <div class="col-12 col-md-4"><input class="form-control" id="pk-wl-note" placeholder="Note (optional)" maxlength="200"></div>
+      <div class="col-6 col-md-2"><select class="form-select" id="pk-wl-node">{% for n in vb.nodes %}<option value="{{ n.id }}">{{ n.name }}</option>{% endfor %}</select></div>
+      <div class="col-6 col-md-2"><button class="btn btn-success w-100" type="submit">Add</button></div>
+    </form>
+    {% if vb.whitelist %}
+    <div class="table-responsive"><table class="table table-sm pk-table mb-0">
+      <thead><tr><th>Nickname</th>{% if multi_node %}<th>Node</th>{% endif %}<th>Note</th><th>Added</th><th></th></tr></thead>
+      <tbody>{% for w in vb.whitelist %}
+        <tr><td>{{ w.name }}</td>{% if multi_node %}<td>{{ w.node_name }}</td>{% endif %}<td>{{ w.note }}</td><td class="text-muted small">{{ w.added_text }}{% if w.by %} · {{ w.by }}{% endif %}</td>
+        <td class="text-end"><button type="button" class="btn btn-sm btn-outline-danger pk-wl-del" data-name="{{ w.name }}" data-node="{{ w.node }}"><i class="fas fa-times"></i> Remove</button></td></tr>
+      {% endfor %}</tbody></table></div>
+    {% else %}<div class="text-muted">Nobody is whitelisted.</div>{% endif %}
+  </div>
+</div>
+
+<script>
+(function () {
+  function post(url, body) {
+    return fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+      .then(function (r) { return r.json(); })
+      .then(function (d) { if (!d.success) { alert(d.message || d.error || 'Failed'); } else { location.reload(); } })
+      .catch(function () { alert('Request failed'); });
+  }
+  document.querySelectorAll('.pk-wl-add').forEach(function (b) {
+    b.addEventListener('click', function () {
+      if (confirm('Whitelist "' + b.dataset.name + '" so PadawanTK never kicks that nickname?')) post('/padawankicks/whitelist/add', { name: b.dataset.name, node: b.dataset.node });
+    });
+  });
+  document.querySelectorAll('.pk-wl-del').forEach(function (b) {
+    b.addEventListener('click', function () { post('/padawankicks/whitelist/remove', { name: b.dataset.name, node: b.dataset.node }); });
+  });
+  document.getElementById('pk-wl-form').addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    post('/padawankicks/whitelist/add', { name: document.getElementById('pk-wl-name').value, note: document.getElementById('pk-wl-note').value, node: document.getElementById('pk-wl-node').value });
+  });
+})();
+</script>
 
 <script>
 (function () {

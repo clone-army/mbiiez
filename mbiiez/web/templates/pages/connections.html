@@ -61,7 +61,7 @@
           <h6 class="text-uppercase text-muted small fw-bold">Names</h6>
           <div class="table-responsive">
             <table class="table table-sm conn-table mb-0">
-              <thead><tr><th>Name</th><th>Sessions</th><th>Last seen</th><th>Servers</th></tr></thead>
+              <thead><tr><th>Name</th><th>Sessions</th><th>Last seen</th><th>Servers</th><th></th></tr></thead>
               <tbody>
                 {% for n in person.names %}
                 <tr>
@@ -69,6 +69,7 @@
                   <td>{{ n.sessions }}</td>
                   <td>{{ when(n.last) }}</td>
                   <td class="small">{{ n.instances|join(', ') }}</td>
+                  <td class="text-end text-nowrap">{% if n.banned %}<span class="badge bg-danger">banned</span>{% else %}<button class="btn btn-sm btn-outline-danger py-0" type="button" data-name="{{ n.name }}" onclick="connBanName(this)">Ban name</button>{% endif %}</td>
                 </tr>
                 {% endfor %}
               </tbody>
@@ -238,6 +239,26 @@
     if (text) text.addEventListener('input', apply);
   });
 })();
+function connBanName(btn) {
+  let name = btn.dataset.name;
+  const exact = confirm('Ban the nickname "' + name + '" on every server?\n\nOK = exact name only (colour codes and case ignored).\nCancel = choose "contains" instead.');
+  let mode = 'exact';
+  if (!exact) {
+    const part = prompt('Ban any name CONTAINING this text (at least 3 characters). Edit it if you want a shorter part:', name);
+    if (part === null) return;
+    name = part; mode = 'contains';
+  }
+  const note = prompt('Note (who and why):', '');
+  if (note === null) return;
+  fetch('/nicknamebans/add', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ pattern: name, mode: mode, note: note })
+  }).then(r => r.json()).then(data => {
+    if (!data.success) { mbiiToast(data.error || 'Ban failed', 'danger'); return; }
+    location.reload();
+  });
+}
 function connBan(ip) {
   const note = prompt('Ban ' + ip + ' on every server? Add a note (who and why):', '');
   if (note === null) return;

@@ -328,6 +328,14 @@ class _People:
             self.parent[rb] = ra
 
 
+def _nick_banned(name):
+    try:
+        from mbiiez import nicknamebans
+        return nicknamebans.check(name)
+    except Exception:
+        return None
+
+
 def _bans():
     ips, guids = set(), set()
     try:
@@ -460,7 +468,7 @@ def search(query="", days=14):
                             "first": min((s["start"] for s in on), default=0), "last": max((s["end"] for s in on), default=0),
                             "matched": ip.startswith(query) if _IP.match(query) else False})
         result["people"].append({
-            "names": [dict(n, ips=sorted(n["ips"]), instances=sorted(n["instances"]))
+            "names": [dict(n, ips=sorted(n["ips"]), instances=sorted(n["instances"]), banned=bool(_nick_banned(n["name"])))
                       for n in sorted(names.values(), key=lambda n: -n["last"]) if n["name"]],
             "ips": sorted(ip_rows, key=lambda r: -r["last"]),
             "guids": [{"guid": g, "banned": g in banned_guids} for g in sorted(guids)],
