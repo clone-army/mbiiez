@@ -60,6 +60,10 @@ class plugin:
         if not reason:
             return
 
+        if rule == 'padawan_tk' and self._whitelisted(player):
+            self.instance.log_handler.log(f"PadawanTK: {player} ({ip}) is whitelisted, not kicking")
+            return
+
         print(f"{reason} detected for player {player}")
         self.instance.log_handler.log(f"{reason} detected for player {player} with ip {ip}")
 
@@ -69,6 +73,10 @@ class plugin:
                 self.instance.tell(player_id, f"{reason} detected! You will be removed from the server in {countdown_start} seconds.")
             time.sleep(1)
             countdown_start -= 1
+
+        if rule == 'padawan_tk' and self._whitelisted(player):
+            self.instance.log_handler.log(f"PadawanTK: {player} ({ip}) was whitelisted during the countdown, not kicking")
+            return
 
         # After countdown, kick the player using RCON command
         self.instance.console.rcon(f"clientkick {player_id}")
@@ -115,6 +123,14 @@ class plugin:
             if str(loc.get('region_code', '')).upper() == 'TX' or str(loc.get('region_name', '')).lower() == 'texas':
                 return "Mobile connection", "padawan_tk", loc
         return None, None, {}
+
+    @staticmethod
+    def _whitelisted(player):
+        try:
+            from mbiiez import padawanwhitelist
+            return padawanwhitelist.is_whitelisted(player)
+        except Exception:
+            return False
 
     def _on(self, key):
         try:

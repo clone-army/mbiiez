@@ -18,7 +18,7 @@ from mbiiez.api.storage import state_dir, locked, read as read_state, write as w
 from mbiiez.api import SOFTWARE_VERSION
 from mbiiez.api.client import Client, NodeError, nodes, selected_node, save_node, remove_node, is_local_node
 from mbiiez.web import auto_sync, public_dashboard, levelshots
-from mbiiez.web.remote import controller as remote_controller, instance_admin, bansync, guidbans, connections
+from mbiiez.web.remote import controller as remote_controller, instance_admin, bansync, guidbans, nicknamebans, connections
 from mbiiez.db import db
 
 # Web Tools
@@ -304,6 +304,7 @@ def _required_role_for_path(path, method):
         "/rcon",
         "/bans",
         "/guidbans",
+        "/nicknamebans",
     ]
 
     if path.startswith("/instance/") and path.endswith("/command"):
@@ -1250,7 +1251,6 @@ def smodlog_page():
     return render_template("pages/smodlog.html", view_bag=view_bag)
 
 
-@app.route("/mod/tell", methods=["POST"])
 @app.route("/padawankicks", methods=["GET"])
 @require_role("mod")
 def padawankicks_page():
@@ -1285,8 +1285,18 @@ def padawankicks_page():
         truncated = truncated or data["truncated"]
         days, kept = data["days"], data["kept_days"]
     entries.sort(key=lambda e: -e["t"])
+    whitelist = []
+    for identifier, node in nodes().items():
+        try:
+            for w in Client(identifier, actor=actor).action("padawanwhitelist.list_names"):
+                whitelist.append(dict(w, node=identifier, node_name=node["name"], added_text=_when(w.get("added", 0))))
+        except NodeError as exc:
+            errors.append({"node": node["name"], "error": str(exc)})
+    listed = {(w["node"], nicknamebans.normalize(w["name"])) for w in whitelist}
+    for e in entries:
+        e["whitelisted"] = (e["node"], nicknamebans.normalize(e["player"])) in listed
     per_page = 250
-    view_bag = {"query": filters["q"], "instance": filters["instance"], "days": days, "node": node_filter,
+    view_bag = {"whitelist": whitelist, "query": filters["q"], "instance": filters["instance"], "days": days, "node": node_filter,
                 "nodes": [{"id": i, "name": n["name"]} for i, n in nodes().items()],
                 "entries": entries[page * per_page:(page + 1) * per_page], "more": len(entries) > (page + 1) * per_page,
                 "page": page, "total": len(entries), "truncated": truncated, "errors": errors,
@@ -1294,6 +1304,7 @@ def padawankicks_page():
     return render_template("pages/padawankicks.html", view_bag=view_bag)
 
 
+@app.route("/mod/tell", methods=["POST"])
 @require_role("mod")
 def mod_tell():
     data = request.get_json() or {}
@@ -1383,6 +1394,88 @@ def guidbans_remove():
 def guidbans_note():
     data = request.get_json(silent=True) or {}
     success, msg = guidbans.set_note(data.get("guid"), data.get("note", ""))
+    return {"success": success, "message": msg, "error": None if success else msg}
+
+
+def _whitelist_node():
+    data = request.get_json(silent=True) or {}
+    identifier = str(data.get("node") or "")
+    if identifier not in nodes():
+        return data, None
+    return data, Client(identifier, actor=getattr(g, "current_user", "") or "web")
+
+
+@app.route("/padawankicks/whitelist/add", methods=["POST"])
+@require_role("mod")
+def padawanwhitelist_add():
+    data, client = _whitelist_node()
+    if client is None:
+        return {"success": False, "message": "Pick a node.", "error": "Pick a node."}
+    try:
+        success, msg = client.action("padawanwhitelist.add_name", data.get("name"), str(data.get("note", ""))[:200],
+                                     "{} (web)".format(_current_user()))
+    except NodeError as exc:
+        return {"success": False, "message": str(exc), "error": str(exc)}
+    if success:
+        _audit("padawan_whitelist_add", details="{} on {}".format(data.get("name", ""), data.get("node", ""))[:200])
+    return {"success": success, "message": msg, "error": None if success else msg}
+
+
+@app.route("/padawankicks/whitelist/remove", methods=["POST"])
+@require_role("mod")
+def padawanwhitelist_remove():
+    data, client = _whitelist_node()
+    if client is None:
+        return {"success": False, "message": "Pick a node.", "error": "Pick a node."}
+    try:
+        success, msg = client.action("padawanwhitelist.remove_name", data.get("name"))
+    except NodeError as exc:
+        return {"success": False, "message": str(exc), "error": str(exc)}
+    if success:
+        _audit("padawan_whitelist_remove", details="{} on {}".format(data.get("name", ""), data.get("node", ""))[:200])
+    return {"success": success, "message": msg, "error": None if success else msg}
+
+
+@app.route("/nicknamebans", methods=["GET"])
+@require_role("mod")
+def nicknamebans_page():
+    bans = nicknamebans.list_bans()
+    for b in bans:
+        b["added_text"] = _when(b.get("added", 0))
+        b["last_drop_text"] = _when(b.get("last_drop", 0))
+    return render_template("pages/nicknamebans.html", view_bag={
+        "bans": bans,
+        "total_drops": sum(b.get("drops", 0) for b in bans),
+    })
+
+
+@app.route("/nicknamebans/add", methods=["POST"])
+@require_role("mod")
+def nicknamebans_add():
+    data = request.get_json(silent=True) or {}
+    note = str(data.get("note", "")).strip() or "by {} (web)".format(_current_user())
+    success, msg = nicknamebans.add_ban(data.get("pattern"), data.get("mode", "exact"), note[:200],
+                                        bool(data.get("ban_ip")), "{} (web)".format(_current_user()))
+    if success:
+        _audit("nicknameban_add", details="{} [{}] {}".format(data.get("pattern", ""), data.get("mode", "exact"), note)[:200])
+    return {"success": success, "message": msg, "error": None if success else msg}
+
+
+@app.route("/nicknamebans/remove", methods=["POST"])
+@require_role("mod")
+def nicknamebans_remove():
+    data = request.get_json(silent=True) or {}
+    success, msg = nicknamebans.remove_ban(data.get("pattern"), data.get("mode", "exact"))
+    if success:
+        _audit("nicknameban_remove", details="{} [{}]".format(data.get("pattern", ""), data.get("mode", "exact")))
+    return {"success": success, "message": msg, "error": None if success else msg}
+
+
+@app.route("/nicknamebans/note", methods=["POST"])
+@require_role("mod")
+def nicknamebans_note():
+    data = request.get_json(silent=True) or {}
+    success, msg = nicknamebans.set_note(data.get("pattern"), data.get("mode", "exact"), data.get("note", ""))
     return {"success": success, "message": msg, "error": None if success else msg}
 
 

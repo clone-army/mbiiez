@@ -208,6 +208,11 @@ class event_handler:
         return db().insert("frags", d)
         
     def player_connected (self, args):    
+        try:
+            from mbiiez import nicknamebans
+            nicknamebans.enforce(self.instance, args['player_id'], args['player'], args['ip'])
+        except Exception as e:
+            self.instance.log_handler.log("Nickname ban check failed: {}".format(e))
         d = {"added": str(datetime.datetime.now()), "player": args['player'], "player_id": args['player_id'], "instance": self.instance.name, "ip": args['ip'], "type": "CONNECT"}
         # MBII logs everyone in the game again at each map change: one row a
         # stay, not one a map (same slot, IP and name in the last 6 hours).
@@ -274,6 +279,12 @@ class event_handler:
                 class_id = 0
                 class_name = "Unknown"
      
+            try:
+                from mbiiez import nicknamebans
+                nicknamebans.enforce(self.instance, player_id, player)
+            except Exception as e:
+                self.instance.log_handler.log("Nickname ban check failed: {}".format(e))
+
             d = {"added": str(datetime.datetime.now()), "player": player, "player_id": player_id, "instance": self.instance.name, "class_name": class_name, "class_id": class_id, "model": model}
             return db().insert("player_info", d)
             

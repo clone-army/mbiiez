@@ -56,11 +56,15 @@
                     </ul>
                 </li>
                 {% if can_mod %}
+                {% set on_bans = request.path.startswith('/bans') or request.path.startswith('/guidbans') or request.path.startswith('/nicknamebans') or request.path.startswith('/padawankicks') %}
                 <li>
-                    <a href="/bans" class="{% if request.path.startswith('/bans') %}active{% endif %}"><i class="fas fa-ban"></i> IP Bans</a>
-                </li>
-                <li>
-                    <a href="/guidbans" class="{% if request.path.startswith('/guidbans') %}active{% endif %}"><i class="fas fa-fingerprint"></i> GUID Bans</a>
+                    <a href="#bans-menu" data-bs-toggle="collapse" aria-expanded="{{ 'true' if on_bans else 'false' }}" class="dropdown-toggle no-caret-down"><i class="fas fa-ban"></i> Bans</a>
+                    <ul class="collapse list-unstyled {% if on_bans %}show{% endif %}" id="bans-menu" style="padding-left: 1.5rem; background-color: #151b24;">
+                        <li><a href="/bans" class="{% if request.path.startswith('/bans') %}active{% endif %}"><i class="fas fa-network-wired"></i> IP Bans</a></li>
+                        <li><a href="/guidbans" class="{% if request.path.startswith('/guidbans') %}active{% endif %}"><i class="fas fa-fingerprint"></i> GUID Bans</a></li>
+                        <li><a href="/nicknamebans" class="{% if request.path.startswith('/nicknamebans') %}active{% endif %}"><i class="fas fa-user-tag"></i> Nickname Bans</a></li>
+                        <li><a href="/padawankicks" class="{% if request.path.startswith('/padawankicks') %}active{% endif %}"><i class="fas fa-user-slash"></i> Padawan Kicks</a></li>
+                    </ul>
                 </li>
                 <li>
                     <a href="/connections" class="{% if request.path.startswith('/connections') %}active{% endif %}"><i class="fas fa-route"></i> Connections</a>

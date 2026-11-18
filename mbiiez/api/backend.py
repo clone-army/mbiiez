@@ -26,6 +26,9 @@ ACTIONS = {
     'bansync.list_bans': 'mod', 'bansync.add_ban': 'mod', 'bansync.remove_ban': 'mod',
     'bansync.set_note': 'mod', 'guidbans.list_bans': 'mod', 'guidbans.add_ban': 'mod',
     'guidbans.remove_ban': 'mod', 'guidbans.set_note': 'mod',
+    'nicknamebans.list_bans': 'mod', 'nicknamebans.add_ban': 'mod', 'nicknamebans.remove_ban': 'mod',
+    'nicknamebans.set_note': 'mod',
+    'padawanwhitelist.list_names': 'mod', 'padawanwhitelist.add_name': 'mod', 'padawanwhitelist.remove_name': 'mod',
 }
 view_lock = threading.RLock()
 
@@ -65,7 +68,7 @@ def action(name, args):
         config_path(args[0])
     if module == 'instance_admin' and method in ('delete_instance', 'is_running'):
         config_path(args[0])
-    if module in ('bansync', 'guidbans', 'nicknamebans', 'connections', 'smodlog', 'padawankicks'):
+    if module in ('bansync', 'guidbans', 'nicknamebans', 'connections', 'smodlog', 'padawankicks', 'padawanwhitelist'):
         obj = importlib.import_module('mbiiez.' + module)
     elif module == 'instance_admin':
         obj = importlib.import_module('mbiiez.web.controllers.instance_admin')

@@ -1,0 +1,158 @@
+{% extends 'base.html' %}
+{% block content %}
+<style>
+  .bans-card { border: 0; box-shadow: 0 8px 22px rgba(31, 44, 62, 0.08); }
+  .bans-table td { vertical-align: middle; }
+  .bans-note { min-width: 180px; }
+</style>
+
+<div class="page-header mb-4">
+  <h3 class="page-title mb-1">Nickname Bans</h3>
+  <div class="text-muted">The game can't ban a name itself, so MBIIEZ checks every player's name when they connect or change it, and kicks them if it matches. Anyone already playing under the name is kicked when you add the ban. Colour codes and capital letters are ignored. Names are easy to change, so for repeat offenders ban their <a href="/bans">IP</a> or <a href="/guidbans">GUID</a> as well, or tick "Also ban their IP" below.</div>
+</div>
+
+<div id="status" class="mb-3"></div>
+
+<div class="row">
+  <div class="col-xl-4 col-lg-5 mb-4">
+    <div class="card bans-card h-100">
+      <div class="card-body">
+        <h5 class="card-title mb-3">Ban a nickname</h5>
+        <form id="add-ban-form" autocomplete="off">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Nickname</label>
+            <input type="text" id="add-pattern" class="form-control" maxlength="64" placeholder="Padawan" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Match</label>
+            <select id="add-mode" class="form-select">
+              <option value="exact">The whole name is exactly this</option>
+              <option value="contains">The name contains this (3+ characters)</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Note</label>
+            <input type="text" id="add-note" class="form-control" maxlength="200" placeholder="Who and why (optional)">
+          </div>
+          <div class="form-check mb-4">
+            <input class="form-check-input" type="checkbox" id="add-ban-ip">
+            <label class="form-check-label" for="add-ban-ip">Also ban their IP when this name is caught</label>
+          </div>
+          <button type="submit" class="btn btn-danger w-100">Ban on every server</button>
+        </form>
+      </div>
+    </div>
+  </div>
+  <div class="col-xl-8 col-lg-7 mb-4">
+    <div class="card bans-card h-100">
+      <div class="card-body">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+          <h5 class="card-title mb-0">Banned nicknames <span class="badge bg-secondary">{{ view_bag.bans|length }}</span>
+            <span class="badge bg-danger" title="Times a player was kicked for a banned name">{{ view_bag.total_drops }} kicks</span></h5>
+          <input type="search" id="ban-search" class="form-control form-control-sm" style="max-width: 220px;" placeholder="Search">
+        </div>
+        <div class="table-responsive">
+          <table class="table table-hover bans-table mb-0">
+            <thead>
+              <tr><th>Nickname</th><th>Note</th><th class="text-center">Kicks</th><th>Added</th><th></th></tr>
+            </thead>
+            <tbody id="bans-body">
+              {% for ban in view_bag.bans %}
+              <tr data-search="{{ (ban.pattern ~ ' ' ~ ban.note ~ ' ' ~ ban.last_name)|lower }}">
+                <td>
+                  <span class="fw-semibold">{{ ban.pattern }}</span>
+                  <span class="badge {{ 'bg-warning text-dark' if ban.mode == 'contains' else 'bg-secondary' }}">{{ 'contains' if ban.mode == 'contains' else 'exact' }}</span>
+                  {% if ban.ban_ip %}<span class="badge bg-info text-dark">also bans IP</span>{% endif %}
+                </td>
+                <td>
+                  <div class="input-group input-group-sm bans-note">
+                    <input type="text" class="form-control" maxlength="200" value="{{ ban.note }}" data-pattern="{{ ban.pattern }}" data-mode="{{ ban.mode }}">
+                    <button class="btn btn-outline-secondary" type="button" onclick="saveNote(this)">Save</button>
+                  </div>
+                </td>
+                <td class="text-center">
+                  <span class="fw-semibold">{{ ban.drops or 0 }}</span>
+                  {% if ban.last_drop_text %}<div class="small text-muted text-nowrap">last {{ ban.last_drop_text }}</div>{% endif %}
+                </td>
+                <td class="small text-muted text-nowrap">{{ ban.added_text }}</td>
+                <td class="text-end"><button class="btn btn-sm btn-success" data-pattern="{{ ban.pattern }}" data-mode="{{ ban.mode }}" onclick="unban(this)">Unban</button></td>
+              </tr>
+              {% else %}
+              <tr><td colspan="5" class="text-muted">No nicknames are banned.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function setStatus(msg, ok = true) {
+  const el = document.getElementById('status');
+  el.className = 'alert ' + (ok ? 'alert-success' : 'alert-danger');
+  el.textContent = msg;
+}
+
+async function postJson(url, payload) {
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || !data.success) {
+    throw new Error(data.error || 'Request failed.');
+  }
+  return data;
+}
+
+document.getElementById('add-ban-form').addEventListener('submit', async function (e) {
+  e.preventDefault();
+  try {
+    await postJson('/nicknamebans/add', {
+      pattern: document.getElementById('add-pattern').value.trim(),
+      mode: document.getElementById('add-mode').value,
+      note: document.getElementById('add-note').value.trim(),
+      ban_ip: document.getElementById('add-ban-ip').checked
+    });
+    location.reload();
+  } catch (err) {
+    setStatus(err.message, false);
+  }
+});
+
+async function unban(button) {
+  if (!confirm('Unban the nickname "' + button.dataset.pattern + '" on every server?')) return;
+  button.disabled = true;
+  try {
+    await postJson('/nicknamebans/remove', { pattern: button.dataset.pattern, mode: button.dataset.mode });
+    location.reload();
+  } catch (err) {
+    button.disabled = false;
+    setStatus(err.message, false);
+  }
+}
+
+async function saveNote(button) {
+  const input = button.parentElement.querySelector('input');
+  button.disabled = true;
+  try {
+    await postJson('/nicknamebans/note', { pattern: input.dataset.pattern, mode: input.dataset.mode, note: input.value });
+    setStatus('Note saved for ' + input.dataset.pattern + '.');
+  } catch (err) {
+    setStatus(err.message, false);
+  } finally {
+    button.disabled = false;
+  }
+}
+
+document.getElementById('ban-search').addEventListener('input', function () {
+  const q = this.value.trim().toLowerCase();
+  document.querySelectorAll('#bans-body tr[data-search]').forEach(function (row) {
+    row.style.display = (!q || row.dataset.search.includes(q)) ? '' : 'none';
+  });
+});
+</script>
+{% endblock %}
