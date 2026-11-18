@@ -39,6 +39,12 @@ class plugin:
     instance = None
     plugin_config = None
 
+    # Results per IP, shared by every instance in this process, so reconnects
+    # don't each use up a proxycheck query (the free key allows 1,000 a day).
+    CACHE_SECONDS = 6 * 3600
+    _cache = {}
+    _cache_lock = threading.Lock()
+
     def __init__(self, instance):
         self.instance = instance
         self.config = self.instance.config['plugins']['shield']
@@ -97,18 +103,36 @@ class plugin:
         """Returns (reason, rule, location): reason is "VPN" or "Mobile connection" (None to let them in),
         rule says which setting caught them."""
         key = self.config.get('proxycheck_apikey', '')
+        with self._cache_lock:
+            hit = self._cache.get(ip)
+        if hit and time.time() - hit[0] < self.CACHE_SECONDS:
+            data = hit[1]
+        else:
+            data = self.lookup(ip, key)
+            if data is None:
+                return None, None, {}
+            with self._cache_lock:
+                if len(self._cache) > 5000:
+                    self._cache.clear()
+                self._cache[ip] = (time.time(), data)
+        return self.classify(ip, data)
+
+    def lookup(self, ip, key):
+        """The proxycheck.io answer for ip, or None if it couldn't be had (the player is then let in)."""
         try:
             response = requests.get(f"https://proxycheck.io/v3/{ip}", params={"key": key}, timeout=10)
             response.raise_for_status()
             data = response.json()
         except (requests.RequestException, ValueError) as e:
             self.instance.log_handler.log(f"Error checking IP {ip} with proxycheck.io: {e}")
-            return None, None, {}
+            return None
 
         if data.get('status') not in ('ok', 'warning'):
             self.instance.log_handler.log(f"proxycheck.io error for {ip}: {data.get('message', data.get('status'))}")
-            return None, None, {}
+            return None
+        return data
 
+    def classify(self, ip, data):
         info = data.get(ip) or {}
         det = info.get('detections', {})
         if det.get('proxy') or det.get('vpn') or det.get('tor'):
