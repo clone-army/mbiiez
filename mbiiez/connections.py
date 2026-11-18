@@ -4,7 +4,7 @@ instance on this node, the names used and the IPs and GUIDs behind them.
 Three sources, merged:
 
   - the connections table (mbiiez.db): a CONNECT row for each ClientConnect
-    in an instance's games log - name, IP, instance (kept 14 days). MBII logs
+    in an instance's games log - name, IP, instance (kept 180 days). MBII logs
     everyone again on each map change, so the same player shows up many times;
   - connections.log beside guidbans.txt, written by the engine on every
     connect and every name change in game - with the GUID too (trimmed here
@@ -28,7 +28,7 @@ import time
 from mbiiez import settings
 
 LOG_FILE = "connections.log"
-LOG_DAYS = 30
+LOG_DAYS = 180
 SESSION_GAP = 3 * 3600
 MAX_PEOPLE = 25
 MAX_SESSIONS = 300

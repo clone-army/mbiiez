@@ -225,7 +225,7 @@ class db:
     RETENTION_DAYS = {
         "logs": 7,
         "chatter": 7,
-        "connections": 30,
+        "connections": 180,
         "player_info": 14,
         "frags": 30,
         "processes": 3,
